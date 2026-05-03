@@ -1,15 +1,15 @@
 <div align="center">
-  <img src="imgs/logo.png" alt="YouTube Pro Plus Logo" width="150"/>
-  <h1> YouTube Pro Plus</h1>
+  <img src="imgs/logo.png" alt="YouTube Pro Plus Logo" width="150"/>
+  <h1> YouTube Pro Plus</h1>
 
-  ![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)
-  ![Platform](https://img.shields.io/badge/platform-Firefox%20%7C%20Edge%20%7C%20Chromium-green.svg)
+  ![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)
+  ![Platform](https://img.shields.io/badge/platform-Firefox%20%7C%20Edge%20%7C%20Chromium-green.svg)
 </div>
 
 **YouTube Pro +** is an all-in-one, highly optimized extension designed to completely overhaul your YouTube experience. It makes your life so smooth with useful features and a stylish theme all into one centralized, lightweight extension with a beautiful **Liquid Glass** UI.
 
 <div align="center">
-  <img src="imgs/homepanel.png" alt="YouTube Pro Plus Interface" width="300"/>
+  <img src="imgs/homepanel.png" alt="YouTube Pro Plus Interface" width="300"/>
 </div>
 
 ---
@@ -17,15 +17,15 @@
 ## 📥 Download
 
 <p float="left">
-  <a href="https://addons.mozilla.org/en-US/firefox/addon/youtube-pro-plus/" target="_blank">
-    <img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="Get the Add-on for Firefox" height="56">
-  </a>
-  <a href="https://microsoftedge.microsoft.com/addons/detail/youtube-pro-/miocgpalllinpiheblbpnpflpapgohmi" target="_blank">
-    <img src="https://github.com/user-attachments/assets/9fcd04a5-3d1c-43d2-9253-d3e2b9510030" alt="Get it from Microsoft Edge" height="56">
-  </a>
-  <a href="https://github.com/Archimetrix/Youtube-Pro-Plus/archive/refs/heads/main.zip" target="_blank">
-    <img src="https://img.shields.io/badge/Download_ZIP-101010?style=for-the-badge&logo=github&logoColor=white" alt="Download ZIP" height="56">
-  </a>
+  <a href="https://addons.mozilla.org/en-US/firefox/addon/youtube-pro-plus/" target="_blank">
+    <img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="Get the Add-on for Firefox" height="56">
+  </a>
+  <a href="https://microsoftedge.microsoft.com/addons/detail/youtube-pro-/miocgpalllinpiheblbpnpflpapgohmi" target="_blank">
+    <img src="https://github.com/user-attachments/assets/9fcd04a5-3d1c-43d2-9253-d3e2b9510030" alt="Get it from Microsoft Edge" height="56">
+  </a>
+  <a href="https://github.com/Archimetrix/Youtube-Pro-Plus/archive/refs/heads/main.zip" target="_blank">
+    <img src="https://img.shields.io/badge/Download_ZIP-101010?style=for-the-badge&logo=github&logoColor=white" alt="Download ZIP" height="56">
+  </a>
 </p>
 
 > **Note:** Currently available officially on the Firefox and Microsoft Edge Add-ons stores. For Chrome, Opera, and other Chromium users, please use the **Download ZIP** button above and follow the quick **Local Installation** guide below.
@@ -33,9 +33,9 @@
 ---
 
 ## 🎥 Watch it in Action
-Click the image below to watch the full showcase and installation guide on YouTube:
+Click the image below to watch the full showcase and installation guide:
 
-[![YouTube Pro Plus Showcase](https://img.youtube.com/vi/pFFhEj73gS0/hqdefault.jpg)](https://youtu.be/pFFhEj73gS0)
+[![YouTube Pro Plus Showcase](https://i.postimg.cc/3NDsqcJv/photo-2026-05-03-18-50-19.jpg)](https://files.catbox.moe/mpluvs.mp4)
 
 ---
 
@@ -49,19 +49,19 @@ Click the image below to watch the full showcase and installation guide on YouTu
 * **🎛️ Sound Booster :Boost yt vidios sound as much you need .
 * **🔁 Shorts Auto-Scroller:** A robust background script that intelligently detects when a YouTube Short finishes and automatically scrolls to the next one—completely hands-free.
 * **⬇️ Smart Download:** A smart third-party download support added replacing the default download button (if you want to use the normal download then just turn off the setting in the extension).
-* **⏯️ History and auto resume :** A smart system  storing all your watched vidios with date and duration of vidios watched. When you click on the video next time it will play feom where you left it last time and you can change which ever settings you like -- and also there is a recap intregation in it it will tell you your all time top 5 vidios and top 5 chanels .
+* **⏯️ History and auto resume :** A smart system  storing all your watched vidios with date and duration of vidios watched. When you click on the video next time it will play feom where you left it last time and you can change which ever settings you like -- and also there is a recap intregation in it it will tell you your all time top 5 vidios and top 5 chanels .
 ---
 
 ## 🛠️ Local Installation (Chrome, Opera, Brave, Vivaldi etc.)
 
 For users on other Chromium browsers where the extension is not yet in the store, you can install the latest stable build locally in Developer Mode in just a few seconds:
 
-1.  **Download the Extension:** Click the **Download ZIP** button in the downloads section above and extract the folder to your computer.
-2.  **Open Extensions:** Open your browser and type `chrome://extensions/` (or `opera://extensions/` / `brave://extensions/`) in the URL bar.
-3.  **Enable Developer Mode:** Toggle the **"Developer mode"** switch in the top right corner of the page.
-4.  **Load the Extension:** Click the **"Load unpacked"** button in the top left and select the extracted `Youtube-Pro-Plus-main` folder.
-5.  *Important:* Make sure to disable any conflicting Tampermonkey scripts or Stylus themes! 
-6.  **Refresh YouTube** and enjoy!
+1.  **Download the Extension:** Click the **Download ZIP** button in the downloads section above and extract the folder to your computer.
+2.  **Open Extensions:** Open your browser and type `chrome://extensions/` (or `opera://extensions/` / `brave://extensions/`) in the URL bar.
+3.  **Enable Developer Mode:** Toggle the **"Developer mode"** switch in the top right corner of the page.
+4.  **Load the Extension:** Click the **"Load unpacked"** button in the top left and select the extracted `Youtube-Pro-Plus-main` folder.
+5.  *Important:* Make sure to disable any conflicting Tampermonkey scripts or Stylus themes! 
+6.  **Refresh YouTube** and enjoy!
 
 ---
 
