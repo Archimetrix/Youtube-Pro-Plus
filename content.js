@@ -95,26 +95,86 @@ function initAutoScroll() {
 
 // ─── Smart Download Button Override ──────────────────────────────────────────
 let downloadInterceptActive = false;
+let downloadButtonObserver = null;
+
+// Selectors that cover YouTube's download button in all its forms
+const DL_BTN_SELECTORS = [
+    'ytd-download-button-renderer button',
+    'button[aria-label="Download video"]',
+    'button[aria-label*="Download"]',
+    '.ytp-download-button',
+    'yt-button-shape button',
+].join(', ');
+
+// Force-enable a single button regardless of YouTube's disabled state
+function forceEnableDownloadButton(btn) {
+    if (btn.dataset.ytProForced === '1') return; // already done
+    btn.dataset.ytProForced = '1';
+
+    btn.removeAttribute('disabled');
+    btn.removeAttribute('aria-disabled');
+    btn.style.opacity = '1';
+    btn.style.pointerEvents = 'auto';
+    btn.style.cursor = 'pointer';
+
+    // Also un-disable wrapper elements YouTube uses
+    const renderer = btn.closest('ytd-download-button-renderer, yt-button-shape, .yt-button-shape-with-explainer');
+    if (renderer) {
+        renderer.removeAttribute('disabled');
+        renderer.removeAttribute('aria-disabled');
+        renderer.style.pointerEvents = 'auto';
+        renderer.style.opacity = '1';
+    }
+}
+
+// Watch for download buttons being added or toggled into a disabled state
+function startDownloadButtonWatcher() {
+    if (downloadButtonObserver) return;
+
+    // Enable any buttons already on the page
+    document.querySelectorAll(DL_BTN_SELECTORS).forEach(forceEnableDownloadButton);
+
+    downloadButtonObserver = new MutationObserver(() => {
+        document.querySelectorAll(DL_BTN_SELECTORS).forEach(btn => {
+            // Re-enable whenever YouTube disables the button again
+            if (btn.hasAttribute('disabled') || btn.getAttribute('aria-disabled') === 'true' ||
+                btn.style.pointerEvents === 'none' || btn.dataset.ytProForced !== '1') {
+                btn.dataset.ytProForced = '0'; // reset so forceEnable runs again
+                forceEnableDownloadButton(btn);
+            }
+        });
+    });
+
+    downloadButtonObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['disabled', 'aria-disabled', 'style'],
+    });
+}
+
+function stopDownloadButtonWatcher() {
+    if (downloadButtonObserver) {
+        downloadButtonObserver.disconnect();
+        downloadButtonObserver = null;
+    }
+}
 
 function initDownloadIntercept() {
     if (downloadInterceptActive) return;
     downloadInterceptActive = true;
     document.addEventListener('click', handleDownloadClick, true);
+    startDownloadButtonWatcher();
 }
 
 function removeDownloadIntercept() {
     downloadInterceptActive = false;
     document.removeEventListener('click', handleDownloadClick, true);
+    stopDownloadButtonWatcher();
 }
 
 function handleDownloadClick(e) {
-    const btn = e.target.closest([
-        '.ytp-download-button',
-        'ytd-download-button-renderer button',
-        'button[aria-label="Download video"]',
-        'button[aria-label*="Download"]',
-        'yt-button-shape button',
-    ].join(', '));
+    const btn = e.target.closest(DL_BTN_SELECTORS);
 
     if (!btn) return;
 
@@ -134,7 +194,7 @@ function handleDownloadClick(e) {
         ssvid_pending_url: videoUrl,
         ssvid_pending_ts:  Date.now()
     }, () => {
-        window.open('https://vidssave.com/en/yt', '_blank', 'noopener,noreferrer');
+        window.open('https://ssvid.net/en/youtube-video-downloader-4', '_blank', 'noopener,noreferrer');
     });
 }
 

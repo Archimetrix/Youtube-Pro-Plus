@@ -65,8 +65,16 @@
         if (gainNode) gainNode.gain.value = 1.0;
     }
 
+    // ── Apply a boost level and update slider + OSD if injected ──────────────
+    function applyLevel(level) {
+        setGain(level);
+        const slider = document.getElementById('ytpb-slider');
+        if (slider) slider.value = String(level);
+        showVolumeOSD(level);
+    }
+
     // ── Inject button + slider into .ytp-chrome-controls ─────────────────────
-    function inject() {
+    function inject(initialLevel) {
         if (injected) return;
         if (document.getElementById('ytpb-btn')) return; // guard against DOM duplicates
 
@@ -88,14 +96,14 @@
             alignSelf: 'center', flexShrink: '0'
         });
 
-        // ── Slider (0-1400, default 100 = unity gain) ──
+        // ── Slider (0-1400, default = stored boostLevel or 100) ──
         const slider = document.createElement('input');
         slider.id   = 'ytpb-slider';
         slider.type = 'range';
         slider.min  = '0';
         slider.max  = '1400';
         slider.step = '1';
-        slider.value = '100';
+        slider.value = String(initialLevel || 100);
         Object.assign(slider.style, {
             width: '120px',
             display: 'none',  // hidden until button is clicked
@@ -105,29 +113,28 @@
             accentColor: '#ff0050'
         });
 
-        // Slider input → update gain + OSD
+        // Apply the stored boost level immediately on inject
+        setGain(initialLevel || 100);
+
+        // Slider input → update gain + OSD + persist to storage
         slider.addEventListener('input', function () {
-            setGain(parseFloat(this.value));
-            showVolumeOSD(parseFloat(this.value));
+            const val = parseFloat(this.value);
+            setGain(val);
+            showVolumeOSD(val);
+            browser.storage.local.set({ boostLevel: val });
         });
 
-        // Reset slider on new video (timeupdate at t=0)
-        video.addEventListener('timeupdate', function () {
-            if (video.currentTime === 0) {
-                slider.value = '100';
-                setGain(100);
-                showVolumeOSD(100);
-            }
-        });
-
-        // Button toggles slider visibility + resets to 100
+        // Button toggles slider visibility; restores stored level when opening
         btn.addEventListener('click', function () {
             const hidden = slider.style.display === 'none';
             slider.style.display = hidden ? 'inline-block' : 'none';
             if (hidden) {
-                slider.value = '100';
-                setGain(100);
-                showVolumeOSD(100);
+                browser.storage.local.get('boostLevel', r => {
+                    const level = r.boostLevel || 100;
+                    slider.value = String(level);
+                    setGain(level);
+                    showVolumeOSD(level);
+                });
             }
         });
 
@@ -148,12 +155,12 @@
     }
 
     // ── Wait for YouTube player then inject ───────────────────────────────────
-    function tryInject() {
+    function tryInject(level) {
         if (!enabled) return;
         if (injected) return;
         if (document.querySelector('.ytp-chrome-controls') &&
             document.querySelector('.video-stream, #movie_player video, .html5-main-video')) {
-            inject();
+            inject(level);
         } else {
             // Player not ready — observe DOM for it
             if (retryTimer) return;
@@ -161,7 +168,7 @@
                 if (!enabled) { clearInterval(retryTimer); retryTimer = null; return; }
                 if (document.querySelector('.ytp-chrome-controls') &&
                     document.querySelector('.video-stream, #movie_player video, .html5-main-video')) {
-                    inject();
+                    inject(level);
                     clearInterval(retryTimer);
                     retryTimer = null;
                 }
@@ -175,15 +182,22 @@
         if (location.href !== _lastUrl) {
             _lastUrl = location.href;
             removeInjection(); // clean up button + reset flag on navigation
-            if (enabled) setTimeout(tryInject, 1200);
+            if (enabled) {
+                // Restore stored boost level after navigation
+                setTimeout(() => {
+                    browser.storage.local.get('boostLevel', r => {
+                        tryInject(r.boostLevel || 100);
+                    });
+                }, 1200);
+            }
         }
     }).observe(document, { subtree: true, childList: true });
 
-    // ── Boot: check stored toggle state ──────────────────────────────────────
-    browser.storage.local.get(['masterEnabled', 'audio'], res => {
+    // ── Boot: check stored toggle state + boost level ─────────────────────────
+    browser.storage.local.get(['masterEnabled', 'audio', 'boostLevel'], res => {
         if (res.masterEnabled === false || res.audio === false) return;
         enabled = true;
-        tryInject();
+        tryInject(res.boostLevel || 100);
     });
 
     // ── Messages from popup ───────────────────────────────────────────────────
@@ -191,7 +205,13 @@
         if (msg.action === 'toggleaudio') {
             enabled = msg.state;
             if (enabled) {
-                tryInject();
+                const level = msg.level || 100;
+                if (injected) {
+                    // Already in DOM — just apply the level directly
+                    applyLevel(level);
+                } else {
+                    tryInject(level);
+                }
             } else {
                 if (retryTimer) { clearInterval(retryTimer); retryTimer = null; }
                 removeInjection();

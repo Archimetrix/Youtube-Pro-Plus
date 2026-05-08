@@ -132,3 +132,47 @@ chrome.runtime.onMessage.addListener((message) => {
         }
     }
 });
+
+// ─── Report an Issue — FormSubmit relay ───────────────────────────────────────
+// Fetch runs from the background service worker (no CORS/CSP restrictions),
+// not the popup. Images arrive as base64 strings and are reconstructed as Blobs.
+
+function base64ToBlob(base64, mimeType) {
+    const binary = atob(base64);
+    const bytes  = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: mimeType });
+}
+
+async function sendReportViaWeb3Forms(data) {
+    const formData = new FormData();
+    formData.append('access_key', '198c1cad-2010-4e96-9efb-345f297d381c');
+    formData.append('subject',    'Bug Report \u2014 YouTube Pro+');
+    formData.append('from_name',  'YouTube Pro+ Extension');
+    formData.append('Name',       data.name || 'Anonymous');
+    formData.append('Message',    data.message);
+    formData.append('Browser',    data.browser);
+
+    (data.images || []).forEach((img, i) => {
+        const blob = base64ToBlob(img.base64, img.mimeType);
+        formData.append('Screenshot_' + (i + 1), blob, img.fileName);
+    });
+
+    const res = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        body:   formData
+        // No Content-Type header — browser sets multipart/form-data + boundary
+    });
+
+    const json = await res.json();
+    return { ok: json.success === true, message: json.message || '' };
+}
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message.type === 'SEND_REPORT') {
+        sendReportViaWeb3Forms(message.data)
+            .then(sendResponse)
+            .catch(err => sendResponse({ ok: false, error: err.message }));
+        return true; // keep message channel open for async response
+    }
+});

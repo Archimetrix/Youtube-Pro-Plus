@@ -55,14 +55,14 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs[0] && tabs[0].url && tabs[0].url.includes('youtube.com')) {
             _ytTabId = tabs[0].id;
-            chrome.tabs.sendMessage(_ytTabId, { action: 'pauseForPopup' });
+            chrome.tabs.sendMessage(_ytTabId, { action: 'pauseForPopup' }).catch(() => {});
         }
     });
 
     // pagehide fires reliably when the extension popup is closed by the user
     window.addEventListener('pagehide', () => {
         if (_ytTabId !== null) {
-            chrome.tabs.sendMessage(_ytTabId, { action: 'resumeAfterPopup' });
+            chrome.tabs.sendMessage(_ytTabId, { action: 'resumeAfterPopup' }).catch(() => {});
         }
     });
 
@@ -78,9 +78,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const willBeEnabled = !masterToggleBtn.classList.contains('active');
             chrome.storage.local.set({ masterEnabled: willBeEnabled }, () => {
                 updateMasterUI(willBeEnabled);
-                chrome.runtime.sendMessage({ action: 'masterToggleChanged', state: willBeEnabled });
+                chrome.runtime.sendMessage({ action: 'masterToggleChanged', state: willBeEnabled }).catch(() => {});
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                    if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: 'masterToggleChanged', state: willBeEnabled });
+                    if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: 'masterToggleChanged', state: willBeEnabled }).catch(() => {});
                 });
             });
         });
@@ -92,7 +92,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById(`toggle-${toggle}`).checked = isEnabled;
         });
 
-        checkDownloadWarning(result.download !== false);
         checkFullscreenHint(result.fullscreen === true);
 
         // ── Cinematic sub-controls ──────────────────────────────────────────
@@ -124,20 +123,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         // level 150 = 1.5× gain (150% volume) — sensible default
                         chrome.storage.local.get('boostLevel', r => {
                             const level = r.boostLevel || 150;
-                            chrome.tabs.sendMessage(tabs[0].id, { action: 'toggleaudio', state: isChecked, level });
+                            chrome.tabs.sendMessage(tabs[0].id, { action: 'toggleaudio', state: isChecked, level }).catch(() => {});
                         });
                     }
                 });
             }
-            if (toggle === 'download') checkDownloadWarning(isChecked);
             if (toggle === 'fullscreen') {
                 checkFullscreenHint(isChecked);
-                chrome.runtime.sendMessage({ action: 'fullscreenToggleChanged', state: isChecked });
+                chrome.runtime.sendMessage({ action: 'fullscreenToggleChanged', state: isChecked }).catch(() => {});
             }
 
             if (['premium', 'ambient', 'cinematic', 'download', 'autoResume'].includes(toggle)) {
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                    if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: `toggle${toggle}`, state: isChecked });
+                    if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: `toggle${toggle}`, state: isChecked }).catch(() => {});
                 });
             }
         });
@@ -152,11 +150,6 @@ document.addEventListener('DOMContentLoaded', () => {
             masterToggleBtn.classList.remove('active');
             document.body.classList.add('disabled-mode');
         }
-    }
-
-    function checkDownloadWarning(isDownloadEnabled) {
-        const warning = document.getElementById('download-premium-warning');
-        if (warning) warning.style.display = isDownloadEnabled ? 'flex' : 'none';
     }
 
     // ── Cinematic Mode Disclaimer ────────────────────────────────────────────
@@ -175,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
         cinematicToggle.checked = true;
         chrome.storage.local.set({ cinematic: true });
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: 'togglecinematic', state: true });
+            if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: 'togglecinematic', state: true }).catch(() => {});
         });
         setCineControlsVisible(true);
         hideCinematicDisclaimer();
@@ -218,7 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const updated = Object.assign({ blur: 'med', sat: 'med', dim: 'med' }, r.cinematicSettings, { [ctrl]: val });
                     chrome.storage.local.set({ cinematicSettings: updated });
                     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                        if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: 'cinematicSettingsChanged', settings: updated });
+                        if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: 'cinematicSettingsChanged', settings: updated }).catch(() => {});
                     });
                 });
             });
@@ -392,7 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!filtered.length) {
             rpList.innerHTML = `
                 <div class="rp-empty">
-                    <span class="rp-empty-icon">📭</span>
+                    <span class="rp-empty-icon"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="16" r="13"/><path d="M10 16 H22"/><path d="M10 11 H22"/><path d="M10 21 H17"/></svg></span>
                     ${query ? 'No results found.' : 'No watch history yet.<br>Start watching a YouTube video to build your history!'}
                 </div>`;
             vsItems = [];
@@ -431,7 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="rp-channel">${escapeHtml(video.channel || '')}</div>
                 <div class="rp-time-row">
                     ${isComplete
-                        ? `<span class="rp-complete-badge">✔ Completed</span>`
+                        ? `<span class="rp-complete-badge">Completed</span>`
                         : `<span class="rp-time">${timeStr}</span>`
                     }
                     <span class="rp-duration">${durStr}</span>
@@ -439,7 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="rp-right-col">
                 <span class="rp-watch-count" title="Times played">${wCount}×</span>
-                <button class="rp-delete-btn" data-id="${watchId}" title="Remove">✕</button>
+                <button class="rp-delete-btn" data-id="${watchId}" title="Remove">Remove</button>
             </div>
             <div class="rp-progress-wrap">
                 <div class="rp-progress-bar" style="width:${(progress * 100).toFixed(1)}%;${isComplete ? 'background:#4caf50;' : ''}"></div>
@@ -635,7 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
             URL.revokeObjectURL(url);
 
             const msg = document.getElementById('rsp-backup-msg');
-            msg.textContent = `✓ Backed up ${sortedVideos.length} videos!`;
+            msg.textContent = `Backed up ${sortedVideos.length} videos!`;
             msg.classList.add('show');
             setTimeout(() => msg.classList.remove('show'), 3000);
         });
@@ -652,7 +645,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loadResumeHistory();
             rpList.scrollTop = 0;
             const msg = document.getElementById('rsp-backup-msg');
-            msg.textContent = '✓ Restore complete! History reloaded.';
+            msg.textContent = 'Restore complete. History reloaded.';
             msg.classList.add('show');
             setTimeout(() => msg.classList.remove('show'), 4000);
         }
@@ -686,16 +679,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const tipContent = {
         theme: {
-            title: '⚠️ A note from the developer',
-            body:  "I know about all UI bugs. YouTube constantly changes its code — when I fix one thing, 2 more break the next day. It's a cat & mouse game. As a solo dev I can't chase every change instantly. Thanks for your patience! 🙏"
+            title: 'Note from the developer',
+            body:  "I know about all UI bugs. YouTube constantly changes its code — when I fix one thing, 2 more break the next day. It's a constant back-and-forth. As a solo dev I can't chase every change instantly. Thanks for your patience!"
         },
         ambient: {
-            title: '🌙 Dark Mode Only',
-            body:  'This only works with dark mode. Kindly change your browser theme to dark mode.'
+            title: 'Dark Mode Only',
+            body:  'This only works with dark mode. Change your browser theme to dark mode to use this feature.'
         },
         cinematic: {
-            title: '🎬 Cinematic Mode',
-            body:  'This feature works in both Light & Dark mode of YouTube. ⚠️ However, if you want to use this Cinematic Feature in Dark mode then you have to turn off the Ambient Mode from YouTube player settings and also from the extension panel.'
+            title: 'Cinematic Mode',
+            body:  'This feature works in both Light & Dark mode of YouTube. If using Dark Mode, you must turn off Ambient Mode from YouTube player settings and from this panel — otherwise Cinematic Mode will not work as expected.'
+        },
+        download: {
+            title: ' Premium Users — Important',
+            body:  'If you are a YouTube Premium subscriber, keep Smart Download turned OFF. This feature uses a third-party downloader and may conflict with YouTube Premium\'s built-in download feature.'
         }
     };
 
@@ -704,7 +701,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const key = btn.getAttribute('data-tip');
             const content = tipContent[key];
             if (content && tipBox && tipTitle && tipBody) {
-                tipTitle.textContent = content.title;
+                const titleTextNode = tipTitle.lastChild;
+                if (titleTextNode && titleTextNode.nodeType === 3) {
+                    titleTextNode.textContent = content.title;
+                } else {
+                    tipTitle.appendChild(document.createTextNode(content.title));
+                }
                 tipBody.textContent  = content.body;
                 tipBox.style.visibility = 'visible';
                 tipBox.style.opacity    = '1';
@@ -717,4 +719,127 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // ── Report an Issue Panel ────────────────────────────────────────────────
+    const reportPanel     = document.getElementById('report-panel');
+    const reportCloseBtn  = document.getElementById('report-close-btn');
+    const reportFileInput = document.getElementById('report-file-input');
+    const reportPreview   = document.getElementById('report-preview-grid');
+    const reportSubmitBtn = document.getElementById('report-submit-btn');
+    const reportStatus    = document.getElementById('report-status');
+
+    let reportImageFiles = [];
+
+    document.getElementById('open-report-panel').addEventListener('click', () => {
+        reportPanel.classList.add('visible');
+        reportStatus.textContent = '';
+        reportStatus.className   = '';
+    });
+
+    reportCloseBtn.addEventListener('click', () => {
+        reportPanel.classList.remove('visible');
+    });
+
+    reportFileInput.addEventListener('change', () => {
+        Array.from(reportFileInput.files).forEach(file => {
+            if (reportImageFiles.length >= 3 || !file.type.startsWith('image/')) return;
+            reportImageFiles.push(file);
+        });
+        reportFileInput.value = '';
+        renderReportPreviews();
+    });
+
+    function renderReportPreviews() {
+        reportPreview.innerHTML = '';
+        reportImageFiles.forEach((file, idx) => {
+            const url  = URL.createObjectURL(file);
+            const item = document.createElement('div');
+            item.className = 'report-preview-item';
+            const img  = document.createElement('img');
+            img.src    = url;
+            img.onload = () => URL.revokeObjectURL(url);
+            const rmBtn = document.createElement('button');
+            rmBtn.className   = 'report-preview-remove';
+            rmBtn.textContent = '×';
+            rmBtn.addEventListener('click', () => {
+                reportImageFiles.splice(idx, 1);
+                renderReportPreviews();
+            });
+            item.appendChild(img);
+            item.appendChild(rmBtn);
+            reportPreview.appendChild(item);
+        });
+        const uploadArea = document.getElementById('report-upload-area');
+        if (uploadArea) uploadArea.style.display = reportImageFiles.length >= 3 ? 'none' : '';
+    }
+
+    reportSubmitBtn.addEventListener('click', async () => {
+        const name    = (document.getElementById('report-name').value    || '').trim();
+        const message = (document.getElementById('report-message').value || '').trim();
+
+        if (!message) {
+            reportStatus.className   = 'error';
+            reportStatus.textContent = '\u26a0\ufe0f Please describe the issue before sending.';
+            return;
+        }
+
+        reportSubmitBtn.disabled   = true;
+        reportStatus.className     = '';
+        reportStatus.textContent   = '\ud83d\udce4 Sending\u2026';
+
+        try {
+            // Upload each screenshot to catbox.moe (free, anonymous, permanent hosting).
+            // Gmail blocks data: URLs but renders normal https:// image links fine.
+            const uploadToCatbox = async (file) => {
+                const fd = new FormData();
+                fd.append('reqtype',     'fileupload');
+                fd.append('fileToUpload', file, file.name || 'screenshot.jpg');
+                const r = await fetch('https://catbox.moe/user/api.php', { method: 'POST', body: fd });
+                if (!r.ok) throw new Error('catbox upload failed: ' + r.status);
+                const url = (await r.text()).trim();
+                if (!url.startsWith('https://')) throw new Error('Bad catbox response: ' + url);
+                return url;
+            };
+
+            let screenshotHtml = '';
+            if (reportImageFiles.length > 0) {
+                const urls = await Promise.all(reportImageFiles.map(uploadToCatbox));
+                const imgTags = urls.map((url, i) =>
+                    `<div style="margin:8px 0;"><strong>Screenshot ${i + 1}</strong><br><a href="${url}"><img src="${url}" alt="Screenshot ${i + 1}" style="max-width:600px;display:block;border:1px solid #ccc;border-radius:4px;margin-top:4px;"></a></div>`
+                ).join('');
+                screenshotHtml = `<br><br><hr style="border:none;border-top:1px solid #ccc;margin:12px 0;"><strong>Screenshots (${urls.length})</strong><br><br>${imgTags}`;
+            }
+
+            const formData = new FormData();
+            formData.append('Name',    name || 'Anonymous');
+            formData.append('Message', message + screenshotHtml);
+            formData.append('Browser', navigator.userAgent);
+
+            const res  = await fetch('https://formbold.com/s/3A7PM', {
+                method: 'POST',
+                body:   formData
+            });
+
+            if (res.ok) {
+                reportStatus.className   = 'success';
+                reportStatus.textContent = '\u2705 Report sent! We will look into it soon. Thank you!';
+                document.getElementById('report-name').value    = '';
+                document.getElementById('report-message').value = '';
+                reportImageFiles = [];
+                renderReportPreviews();
+                // Clean up any leftover download grid from previous attempts
+                const oldGrid = document.getElementById('report-download-grid');
+                if (oldGrid) oldGrid.remove();
+            } else {
+                throw new Error('Server returned ' + res.status);
+            }
+        } catch (err) {
+            reportStatus.className   = 'error';
+            reportStatus.textContent = '\u274c Failed to send. Check your internet and try again.';
+            console.error('[Report] Error:', err);
+        }
+
+        reportSubmitBtn.disabled = false;
+    });
+    // ─────────────────────────────────────────────────────────────────────────
 });
