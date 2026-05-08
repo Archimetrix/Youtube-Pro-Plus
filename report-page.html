@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>YT Pro+ · Report an Issue</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 48px 16px;
+    }
+
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 18px;
+      padding: 36px 40px 32px;
+      max-width: 540px;
+      width: 100%;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+    .header-icon {
+      width: 36px; height: 36px;
+      background: rgba(239,68,68,0.12);
+      border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .header-icon svg { width: 18px; height: 18px; }
+    h1 { font-size: 18px; font-weight: 700; color: #fff; }
+    .subtitle { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 28px; margin-top: 4px; }
+
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .field label { font-size: 12px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .field input[type="text"],
+    .field textarea {
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid #2e2e2e;
+      color: #e0e0e0;
+      border-radius: 10px;
+      font-size: 13.5px;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    .field input[type="text"]:focus,
+    .field textarea:focus { border-color: rgba(239,68,68,0.4); }
+    .field input[type="text"]::placeholder,
+    .field textarea::placeholder { color: #444; }
+    .field textarea { min-height: 110px; resize: vertical; line-height: 1.55; }
+
+    /* Upload area */
+    .upload-area {
+      border: 1.5px dashed #2e2e2e;
+      border-radius: 10px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: rgba(255,255,255,0.02);
+      position: relative;
+      min-height: 72px;
+    }
+    .upload-area:hover { border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.04); }
+    .upload-area svg { width: 22px; height: 22px; opacity: 0.4; }
+    .upload-area span { font-size: 12.5px; color: #555; }
+    .upload-area input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+
+    .preview-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .preview-item { position: relative; width: 72px; height: 72px; }
+    .preview-item img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid #2e2e2e; display: block; }
+    .preview-remove {
+      position: absolute; top: -6px; right: -6px;
+      width: 18px; height: 18px;
+      background: #ef4444; border: none; border-radius: 50%;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 12px; font-weight: 700; line-height: 1; padding: 0;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    }
+    .preview-remove:hover { background: #dc2626; }
+
+    /* Submit */
+    #submit-btn {
+      width: 100%; padding: 12px 16px; margin-top: 20px;
+      background: linear-gradient(135deg, rgba(239,68,68,0.18), rgba(239,68,68,0.08));
+      border: 1px solid rgba(239,68,68,0.38);
+      border-radius: 10px;
+      color: #fca5a5;
+      font-size: 14px; font-weight: 700;
+      cursor: pointer; transition: all 0.2s;
+      font-family: inherit;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    #submit-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+    #submit-btn:hover:not(:disabled) { background: rgba(239,68,68,0.28); box-shadow: 0 4px 16px rgba(239,68,68,0.22); transform: translateY(-1px); }
+    #submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    #status { margin-top: 14px; font-size: 13px; text-align: center; min-height: 20px; line-height: 1.5; }
+    #status.success { color: #4ade80; }
+    #status.error   { color: #f87171; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <div class="header-icon">
+      <svg viewBox="0 0 20 20" fill="none" stroke="#ef4444" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="10" cy="10" r="8"/>
+        <line x1="10" y1="6.5" x2="10" y2="10.5"/>
+        <circle cx="10" cy="13.5" r="0.6" fill="#ef4444"/>
+      </svg>
+    </div>
+    <h1>Report an Issue</h1>
+  </div>
+  <p class="subtitle">Found a bug? Describe it below and attach screenshots if you have them — your report goes straight to our inbox. 🙏</p>
+
+  <div class="field">
+    <label>Your Name</label>
+    <input type="text" id="rep-name" placeholder="Anonymous">
+  </div>
+
+  <div class="field">
+    <label>Describe the Problem</label>
+    <textarea id="rep-message" placeholder="What went wrong? What were you doing when it happened? Any details help a lot..."></textarea>
+  </div>
+
+  <div class="field">
+    <label>Screenshots <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#555">(optional, up to 3)</span></label>
+    <div class="upload-area" id="upload-area">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="3"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+      <span>Click to attach images</span>
+      <input type="file" id="file-input" accept="image/*" multiple>
+    </div>
+    <div class="preview-grid" id="preview-grid"></div>
+  </div>
+
+  <button id="submit-btn">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="2" y1="10" x2="18" y2="10"/><polyline points="12 4 18 10 12 16"/>
+    </svg>
+    Send Report
+  </button>
+
+  <div id="status"></div>
+</div>
+
+<script src="browser-compat.js"></script>
+<script src="report-page.js"></script>
+</body>
+</html>

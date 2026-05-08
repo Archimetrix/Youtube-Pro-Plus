@@ -1,10 +1,19 @@
 {
     "manifest_version": 3,
     "name": "Youtube Pro Plus",
-    "version": "2.1.1",
+    "version": "2.3",
     "description": "Liquid Glass Theme, 10x Speed Booster, Sound Booster, Shorts Auto-Scroller, Smart Download, Auto Fullscreen, and Auto Resume.",
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "youtube-pro-plus@archimetrix",
+            "strict_min_version": "109.0"
+        }
+    },
     "background": {
-        "service_worker": "background-sw.js"
+        "scripts": [
+            "browser-compat.js",
+            "background.js"
+        ]
     },
     "permissions": [
         "storage",
@@ -16,8 +25,11 @@
     "host_permissions": [
         "*://www.youtube.com/*",
         "*://youtube.com/*",
-        "*://vidssave.com/*",
-        "*://www.vidssave.com/*"
+        "*://ssvid.net/*",
+        "*://www.ssvid.net/*",
+        "*://formbold.com/*",
+        "https://catbox.moe/*",
+        "https://files.catbox.moe/*"
     ],
     "icons": {
         "16": "imgs/icon16.png",
@@ -59,8 +71,8 @@
         },
         {
             "matches": [
-                "*://vidssave.com/*",
-                "*://www.vidssave.com/*"
+                "*://ssvid.net/*",
+                "*://www.ssvid.net/*"
             ],
             "js": [
                 "browser-compat.js",
@@ -83,6 +95,9 @@
             "matches": [
                 "*://www.youtube.com/*",
                 "*://youtube.com/*"
+            ],
+            "extension_ids": [
+                "youtube-pro-plus@archimetrix"
             ]
         }
     ]

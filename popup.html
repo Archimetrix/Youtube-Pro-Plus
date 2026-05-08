@@ -2,741 +2,371 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Youtube Pro +</title>
+    <title>YouTube Pro+</title>
     <style>
         :root {
-            --bg: #0d0d12;
-            --glass-bg: rgba(25, 25, 30, 0.45);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --accent: #ff0050;
-            --accent-glow: 0 0 15px rgba(255, 0, 80, 0.6);
-            --blue-glow: 0 0 15px rgba(0, 210, 255, 0.4);
-            --warning: #ffb020;
-            --resume-color: #00d2ff;
+            --bg: #07070d;
+            --surface: rgba(13, 13, 22, 0.94);
+            --border: rgba(255,255,255,0.065);
+            --border-hover: rgba(255,255,255,0.13);
+            --accent: #6366f1;
+            --accent-dim: rgba(99,102,241,0.14);
+            --accent-glow: 0 0 16px rgba(99,102,241,0.42);
+            --cyan: #22d3ee;
+            --cyan-dim: rgba(34,211,238,0.12);
+            --cyan-glow: 0 0 14px rgba(34,211,238,0.35);
+            --warning: #f59e0b;
+            --warn-dim: rgba(245,158,11,0.12);
+            --success: #10b981;
+            --text: #e4e4ef;
+            --text-sub: rgba(228,228,239,0.42);
+            --text-muted: rgba(228,228,239,0.22);
         }
-
         * { box-sizing: border-box; }
-
-        html, body {
-            width: 320px;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: var(--bg);
-            color: #fff;
-            overflow: hidden;
-            overflow-x: hidden;
-            overflow-y: hidden;
-            height: auto;
+        html {
+            width: 320px; overflow: visible;
+        }
+        body {
+            width: 320px; margin: 0; padding: 0 0 12px;
+            font-family: -apple-system, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg); color: var(--text);
+            overflow-x: hidden; overflow-y: visible;
             scrollbar-width: none;
         }
-
-        html::-webkit-scrollbar,
-        body::-webkit-scrollbar {
-            display: none;
-            width: 0;
-        }
-
+        html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; }
         body.disabled-mode .settings-wrapper,
         body.disabled-mode .btn,
         body.disabled-mode .hint-box {
-            opacity: 0.4;
-            pointer-events: none;
-            filter: grayscale(100%);
-            transition: all 0.4s ease;
+            opacity: 0.35; pointer-events: none; filter: grayscale(100%); transition: all 0.4s ease;
         }
-
         .glass-container {
-            background: var(--glass-bg);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border: 1px solid var(--glass-border);
-            border-radius: 16px;
-            padding: 8px 12px;
-            margin: 4px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
-            animation: containerFadeIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+            background: radial-gradient(ellipse at -8% 0%, rgba(99,102,241,0.20) 0%, rgba(99,102,241,0.06) 40%, transparent 65%), var(--surface); backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px); border: 1px solid var(--border);
+            border-radius: 16px; padding: 10px 12px; margin: 4px;
+            box-shadow: 0 20px 48px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06);
+            animation: containerFadeIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
-
         .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 6px;
-            padding-bottom: 6px;
-            border-bottom: 1px solid var(--glass-border);
-        }
-
-        .title-group { display: flex; align-items: center; gap: 8px; }
-
-        .ext-logo {
-            width: 22px; height: 22px; border-radius: 6px;
-            box-shadow: var(--accent-glow); transition: transform 0.3s ease;
-        }
-        .header:hover .ext-logo { transform: scale(1.05); }
-
-        .water-text {
-            position: relative; margin: 0;
-            font-size: 16px; font-weight: 800;
-            color: rgba(255, 255, 255, 0.15); letter-spacing: 0.5px;
-        }
-        .water-text::before {
-            content: "YouTube Pro +";
-            position: absolute; left: 0; top: 0;
-            color: transparent;
-            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 200'%3E%3Cpath fill='url(%23g)' d='M0,120 C100,70 100,170 200,120 C300,70 300,170 400,120 L400,200 L0,200 Z'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%23ff0050'/%3E%3Cstop offset='100%25' stop-color='%2300d2ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3C/svg%3E") repeat-x;
-            background-size: 200% 100%;
-            -webkit-background-clip: text;
-            animation: wave 3s infinite linear;
-        }
-
-        .power-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #fff; border-radius: 50%;
-            width: 30px; height: 30px;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .power-btn:hover { background: rgba(255, 255, 255, 0.15); transform: scale(1.1); }
-        .power-btn.active { color: #00ff88; border-color: rgba(0, 255, 136, 0.4); animation: pulseGlow 2.5s infinite alternate ease-in-out; }
-        .power-btn.active svg { filter: drop-shadow(0 0 3px #00ff88); }
-
-        .setting {
-            display: flex; flex-direction: column;
-            padding: 4px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.03);
-            opacity: 0; transform: translateY(8px);
-            animation: slideUpFade 0.4s ease-out forwards;
-        }
-        .setting-row {
             display: flex; justify-content: space-between; align-items: center;
-            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
         }
-        .setting:nth-child(1) { animation-delay: 0.05s; }
-        .setting:nth-child(2) { animation-delay: 0.10s; }
-        .setting:nth-child(3) { animation-delay: 0.15s; }
-        .setting:nth-child(4) { animation-delay: 0.20s; }
-        .setting:nth-child(5) { animation-delay: 0.25s; }
-        .setting:nth-child(6) { animation-delay: 0.30s; }
-        .setting:nth-child(7) { animation-delay: 0.35s; }
-        .setting:nth-child(8) { animation-delay: 0.40s; }
-        .setting:nth-child(9) { animation-delay: 0.45s; border-bottom: none; }
-
-        .setting-row:hover { transform: translateX(3px); }
-        .setting-row:hover .icon-box { transform: scale(1.1) rotate(-5deg); background: rgba(255,255,255,0.1); }
-
+        .title-group { display: flex; align-items: center; gap: 9px; }
+        .ext-logo { width: 22px; height: 22px; border-radius: 7px; box-shadow: var(--accent-glow); transition: transform 0.3s ease; }
+        .header:hover .ext-logo { transform: scale(1.06); }
+        .wordmark {
+            margin: 0; font-size: 14px; font-weight: 800; letter-spacing: -0.2px;
+            background: linear-gradient(125deg, #fff 25%, #a5b4fc 75%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; line-height: 1;
+        }
+        .power-btn {
+            background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+            color: var(--text-sub); border-radius: 50%; width: 30px; height: 30px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+        }
+        .power-btn:hover { background: rgba(255,255,255,0.09); color: var(--text); }
+        .power-btn.active { color: var(--success); border-color: rgba(16,185,129,0.38); background: rgba(16,185,129,0.07); animation: pulseGlow 2.5s infinite alternate ease-in-out; }
+        .power-btn.active svg { filter: drop-shadow(0 0 3px #10b981); }
+        .setting {
+            display: flex; flex-direction: column; padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            opacity: 0; transform: translateY(7px);
+            animation: slideUpFade 0.35s ease-out forwards;
+        }
+        .setting-row { display: flex; justify-content: space-between; align-items: center; transition: transform 0.18s cubic-bezier(0.4,0,0.2,1); }
+        .setting:nth-child(1) { animation-delay: 0.04s; }
+        .setting:nth-child(2) { animation-delay: 0.08s; }
+        .setting:nth-child(3) { animation-delay: 0.12s; }
+        .setting:nth-child(4) { animation-delay: 0.16s; }
+        .setting:nth-child(5) { animation-delay: 0.20s; }
+        .setting:nth-child(6) { animation-delay: 0.24s; }
+        .setting:nth-child(7) { animation-delay: 0.28s; }
+        .setting:nth-child(8) { animation-delay: 0.32s; }
+        .setting:nth-child(9) { animation-delay: 0.36s; border-bottom: none; }
+        .setting-row:hover { transform: translateX(2px); }
+        .setting-row:hover .icon-box { background: rgba(255,255,255,0.08); transform: scale(1.18) rotate(-8deg); }
         .label-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .icon-box {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
             border-radius: 7px; width: 24px; height: 24px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 12px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1); flex-shrink: 0; transform-origin: center;
         }
-        .label { font-size: 12.5px; font-weight: 500; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-        .setting-sub { font-size: 10px; font-weight: 400; opacity: 0.55; letter-spacing: 0.2px; width: 100%; margin-left: 36px; margin-top: -4px; }
-
-        /* ── Info tooltip button ── */
+        .label { font-size: 12.5px; font-weight: 500; color: var(--text); letter-spacing: -0.1px; }
+        .setting-sub { font-size: 10px; font-weight: 400; color: var(--text-sub); letter-spacing: 0.1px; width: 100%; margin-left: 32px; margin-top: -3px; }
         .info-btn {
             display: inline-flex; align-items: center; justify-content: center;
             width: 15px; height: 15px; border-radius: 50%;
-            background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.22);
-            color: rgba(255,255,255,0.55); font-size: 9px; font-weight: 700;
-            cursor: help; margin-left: 5px; flex-shrink: 0;
+            background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14);
+            color: var(--text-sub); cursor: help; margin-left: 4px; flex-shrink: 0;
             transition: background 0.2s, border-color 0.2s;
-            font-style: italic; line-height: 1; vertical-align: middle;
         }
-        .info-btn:hover { background: rgba(255,255,255,0.18); border-color: rgba(255,180,60,0.6); color: rgba(255,180,60,0.9); }
-        .info-btn--gold {
-            background: rgba(255,176,32,0.12);
-            border-color: rgba(255,176,32,0.35);
-            color: rgba(255,176,32,0.75);
-        }
-        .info-btn--gold:hover { background: rgba(255,176,32,0.25); border-color: rgba(255,176,32,0.7); color: rgba(255,200,60,1); }
+        .info-btn svg { width: 9px; height: 9px; }
+        .info-btn:hover { background: rgba(255,255,255,0.14); border-color: rgba(245,158,11,0.5); color: var(--warning); }
+        .info-btn--gold { background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.28); color: rgba(245,158,11,0.7); }
+        .info-btn--gold:hover { background: rgba(245,158,11,0.2); border-color: rgba(245,158,11,0.6); color: var(--warning); }
         #info-tooltip-box {
             visibility: hidden; opacity: 0;
             position: fixed; left: 8px; right: 8px; bottom: 8px;
-            background: rgba(14,14,20,0.96); backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,180,60,0.35);
-            border-radius: 11px; padding: 10px 12px;
-            color: rgba(255,255,255,0.85); font-size: 10.5px; line-height: 1.6;
-            box-shadow: 0 -4px 24px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,180,60,0.08) inset;
-            z-index: 99999; pointer-events: none;
-            transition: opacity 0.18s ease, visibility 0.18s ease;
+            background: rgba(10,10,18,0.97); backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px); border: 1px solid rgba(245,158,11,0.28);
+            border-radius: 11px; padding: 10px 12px; color: rgba(255,255,255,0.82);
+            font-size: 10.5px; line-height: 1.6; box-shadow: 0 -4px 28px rgba(0,0,0,0.75);
+            z-index: 99999; pointer-events: none; transition: opacity 0.18s ease, visibility 0.18s ease;
         }
-        #info-tooltip-box strong { color: rgba(255,180,60,0.95); display: block; margin-bottom: 4px; font-size: 11px; font-style: normal; }
-        #info-tooltip-box span#info-tooltip-body { font-size: 10.5px; line-height: 1.6; color: rgba(255,255,255,0.8); }
-
-        /* ── Cinematic Mode Disclaimer Modal ─────────────────────────── */
+        #info-tooltip-box strong { color: var(--warning); display: flex; align-items: center; gap: 5px; margin-bottom: 4px; font-size: 11px; }
+        #info-tooltip-box strong svg { width: 11px; height: 11px; flex-shrink: 0; }
+        #info-tooltip-box span#info-tooltip-body { font-size: 10.5px; line-height: 1.6; color: rgba(255,255,255,0.75); }
         #cinematic-disclaimer-overlay {
-            position: fixed; inset: 0;
-            background: rgba(0,0,0,0.78);
-            z-index: 999999;
-            display: none;
-            align-items: center; justify-content: center;
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
-            padding: 16px;
-            box-sizing: border-box;
+            position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+            z-index: 999999; display: none; align-items: center; justify-content: center;
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            padding: 16px; box-sizing: border-box;
         }
         #cinematic-disclaimer-modal {
-            background: linear-gradient(160deg, #1e1c2e, #141320);
-            border: 1px solid rgba(255,200,0,0.28);
-            border-radius: 18px;
-            padding: 24px 20px 20px;
-            width: 100%; max-width: 288px;
-            text-align: center;
-            box-shadow: 0 12px 48px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,200,0,0.08);
-            animation: cinemaModalIn 0.22s cubic-bezier(0.34,1.36,0.64,1) forwards;
+            background: linear-gradient(160deg, #12111f, #0d0c1a); border: 1px solid rgba(245,158,11,0.22);
+            border-radius: 18px; padding: 22px 20px 18px; width: 100%; max-width: 288px;
+            text-align: center; box-shadow: 0 16px 52px rgba(0,0,0,0.75);
+            animation: cinemaModalIn 0.2s cubic-bezier(0.34,1.36,0.64,1) forwards;
         }
-        @keyframes cinemaModalIn {
-            from { transform: scale(0.88); opacity: 0; }
-            to   { transform: scale(1);    opacity: 1; }
+        @keyframes cinemaModalIn { from { transform: scale(0.88); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .cinematic-modal-icon {
+            width: 48px; height: 48px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25);
+            border-radius: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;
         }
-        .cinematic-modal-icon { font-size: 38px; line-height: 1; margin-bottom: 10px; }
-        .cinematic-modal-title {
-            font-size: 14px; font-weight: 800;
-            margin: 0 0 14px;
-            background: linear-gradient(135deg, #ffd700, #ffaa00);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        .cinematic-modal-body {
-            font-size: 11.5px; color: rgba(255,255,255,0.68);
-            line-height: 1.65; text-align: left; margin-bottom: 18px;
-        }
+        .cinematic-modal-icon svg { width: 24px; height: 24px; }
+        .cinematic-modal-title { font-size: 13.5px; font-weight: 800; margin: 0 0 13px; background: linear-gradient(135deg, #fcd34d, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .cinematic-modal-body { font-size: 11.5px; color: rgba(255,255,255,0.62); line-height: 1.65; text-align: left; margin-bottom: 18px; }
         .cinematic-modal-body p { margin: 0 0 9px; }
         .cinematic-modal-body p:last-child { margin-bottom: 0; }
-        .cinematic-modal-body strong { color: rgba(255,255,255,0.92); }
-        .cinematic-modal-body em {
-            color: rgba(255,200,80,0.95); font-style: normal; font-weight: 600;
-        }
+        .cinematic-modal-body strong { color: rgba(255,255,255,0.9); }
+        .cinematic-modal-body em { color: rgba(253,186,116,0.95); font-style: normal; font-weight: 600; }
         #cinematic-confirm-btn {
-            width: 100%; padding: 11px 16px; margin-bottom: 9px;
-            background: linear-gradient(135deg, #ffd700, #f5a623);
-            border: none; border-radius: 11px;
-            color: #1a0d00; font-size: 12.5px; font-weight: 800;
-            cursor: pointer; letter-spacing: 0.2px;
-            box-shadow: 0 4px 18px rgba(255,200,0,0.38);
-            transition: all 0.2s ease;
+            width: 100%; padding: 10px 16px; margin-bottom: 8px;
+            background: linear-gradient(135deg, #fcd34d, #f59e0b); border: none; border-radius: 10px;
+            color: #1a0800; font-size: 12.5px; font-weight: 800; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 7px;
+            box-shadow: 0 4px 18px rgba(245,158,11,0.35); transition: all 0.2s ease;
         }
-        #cinematic-confirm-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 7px 24px rgba(255,200,0,0.55);
-        }
+        #cinematic-confirm-btn svg { width: 14px; height: 14px; }
+        #cinematic-confirm-btn:hover { transform: translateY(-1px); box-shadow: 0 7px 24px rgba(245,158,11,0.5); }
         #cinematic-confirm-btn:active { transform: translateY(0); }
         #cinematic-cancel-btn {
-            width: 100%; padding: 9px 16px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.14);
-            border-radius: 11px;
-            color: rgba(255,255,255,0.48); font-size: 12px; font-weight: 600;
-            cursor: pointer; transition: all 0.2s ease;
+            width: 100%; padding: 9px 16px; background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+            color: rgba(255,255,255,0.42); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;
         }
-        #cinematic-cancel-btn:hover {
-            background: rgba(255,255,255,0.1);
-            color: rgba(255,255,255,0.75);
-            border-color: rgba(255,255,255,0.3);
-        }
-
-        /* ── Cinematic Sub-Controls (blur / sat / dim chips) ──────────── */
-        .cine-controls {
-            display: none;
-            flex-direction: column;
-            gap: 3px;
-            padding: 5px 0 4px 32px;
-            border-top: 1px solid rgba(255,255,255,0.04);
-            margin-top: 1px;
-        }
+        #cinematic-cancel-btn:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.25); }
+        /* Compact 3-column horizontal cine-controls — saves ~34px vs 3 vertical rows */
+        .cine-controls { display: none; flex-direction: row; justify-content: space-between; gap: 4px; padding: 5px 0 5px 0; border-top: 1px solid rgba(255,255,255,0.04); margin-top: 2px; }
         .cine-controls.visible { display: flex; }
-        .cine-ctrl-row {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .cine-ctrl-label {
-            font-size: 9.5px;
-            color: rgba(255,255,255,0.38);
-            width: 26px;
-            flex-shrink: 0;
-            letter-spacing: 0.2px;
-        }
-        .cine-btn-group { display: flex; gap: 3px; }
-        .cine-btn {
-            font-size: 9.5px;
-            padding: 2px 8px;
-            border-radius: 4px;
-            border: 1px solid rgba(255,255,255,0.10);
-            background: rgba(255,255,255,0.04);
-            color: rgba(255,255,255,0.42);
-            cursor: pointer;
-            transition: all 0.15s ease;
-            line-height: 1.5;
-            font-family: inherit;
-        }
-        .cine-btn:hover {
-            background: rgba(255,255,255,0.09);
-            color: rgba(255,255,255,0.75);
-            border-color: rgba(255,255,255,0.22);
-        }
-        .cine-btn.active {
-            background: rgba(255,176,32,0.15);
-            border-color: rgba(255,176,32,0.48);
-            color: rgba(255,200,60,1);
-            font-weight: 600;
-        }
-
-        /* ── Toggle Switch ────────────────────────────────────────── */
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 38px;
-            height: 20px;
-            flex-shrink: 0;
-        }
+        .cine-ctrl-row { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; flex: 1; }
+        .cine-divider { width: 1px; background: rgba(255,255,255,0.12); align-self: stretch; margin: 0 2px; flex-shrink: 0; }
+        .cine-ctrl-label { font-size: 8.5px; color: var(--text-sub); letter-spacing: 0.2px; line-height: 1; }
+        .cine-btn-group { display: flex; gap: 2px; }
+        .cine-btn { font-size: 8.5px; padding: 2px 5px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.4); cursor: pointer; transition: all 0.15s ease; line-height: 1.4; font-family: inherit; white-space: nowrap; }
+        .cine-btn:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.75); border-color: rgba(255,255,255,0.2); }
+        .cine-btn.active { background: rgba(245,158,11,0.14); border-color: rgba(245,158,11,0.46); color: #fbbf24; font-weight: 600; }
+        .switch { position: relative; display: inline-block; width: 38px; height: 20px; flex-shrink: 0; }
         .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            inset: 0;
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.14);
-            border-radius: 20px;
-            transition: background 0.35s, border-color 0.35s;
-        }
-        .switch:hover .slider { border-color: rgba(255,255,255,0.28); }
-        .slider::before {
-            content: "";
-            position: absolute;
-            width: 13px; height: 13px;
-            left: 3px; top: 50%;
-            transform: translateY(-50%);
-            background: #bbb;
-            border-radius: 50%;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.45);
-            transition: transform 0.35s cubic-bezier(0.68,-0.55,0.265,1.55), background 0.35s;
-        }
-        input:checked + .slider {
-            background: rgba(255,0,80,0.22);
-            border-color: var(--accent);
-        }
-        input:checked + .slider::before {
-            transform: translateY(-50%) translateX(18px);
-            background: var(--accent);
-            box-shadow: var(--accent-glow);
-        }
-
-        /* Resume toggle — blue accent */
-        #toggle-autoResume:checked + .slider { background: rgba(0,210,255,0.18); border-color: var(--resume-color); }
-        #toggle-autoResume:checked + .slider::before { background: var(--resume-color); box-shadow: var(--blue-glow); }
-
-        /* Warning / hint boxes */
-        .premium-warning {
-            display: none; align-items: flex-start; gap: 6px;
-            margin-top: 3px; padding: 5px 7px;
-            background: linear-gradient(135deg, rgba(255,176,32,0.12), rgba(255,176,32,0.04));
-            border: 1px solid rgba(255,176,32,0.28); border-radius: 8px;
-            animation: slideDown 0.25s ease-out;
-        }
-        .premium-warning .warn-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
-        .premium-warning .warn-text { font-size: 11px; line-height: 1.4; color: #ffd580; }
+        .slider { position: absolute; cursor: pointer; inset: 0; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; transition: background 0.3s, border-color 0.3s; }
+        .switch:hover .slider { border-color: rgba(255,255,255,0.24); }
+        .slider::before { content: ""; position: absolute; width: 13px; height: 13px; left: 3px; top: 50%; transform: translateY(-50%); background: #888; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.5); transition: transform 0.32s cubic-bezier(0.68,-0.55,0.265,1.55), background 0.3s; }
+        input:checked + .slider { background: var(--accent-dim); border-color: var(--accent); }
+        input:checked + .slider::before { transform: translateY(-50%) translateX(18px); background: var(--accent); box-shadow: var(--accent-glow); }
+        #toggle-autoResume:checked + .slider { background: var(--cyan-dim); border-color: var(--cyan); }
+        #toggle-autoResume:checked + .slider::before { background: var(--cyan); box-shadow: var(--cyan-glow); }
+        .premium-warning { display: none; align-items: flex-start; gap: 6px; margin-top: 3px; padding: 5px 7px; background: var(--warn-dim); border: 1px solid rgba(245,158,11,0.24); border-radius: 8px; animation: slideDown 0.22s ease-out; }
+        .premium-warning .warn-icon { color: var(--warning); flex-shrink: 0; margin-top: 1px; display: flex; }
+        .premium-warning .warn-icon svg { width: 13px; height: 13px; }
+        .premium-warning .warn-text { font-size: 11px; line-height: 1.4; color: #fcd34d; }
         .premium-warning .warn-text strong { color: var(--warning); font-weight: 700; }
-
-        .fullscreen-hint {
-            display: none; align-items: flex-start; gap: 6px;
-            margin-top: 3px; padding: 5px 7px;
-            background: linear-gradient(135deg, rgba(0,210,255,0.10), rgba(0,210,255,0.03));
-            border: 1px solid rgba(0,210,255,0.25); border-radius: 8px;
-            animation: slideDown 0.25s ease-out;
-        }
-        .fullscreen-hint .warn-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
-        .fullscreen-hint .warn-text { font-size: 11px; line-height: 1.4; color: #a8edff; }
-        .fullscreen-hint .warn-text strong { color: #00d2ff; font-weight: 700; }
-
-
-        /* ── Watch History button ─────────────────────────────────────── */
-        .btn {
-            display: flex; align-items: center; justify-content: center; gap: 7px;
-            width: 100%; padding: 9px 12px; margin-top: 6px;
-            background: linear-gradient(135deg, rgba(0,210,255,0.12), rgba(0,210,255,0.04));
-            border: 1px solid rgba(0,210,255,0.35); border-radius: 10px;
-            color: #cceeff; font-size: 12.5px; font-weight: 600;
-            cursor: pointer; outline: none; letter-spacing: 0.2px;
-            box-shadow: inset 0 0 12px rgba(0,210,255,0.06), 0 2px 10px rgba(0,210,255,0.08);
-            transition: all 0.25s ease;
-            opacity: 0; animation: fadeIn 0.5s ease-out 0.55s forwards;
-        }
-        .btn:hover {
-            background: rgba(0,210,255,0.18);
-            box-shadow: 0 4px 20px rgba(0,210,255,0.15), inset 0 0 16px rgba(0,210,255,0.08);
-            border-color: rgba(0,210,255,0.6); transform: translateY(-1px);
-        }
-
-                .footer {
-            margin-top: 6px; text-align: center; font-size: 10.5px; color: #888;
-            opacity: 0; animation: fadeIn 0.5s ease-out forwards; animation-delay: 0.6s;
-        }
-        .github-btn {
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-            margin: 4px auto 0; padding: 4px 10px;
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-            color: #fff; text-decoration: none; border-radius: 20px;
-            font-size: 11.5px; font-weight: 600; width: fit-content;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+        .fullscreen-hint { display: none; align-items: flex-start; gap: 6px; margin-top: 3px; padding: 5px 7px; background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.22); border-radius: 8px; animation: slideDown 0.22s ease-out; }
+        .fullscreen-hint .warn-icon { color: var(--cyan); flex-shrink: 0; margin-top: 1px; display: flex; }
+        .fullscreen-hint .warn-icon svg { width: 13px; height: 13px; }
+        .fullscreen-hint .warn-text { font-size: 11px; line-height: 1.4; color: #a5f3fc; }
+        .fullscreen-hint .warn-text strong { color: var(--cyan); font-weight: 700; }
+        .btn { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; padding: 9px 12px; margin-top: 7px; background: linear-gradient(135deg, rgba(34,211,238,0.1), rgba(34,211,238,0.04)); border: 1px solid rgba(34,211,238,0.28); border-radius: 10px; color: #a5f3fc; font-size: 12.5px; font-weight: 600; cursor: pointer; outline: none; letter-spacing: -0.1px; box-shadow: inset 0 0 12px rgba(34,211,238,0.05); transition: all 0.22s ease; opacity: 0; animation: fadeIn 0.45s ease-out 0.5s forwards; }
+        .btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+        .btn:hover { background: rgba(34,211,238,0.16); box-shadow: 0 4px 18px rgba(34,211,238,0.14); border-color: rgba(34,211,238,0.52); transform: translateY(-1px); }
+        .footer { margin-top: 7px; text-align: center; font-size: 10.5px; color: var(--text-sub); opacity: 0; animation: fadeIn 0.45s ease-out forwards; animation-delay: 0.58s; }
+        .github-btn { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 4px auto 0; padding: 4px 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: rgba(255,255,255,0.65); text-decoration: none; border-radius: 20px; font-size: 11.5px; font-weight: 600; width: fit-content; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); }
         .github-btn svg { width: 13px; height: 13px; fill: currentColor; }
-        .github-btn:hover { background: rgba(255,255,255,0.15); transform: scale(1.05); box-shadow: 0 0 15px rgba(255,255,255,0.1); color: #fff; }
-
-        /* ── Resume History Overlay Panel ─────────────────────────── */
-        #resume-panel {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: var(--bg);
-            z-index: 9999;
-            display: none;
-            flex-direction: column;
-            border-radius: 18px;
-            overflow: hidden;
-            animation: slideInRight 0.25s ease-out;
-        }
+        .github-btn:hover { background: rgba(255,255,255,0.1); transform: scale(1.04); color: #fff; border-color: var(--border-hover); }
+        #resume-panel { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); z-index: 9999; display: none; flex-direction: column; border-radius: 18px; overflow: hidden; animation: slideInRight 0.22s ease-out; }
         #resume-panel.visible { display: flex; }
-
-        @keyframes slideInRight {
-            from { opacity: 0; transform: translateX(20px); }
-            to   { opacity: 1; transform: translateX(0); }
-        }
-
-        .rp-header {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 10px 14px 8px;
-            border-bottom: 1px solid var(--glass-border);
-            flex-shrink: 0;
-        }
-        .rp-header h3 { margin: 0; font-size: 15px; font-weight: 700; color: var(--resume-color); }
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
+        .rp-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 8px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .rp-header h3 { margin: 0; font-size: 14px; font-weight: 700; color: var(--cyan); display: flex; align-items: center; gap: 7px; }
+        .rp-header h3 svg { width: 15px; height: 15px; flex-shrink: 0; }
         .rp-header-right { display: flex; gap: 6px; align-items: center; }
-
-        .rp-icon-btn {
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-            color: #aaa; width: 28px; height: 28px; border-radius: 8px;
-            cursor: pointer; font-size: 14px;
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.2s;
-        }
-        .rp-icon-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
-        #rp-settings-btn { font-size: 13px; }
-
+        .rp-icon-btn { background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--text-sub); width: 28px; height: 28px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .rp-icon-btn svg { width: 14px; height: 14px; }
+        .rp-icon-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); border-color: var(--border-hover); }
         .rp-search { padding: 6px 14px 4px; flex-shrink: 0; }
-        .rp-search input {
-            width: 100%; padding: 5px 10px;
-            background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
-            color: #fff; border-radius: 20px; font-size: 12px; outline: none;
-        }
-        .rp-search input::placeholder { color: #666; }
-
-        .rp-list {
-            flex: 1; overflow-y: auto; padding: 6px 14px 10px;
-            scrollbar-width: thin; scrollbar-color: #333 transparent;
-        }
+        .rp-search input { width: 100%; padding: 6px 10px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--text); border-radius: 20px; font-size: 12px; outline: none; transition: border-color 0.2s; }
+        .rp-search input:focus { border-color: rgba(99,102,241,0.4); }
+        .rp-search input::placeholder { color: var(--text-muted); }
+        .rp-list { flex: 1; overflow-y: auto; padding: 6px 14px 10px; scrollbar-width: thin; scrollbar-color: #222 transparent; }
         .rp-list::-webkit-scrollbar { width: 4px; }
-        .rp-list::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
-
-        .rp-empty { text-align: center; color: #555; font-size: 13px; margin-top: 60px; line-height: 1.8; }
-        .rp-empty .rp-empty-icon { font-size: 32px; display: block; margin-bottom: 8px; }
-
-        .rp-video-card {
-            display: flex; gap: 8px; padding: 7px;
-            border: 1px solid rgba(255,255,255,0.07); border-radius: 10px;
-            margin-bottom: 7px; cursor: pointer; text-decoration: none; color: inherit;
-            transition: all 0.2s; background: rgba(255,255,255,0.02);
-            position: relative;
-        }
-        .rp-video-card:hover { background: rgba(255,255,255,0.07); border-color: rgba(0,210,255,0.3); transform: translateX(2px); }
-
+        .rp-list::-webkit-scrollbar-thumb { background: #222; border-radius: 4px; }
+        .rp-empty { text-align: center; color: var(--text-muted); font-size: 13px; margin-top: 60px; line-height: 1.8; }
+        .rp-empty-icon { display: flex; justify-content: center; margin-bottom: 10px; }
+        .rp-empty-icon svg { width: 32px; height: 32px; opacity: 0.28; }
+        .rp-video-card { display: flex; gap: 8px; padding: 7px; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; margin-bottom: 7px; cursor: pointer; text-decoration: none; color: inherit; transition: all 0.18s; background: rgba(255,255,255,0.02); position: relative; }
+        .rp-video-card:hover { background: rgba(255,255,255,0.06); border-color: rgba(34,211,238,0.28); transform: translateX(2px); }
         .rp-thumb { width: 100px; height: 56px; border-radius: 6px; object-fit: cover; flex-shrink: 0; background: #111; }
         .rp-info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; }
-        .rp-title {
-            font-size: 11.5px; font-weight: 600; line-height: 1.35;
-            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-            overflow: hidden; color: #eee;
-        }
-        .rp-channel { font-size: 10.5px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .rp-title { font-size: 11.5px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--text); }
+        .rp-channel { font-size: 10.5px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .rp-time-row { display: flex; justify-content: space-between; align-items: center; }
-        .rp-time { font-size: 10.5px; color: var(--resume-color); font-weight: 600; }
-        .rp-duration { font-size: 10.5px; color: #555; }
-        .rp-complete-badge {
-            font-size: 10px; font-weight: 700; color: #4caf50;
-            background: rgba(76,175,80,0.12); border: 1px solid rgba(76,175,80,0.35);
-            padding: 1px 6px; border-radius: 3px; white-space: nowrap;
-        }
-
-        .rp-progress-wrap {
-            position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
-            background: rgba(255,255,255,0.06); border-radius: 0 0 10px 10px; overflow: hidden;
-        }
-        .rp-progress-bar { height: 100%; background: var(--resume-color); border-radius: 2px; }
-
-        .rp-right-col {
-            display: flex; flex-direction: column; align-items: flex-end;
-            justify-content: space-between; flex-shrink: 0; gap: 4px; padding: 2px 0;
-        }
-        .rp-watch-count {
-            font-size: 10px; font-weight: 700; color: var(--resume-color);
-            background: rgba(0,210,255,0.10); border: 1px solid rgba(0,210,255,0.28);
-            border-radius: 10px; padding: 1px 7px; white-space: nowrap; line-height: 16px;
-        }
-        .rp-delete-btn {
-            display: none;
-            background: rgba(255,0,50,0.2); border: 1px solid rgba(255,0,50,0.4);
-            color: #ff4466; border-radius: 6px; font-size: 10px; padding: 2px 6px;
-            cursor: pointer; transition: all 0.2s;
-        }
+        .rp-time { font-size: 10.5px; color: var(--cyan); font-weight: 600; }
+        .rp-duration { font-size: 10.5px; color: var(--text-muted); }
+        .rp-complete-badge { font-size: 10px; font-weight: 700; color: var(--success); background: rgba(16,185,129,0.11); border: 1px solid rgba(16,185,129,0.32); padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+        .rp-progress-wrap { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: rgba(255,255,255,0.05); border-radius: 0 0 10px 10px; overflow: hidden; }
+        .rp-progress-bar { height: 100%; background: var(--cyan); border-radius: 2px; }
+        .rp-right-col { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; flex-shrink: 0; gap: 4px; padding: 2px 0; }
+        .rp-watch-count { font-size: 10px; font-weight: 700; color: var(--cyan); background: rgba(34,211,238,0.09); border: 1px solid rgba(34,211,238,0.25); border-radius: 10px; padding: 1px 7px; white-space: nowrap; line-height: 16px; }
+        .rp-delete-btn { display: none; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.35); color: #f87171; border-radius: 6px; font-size: 10px; padding: 2px 6px; cursor: pointer; transition: all 0.2s; }
         .rp-video-card:hover .rp-delete-btn { display: block; }
-        .rp-delete-btn:hover { background: rgba(255,0,50,0.5); color: #fff; }
-
-        /* Date group headers */
-        .rp-date-header {
-            font-size: 10px; font-weight: 700; text-transform: uppercase;
-            letter-spacing: 0.8px; color: #555; padding: 8px 14px 4px;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            margin-top: 2px;
-        }
-
-        /* Recap panel */
-        #recap-panel {
-            display: none; flex-direction: column; position: absolute;
-            inset: 0; background: #0d0d0d; z-index: 30; border-radius: 12px;
-        }
+        .rp-delete-btn:hover { background: rgba(239,68,68,0.4); color: #fff; }
+        .rp-date-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); padding: 8px 14px 4px; border-bottom: 1px solid rgba(255,255,255,0.04); margin-top: 2px; }
+        #recap-panel { display: none; flex-direction: column; position: absolute; inset: 0; background: #0a0a12; z-index: 30; border-radius: 12px; }
         #recap-panel.visible { display: flex; }
-        .recap-header { display: flex; align-items: center; gap: 8px; padding: 12px 14px 8px; border-bottom: 1px solid rgba(255,255,255,0.07); flex-shrink: 0; }
-        .recap-header h3 { margin: 0; font-size: 15px; font-weight: 700; color: var(--resume-color); flex: 1; }
-        .recap-total { font-size: 10px; color: #555; padding: 4px 14px 6px; flex-shrink: 0; }
+        .recap-header { display: flex; align-items: center; gap: 8px; padding: 12px 14px 8px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .recap-header h3 { margin: 0; font-size: 14px; font-weight: 700; color: var(--cyan); flex: 1; display: flex; align-items: center; gap: 7px; }
+        .recap-header h3 svg { width: 15px; height: 15px; }
+        .recap-total { font-size: 10px; color: var(--text-muted); padding: 4px 14px 6px; flex-shrink: 0; }
         .recap-body { flex: 1; overflow-y: auto; padding: 0 0 8px; }
         .recap-body::-webkit-scrollbar { width: 4px; }
-        .recap-body::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
-        .recap-section-title {
-            font-size: 11px; font-weight: 700; color: #888;
-            padding: 10px 14px 5px; text-transform: uppercase; letter-spacing: 0.6px;
-        }
-        .recap-row {
-            display: flex; align-items: center; gap: 8px;
-            padding: 6px 14px; text-decoration: none; color: inherit;
-            transition: background 0.15s;
-        }
-        .recap-row:hover { background: rgba(255,255,255,0.05); }
-        .recap-channel-row {
-            display: flex; align-items: center; gap: 8px;
-            padding: 6px 14px;
-        }
-        .recap-rank { font-size: 11px; font-weight: 700; color: var(--resume-color); width: 20px; flex-shrink: 0; }
+        .recap-body::-webkit-scrollbar-thumb { background: #222; border-radius: 4px; }
+        .recap-section-title { font-size: 10.5px; font-weight: 700; color: var(--text-sub); padding: 10px 14px 5px; text-transform: uppercase; letter-spacing: 0.7px; display: flex; align-items: center; gap: 6px; }
+        .recap-section-title svg { width: 12px; height: 12px; opacity: 0.7; }
+        .recap-row { display: flex; align-items: center; gap: 8px; padding: 6px 14px; text-decoration: none; color: inherit; transition: background 0.15s; }
+        .recap-row:hover { background: rgba(255,255,255,0.04); }
+        .recap-channel-row { display: flex; align-items: center; gap: 8px; padding: 6px 14px; }
+        .recap-rank { font-size: 11px; font-weight: 700; color: var(--cyan); width: 20px; flex-shrink: 0; }
         .recap-thumb { width: 60px; height: 34px; border-radius: 4px; object-fit: cover; background: #111; flex-shrink: 0; }
         .recap-info { flex: 1; min-width: 0; }
-        .recap-title { font-size: 11px; color: #ddd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .recap-channel { font-size: 10px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
-        .recap-count { font-size: 11px; font-weight: 700; color: var(--resume-color); flex-shrink: 0; }
-        .recap-empty { font-size: 12px; color: #555; text-align: center; padding: 16px; }
-
-        /* ── Resume Settings Sub-panel ──────────────────────────────── */
-        #resume-settings-panel {
-            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: var(--bg); z-index: 10000;
-            display: none; flex-direction: column;
-            border-radius: 18px; overflow: hidden;
-            animation: slideInRight 0.2s ease-out;
-        }
+        .recap-title { font-size: 11px; color: rgba(228,228,239,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .recap-channel { font-size: 10px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+        .recap-count { font-size: 11px; font-weight: 700; color: var(--cyan); flex-shrink: 0; }
+        .recap-empty { font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px; }
+        #resume-settings-panel { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); z-index: 10000; display: none; flex-direction: column; border-radius: 18px; overflow: hidden; animation: slideInRight 0.2s ease-out; }
         #resume-settings-panel.visible { display: flex; }
-
-        .rsp-header {
-            display: flex; align-items: center; gap: 8px;
-            padding: 10px 14px 8px; border-bottom: 1px solid var(--glass-border); flex-shrink: 0;
-        }
-        .rsp-header h3 { margin: 0; font-size: 15px; font-weight: 700; flex: 1; }
-        .rsp-back { background: none; border: none; color: var(--resume-color); font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1; }
-
+        .rsp-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px 8px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .rsp-header h3 { margin: 0; font-size: 14px; font-weight: 700; flex: 1; }
+        .rsp-back { background: none; border: none; color: var(--cyan); cursor: pointer; padding: 0 4px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+        .rsp-back svg { width: 18px; height: 18px; }
         .rsp-body { flex: 1; padding: 10px 14px; overflow-y: auto; }
-
         .rsp-field { margin-bottom: 14px; }
-        .rsp-field label { display: block; font-size: 12px; color: #aaa; margin-bottom: 5px; font-weight: 600; }
+        .rsp-field label { display: block; font-size: 12px; color: var(--text-sub); margin-bottom: 5px; font-weight: 600; }
         .rsp-field .rsp-row { display: flex; align-items: center; gap: 8px; }
-        .rsp-field input[type="number"] {
-            width: 60px; background: rgba(255,255,255,0.07);
-            border: 1px solid rgba(255,255,255,0.15); color: #fff;
-            border-radius: 8px; padding: 4px 8px; font-size: 13px; outline: none;
-            -moz-appearance: textfield; text-align: center;
-        }
-        .rsp-field input[type="number"]::-webkit-inner-spin-button,
-        .rsp-field input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
-        .rsp-field .rsp-unit { font-size: 12px; color: #777; }
-
+        .rsp-field input[type="number"] { width: 60px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 4px 8px; font-size: 13px; outline: none; -moz-appearance: textfield; text-align: center; }
+        .rsp-field input[type="number"]::-webkit-inner-spin-button, .rsp-field input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+        .rsp-field .rsp-unit { font-size: 12px; color: var(--text-sub); }
         .rsp-toggle-row { display: flex; align-items: center; justify-content: space-between; }
         .rsp-toggle-label { font-size: 13px; font-weight: 600; }
-
-        .rsp-save {
-            width: 100%; padding: 9px; margin-top: 4px;
-            background: linear-gradient(135deg, rgba(0,210,255,0.2), rgba(0,210,255,0.1));
-            border: 1px solid rgba(0,210,255,0.4); color: #00d2ff;
-            border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px;
-            transition: all 0.2s;
-        }
-        .rsp-save:hover { background: rgba(0,210,255,0.3); }
-
-        .rsp-saved-msg { text-align: center; font-size: 11px; color: #00ff88; margin-top: 6px; opacity: 0; transition: opacity 0.3s; }
+        .rsp-save { width: 100%; padding: 9px; margin-top: 4px; background: linear-gradient(135deg, rgba(34,211,238,0.18), rgba(34,211,238,0.08)); border: 1px solid rgba(34,211,238,0.35); color: var(--cyan); border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px; transition: all 0.2s; }
+        .rsp-save:hover { background: rgba(34,211,238,0.26); }
+        .rsp-saved-msg { text-align: center; font-size: 11px; color: var(--success); margin-top: 6px; opacity: 0; transition: opacity 0.3s; }
         .rsp-saved-msg.show { opacity: 1; }
-        .rsp-backup-section {
-            margin-top: 14px; padding-top: 14px;
-            border-top: 1px solid rgba(255,255,255,0.07);
-        }
-        .rsp-backup-section label {
-            display: block; font-size: 12px; color: #aaa; margin-bottom: 8px; font-weight: 600;
-        }
-        .rsp-backup-section p {
-            font-size: 11px; color: #555; margin: 0 0 10px; line-height: 1.5;
-        }
+        .rsp-backup-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.06); }
+        .rsp-backup-section label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-sub); margin-bottom: 8px; font-weight: 600; }
+        .rsp-backup-section label svg { width: 13px; height: 13px; }
+        .rsp-backup-section p { font-size: 11px; color: var(--text-muted); margin: 0 0 10px; line-height: 1.5; }
         .rsp-backup-btns { display: flex; gap: 8px; }
-        .rsp-backup-btn {
-            flex: 1; padding: 7px 6px; background: rgba(0,210,255,0.08);
-            border: 1px solid rgba(0,210,255,0.3); border-radius: 8px;
-            color: var(--resume-color); font-size: 11px; font-weight: 600;
-            cursor: pointer; transition: all 0.2s; text-align: center;
-        }
-        .rsp-backup-btn:hover { background: rgba(0,210,255,0.2); }
-        .rsp-restore-btn {
-            flex: 1; padding: 7px 6px; background: rgba(255,170,0,0.08);
-            border: 1px solid rgba(255,170,0,0.35); border-radius: 8px;
-            color: #ffaa00; font-size: 11px; font-weight: 600;
-            cursor: pointer; transition: all 0.2s; text-align: center;
-        }
-        .rsp-restore-btn:hover { background: rgba(255,170,0,0.2); }
-        .rsp-backup-msg { text-align: center; font-size: 11px; color: #00ff88; margin-top: 8px; opacity: 0; transition: opacity 0.3s; }
+        .rsp-backup-btn { flex: 1; padding: 7px 6px; background: rgba(34,211,238,0.07); border: 1px solid rgba(34,211,238,0.26); border-radius: 8px; color: var(--cyan); font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .rsp-backup-btn svg { width: 12px; height: 12px; }
+        .rsp-backup-btn:hover { background: rgba(34,211,238,0.16); }
+        .rsp-restore-btn { flex: 1; padding: 7px 6px; background: rgba(245,158,11,0.07); border: 1px solid rgba(245,158,11,0.28); border-radius: 8px; color: var(--warning); font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .rsp-restore-btn svg { width: 12px; height: 12px; }
+        .rsp-restore-btn:hover { background: rgba(245,158,11,0.16); }
+        .rsp-backup-msg { text-align: center; font-size: 11px; color: var(--success); margin-top: 8px; opacity: 0; transition: opacity 0.3s; }
         .rsp-backup-msg.show { opacity: 1; }
-
-        /* ── Welcome / Star Screen ───────────────────────────────────────────── */
-        #welcome-screen {
-            width: 320px;
-            min-height: 380px;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            padding: 28px 22px 24px;
-            text-align: center;
-            box-sizing: border-box;
-        }
-        .welcome-star-emoji {
-            font-size: 52px;
-            line-height: 1;
-            margin-bottom: 14px;
-            animation: starPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards;
-            display: inline-block;
-        }
-        .welcome-title {
-            font-size: 17px; font-weight: 800;
-            margin: 0 0 8px;
-            background: linear-gradient(135deg, #ffd700, #ffaa00);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        .welcome-sub {
-            font-size: 12px; color: rgba(255,255,255,0.55);
-            line-height: 1.6; margin: 0 0 22px;
-        }
+        #welcome-screen { width: 320px; min-height: 380px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px 22px 24px; text-align: center; box-sizing: border-box; }
+        .welcome-star-emoji { width: 64px; height: 64px; background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(99,102,241,0.06)); border: 1px solid rgba(99,102,241,0.3); border-radius: 18px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; animation: starPop 0.55s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+        .welcome-star-emoji svg { width: 32px; height: 32px; }
+        .welcome-title { font-size: 17px; font-weight: 800; margin: 0 0 8px; background: linear-gradient(135deg, #fcd34d, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .welcome-sub { font-size: 12px; color: var(--text-sub); line-height: 1.6; margin: 0 0 22px; }
         .welcome-sub strong { color: rgba(255,255,255,0.85); }
-        #welcome-star-btn {
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            width: 100%; padding: 11px 16px;
-            background: linear-gradient(135deg, #ffd700, #f5a623);
-            border: none; border-radius: 12px;
-            color: #1a0d00; font-size: 14px; font-weight: 800;
-            cursor: pointer; letter-spacing: 0.3px;
-            box-shadow: 0 4px 20px rgba(255,200,0,0.4), inset 0 1px 0 rgba(255,255,255,0.25);
-            transition: all 0.25s ease;
-            text-decoration: none;
-        }
-        #welcome-star-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 28px rgba(255,200,0,0.55), inset 0 1px 0 rgba(255,255,255,0.25);
-        }
+        #welcome-star-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 11px 16px; background: linear-gradient(135deg, #fcd34d, #f59e0b); border: none; border-radius: 12px; color: #1a0800; font-size: 14px; font-weight: 800; cursor: pointer; letter-spacing: -0.1px; text-decoration: none; box-shadow: 0 4px 20px rgba(245,158,11,0.38), inset 0 1px 0 rgba(255,255,255,0.22); transition: all 0.22s ease; }
+        #welcome-star-btn svg { width: 16px; height: 16px; }
+        #welcome-star-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(245,158,11,0.52); }
         #welcome-star-btn:active { transform: translateY(0); }
-        #welcome-use-btn {
-            display: none; align-items: center; justify-content: center; gap: 6px;
-            width: 100%; padding: 9px 16px; margin-top: 10px;
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.18); border-radius: 12px;
-            color: rgba(255,255,255,0.75); font-size: 13px; font-weight: 600;
-            cursor: pointer; transition: all 0.25s ease;
-            animation: fadeIn 0.4s ease-out forwards;
-        }
-        #welcome-use-btn:hover {
-            background: rgba(255,255,255,0.12);
-            color: #fff; border-color: rgba(255,255,255,0.35);
-        }
-        .welcome-divider {
-            width: 40px; height: 1px;
-            background: rgba(255,255,255,0.08);
-            margin: 18px auto 0;
-        }
-        @keyframes starPop {
-            from { transform: scale(0.3) rotate(-15deg); opacity: 0; }
-            to   { transform: scale(1) rotate(0deg); opacity: 1; }
-        }
-
-        /* Keyframes */
-        /* ── Buy Me a Coffee button (welcome screen) ──────────────────────── */
-        #welcome-coffee-btn {
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            width: 100%; padding: 10px 16px; margin-top: 10px;
-            background: linear-gradient(135deg, #ffdd00, #ff9500);
-            border: none; border-radius: 12px;
-            color: #1a0a00; font-size: 13.5px; font-weight: 800;
-            cursor: pointer; letter-spacing: 0.3px; text-decoration: none;
-            box-shadow: 0 4px 18px rgba(255,160,0,0.35), inset 0 1px 0 rgba(255,255,255,0.3);
-            transition: all 0.25s ease;
-        }
-        #welcome-coffee-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 26px rgba(255,160,0,0.5), inset 0 1px 0 rgba(255,255,255,0.3);
-        }
+        #welcome-use-btn { display: none; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 9px 16px; margin-top: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 12px; color: var(--text-sub); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.22s ease; animation: fadeIn 0.4s ease-out forwards; }
+        #welcome-use-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); border-color: var(--border-hover); }
+        .welcome-divider { width: 40px; height: 1px; background: var(--border); margin: 18px auto 0; }
+        @keyframes starPop { from { transform: scale(0.3) rotate(-15deg); opacity: 0; } to { transform: scale(1) rotate(0deg); opacity: 1; } }
+        #welcome-coffee-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px 16px; margin-top: 10px; background: linear-gradient(135deg, #fde68a, #fbbf24); border: none; border-radius: 12px; color: #1a0a00; font-size: 13.5px; font-weight: 800; cursor: pointer; letter-spacing: -0.1px; text-decoration: none; box-shadow: 0 4px 18px rgba(251,191,36,0.3), inset 0 1px 0 rgba(255,255,255,0.25); transition: all 0.22s ease; }
+        #welcome-coffee-btn svg { width: 16px; height: 16px; }
+        #welcome-coffee-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 26px rgba(251,191,36,0.45); }
         #welcome-coffee-btn:active { transform: translateY(0); }
-
-        /* ── Footer two-button row ─────────────────────────────────────────── */
-        .footer-btns {
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-            margin: 4px auto 0; width: fit-content;
-        }
-        .coffee-btn {
-            display: flex; align-items: center; justify-content: center; gap: 6px;
-            padding: 4px 10px;
-            background: linear-gradient(135deg, rgba(255,200,0,0.18), rgba(255,140,0,0.10));
-            border: 1px solid rgba(255,180,0,0.38);
-            color: #ffd060; text-decoration: none; border-radius: 20px;
-            font-size: 11.5px; font-weight: 600; width: fit-content;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            white-space: nowrap;
-        }
-        .coffee-btn:hover {
-            background: linear-gradient(135deg, rgba(255,200,0,0.32), rgba(255,140,0,0.2));
-            border-color: rgba(255,200,0,0.65);
-            transform: scale(1.05);
-            box-shadow: 0 0 14px rgba(255,180,0,0.22);
-            color: #ffe080;
-        }
-
-        @keyframes containerFadeIn { from { opacity: 0; transform: scale(0.95) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-        @keyframes slideUpFade { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes wave { 0% { background-position: 0% 0; } 100% { background-position: -200% 0; } }
-        @keyframes pulseGlow { 0% { box-shadow: 0 0 5px rgba(0,255,136,0.1); } 100% { box-shadow: 0 0 15px rgba(0,255,136,0.4); } }
+        .footer-btns { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 4px auto 0; width: fit-content; }
+        .coffee-btn { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 4px 10px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); color: #fcd34d; text-decoration: none; border-radius: 20px; font-size: 11.5px; font-weight: 600; width: fit-content; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); white-space: nowrap; }
+        .coffee-btn svg { width: 12px; height: 12px; }
+        .coffee-btn:hover { background: rgba(251,191,36,0.2); border-color: rgba(251,191,36,0.55); transform: scale(1.04); color: #fde68a; }
+        @keyframes containerFadeIn { from { opacity: 0; transform: scale(0.96) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes slideUpFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulseGlow { 0% { box-shadow: 0 0 4px rgba(16,185,129,0.1); } 100% { box-shadow: 0 0 12px rgba(16,185,129,0.38); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* ── Report Button ─────────────────────────────────────────────────────── */
+        .report-btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+            width: auto; margin: 6px auto 0; padding: 5px 16px;
+            background: linear-gradient(135deg, rgba(239,68,68,0.09), rgba(239,68,68,0.03));
+            border: 1px solid rgba(239,68,68,0.26); border-radius: 999px;
+            color: #fca5a5; font-size: 11.5px; font-weight: 600; cursor: pointer; outline: none;
+            letter-spacing: -0.1px; box-shadow: inset 0 0 12px rgba(239,68,68,0.04);
+            transition: all 0.22s ease; opacity: 0;
+            animation: fadeIn 0.45s ease-out 0.56s forwards; font-family: inherit;
+        }
+        .report-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+        .report-btn:hover { background: rgba(239,68,68,0.15); box-shadow: 0 4px 18px rgba(239,68,68,0.13); border-color: rgba(239,68,68,0.50); transform: translateY(-1px); }
+        /* ── Report Panel ──────────────────────────────────────────────────────── */
+        #report-panel { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); z-index: 9999; display: none; flex-direction: column; border-radius: 18px; overflow: hidden; }
+        #report-panel.visible { display: flex; }
+        .report-body { flex: 1; overflow-y: auto; padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 10px; scrollbar-width: thin; scrollbar-color: #222 transparent; }
+        .report-body::-webkit-scrollbar { width: 4px; }
+        .report-body::-webkit-scrollbar-thumb { background: #222; border-radius: 4px; }
+        .report-desc { font-size: 11.5px; color: var(--text-sub); line-height: 1.6; margin: 0; background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.16); border-radius: 8px; padding: 8px 10px; }
+        .report-field { display: flex; flex-direction: column; gap: 5px; }
+        .report-field label { font-size: 11.5px; font-weight: 600; color: var(--text-sub); }
+        .report-field input[type="text"] { padding: 8px 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); border-radius: 8px; font-size: 12px; outline: none; transition: border-color 0.2s; font-family: inherit; }
+        .report-field input[type="text"]:focus { border-color: rgba(239,68,68,0.38); }
+        .report-field input[type="text"]::placeholder { color: var(--text-muted); }
+        .report-field textarea { padding: 8px 10px; min-height: 80px; resize: vertical; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); border-radius: 8px; font-size: 12px; outline: none; transition: border-color 0.2s; font-family: inherit; line-height: 1.5; }
+        .report-field textarea:focus { border-color: rgba(239,68,68,0.38); }
+        .report-field textarea::placeholder { color: var(--text-muted); }
+        .report-upload-area { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 12px; border: 1.5px dashed rgba(255,255,255,0.12); border-radius: 8px; cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.02); position: relative; min-height: 58px; }
+        .report-upload-area:hover { border-color: rgba(239,68,68,0.38); background: rgba(239,68,68,0.04); }
+        .report-upload-area svg { width: 18px; height: 18px; opacity: 0.45; }
+        .report-upload-area span { font-size: 11px; color: var(--text-muted); }
+        .report-upload-area input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+        .report-preview-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+        .report-preview-item { position: relative; width: 60px; height: 60px; }
+        .report-preview-item img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); display: block; }
+        .report-preview-remove { position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; background: #ef4444; border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 700; line-height: 1; padding: 0; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+        .report-preview-remove:hover { background: #dc2626; }
+        #report-submit-btn { padding: 10px 16px; background: linear-gradient(135deg, rgba(239,68,68,0.18), rgba(239,68,68,0.08)); border: 1px solid rgba(239,68,68,0.38); border-radius: 10px; color: #fca5a5; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; width: 100%; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 2px; }
+        #report-submit-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+        #report-submit-btn:hover:not(:disabled) { background: rgba(239,68,68,0.28); box-shadow: 0 4px 16px rgba(239,68,68,0.22); transform: translateY(-1px); }
+        #report-submit-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        #report-status { font-size: 11.5px; text-align: center; min-height: 16px; line-height: 1.5; }
+        #report-status.success { color: #4ade80; }
+        #report-status.error { color: #f87171; }
     </style>
 </head>
 <body>
     <div class="glass-container" id="main-view">
-
         <div class="header">
             <div class="title-group">
                 <img src="imgs/icon32.png" alt="Logo" class="ext-logo">
-                <div style="display:flex;flex-direction:column;gap:1px;">
-                    <h3 class="water-text" style="margin:0;">YouTube Pro +</h3>
-                    <span id="ext-version-label" style="font-size:9px;color:rgba(255,255,255,0.28);letter-spacing:0.04em;font-weight:400;line-height:1;"></span>
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                    <h3 class="wordmark">YouTube Pro+</h3>
+                    <span id="ext-version-label" style="font-size:9px;color:var(--text-muted);letter-spacing:0.04em;font-weight:500;line-height:1;"></span>
                 </div>
             </div>
             <button id="master-toggle" class="power-btn active" title="Turn Extension On/Off">
@@ -750,125 +380,172 @@
         <div class="settings-wrapper">
             <div class="setting">
                 <div class="setting-row">
-                    <div class="label-group"><div class="icon-box">🎨</div><span class="label">Liquid Glass Theme</span><span class="info-btn" id="info-btn" data-tip="theme">i</span></div>
+                    <div class="label-group">
+                        <div class="icon-box">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="#8b5cf6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="8" cy="8" r="5.5"/><circle cx="5" cy="6.5" r="0.8" fill="#8b5cf6" stroke="none"/><circle cx="8" cy="4.5" r="0.8" fill="#8b5cf6" stroke="none"/><circle cx="11" cy="6.5" r="0.8" fill="#8b5cf6" stroke="none"/><path d="M5.5 10.5 C5.5 9.1 6.6 8 8 8 C9.4 8 10.5 9.1 10.5 10.5 L5.5 10.5Z" fill="#8b5cf6" stroke="none"/></svg>
+                        </div>
+                        <span class="label">Liquid Glass Theme</span>
+                        <span class="info-btn" id="info-btn" data-tip="theme"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+                    </div>
                     <label class="switch"><input type="checkbox" id="toggle-theme"><span class="slider"></span></label>
                 </div>
             </div>
             <div class="setting">
                 <div class="setting-row">
-                    <div class="label-group"><div class="icon-box">👑</div><span class="label">Premium Logo</span></div>
+                    <div class="label-group">
+                        <div class="icon-box">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M8 2 L9.8 6.2 L14.5 6.2 L10.8 9 L12.2 13.5 L8 10.8 L3.8 13.5 L5.2 9 L1.5 6.2 L6.2 6.2 Z"/></svg>
+                        </div>
+                        <span class="label">Premium Logo</span>
+                    </div>
                     <label class="switch"><input type="checkbox" id="toggle-premium"><span class="slider"></span></label>
                 </div>
             </div>
             <div class="setting">
                 <div class="setting-row">
-                    <div class="label-group"><div class="icon-box">🌌</div><span class="label">Super Ambient Mode</span><span class="info-btn" data-tip="ambient">i</span></div>
+                    <div class="label-group">
+                        <div class="icon-box">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="#6366f1" stroke-linecap="round" width="14" height="14"><rect x="4.5" y="4.5" width="7" height="7" rx="1.2" stroke-width="1.4"/><line x1="4.5" y1="4.5" x2="2.5" y2="2.5" stroke-width="1.3" opacity="0.9"/><line x1="11.5" y1="4.5" x2="13.5" y2="2.5" stroke-width="1.3" opacity="0.9"/><line x1="4.5" y1="11.5" x2="2.5" y2="13.5" stroke-width="1.3" opacity="0.9"/><line x1="11.5" y1="11.5" x2="13.5" y2="13.5" stroke-width="1.3" opacity="0.9"/><line x1="8" y1="4.5" x2="8" y2="2" stroke-width="1.2" opacity="0.6"/><line x1="8" y1="11.5" x2="8" y2="14" stroke-width="1.2" opacity="0.6"/><line x1="4.5" y1="8" x2="2" y2="8" stroke-width="1.2" opacity="0.6"/><line x1="11.5" y1="8" x2="14" y2="8" stroke-width="1.2" opacity="0.6"/></svg>
+                        </div>
+                        <span class="label">Super Ambient Mode</span>
+                        <span class="info-btn" data-tip="ambient"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+                    </div>
                     <label class="switch"><input type="checkbox" id="toggle-ambient"><span class="slider"></span></label>
                 </div>
             </div>
             <div class="setting">
                 <div class="setting-row">
-                    <div class="label-group"><div class="icon-box">🎬</div><span class="label">Cinematic Mode</span><span class="info-btn info-btn--gold" data-tip="cinematic">i</span></div>
+                    <div class="label-group">
+                        <div class="icon-box">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="#d97706" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="1.5" y="3.5" width="13" height="9" rx="1"/><line x1="1.5" y1="6" x2="3.5" y2="6"/><line x1="1.5" y1="8.5" x2="3.5" y2="8.5"/><line x1="1.5" y1="11" x2="3.5" y2="11"/><line x1="12.5" y1="6" x2="14.5" y2="6"/><line x1="12.5" y1="8.5" x2="14.5" y2="8.5"/><line x1="12.5" y1="11" x2="14.5" y2="11"/><line x1="5" y1="3.5" x2="5" y2="12.5"/><line x1="11" y1="3.5" x2="11" y2="12.5"/></svg>
+                        </div>
+                        <span class="label">Cinematic Mode</span>
+                        <span class="info-btn info-btn--gold" data-tip="cinematic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+                    </div>
                     <label class="switch"><input type="checkbox" id="toggle-cinematic"><span class="slider"></span></label>
                 </div>
                 <div class="cine-controls" id="cine-controls">
-                    <div class="cine-ctrl-row">
-                        <span class="cine-ctrl-label">Blur</span>
-                        <div class="cine-btn-group">
-                            <button class="cine-btn" data-ctrl="blur" data-val="low">Soft</button>
-                            <button class="cine-btn" data-ctrl="blur" data-val="med">Std</button>
-                            <button class="cine-btn" data-ctrl="blur" data-val="high">Strong</button>
-                        </div>
-                    </div>
-                    <div class="cine-ctrl-row">
-                        <span class="cine-ctrl-label">Sat</span>
-                        <div class="cine-btn-group">
-                            <button class="cine-btn" data-ctrl="sat" data-val="low">Low</button>
-                            <button class="cine-btn" data-ctrl="sat" data-val="med">Std</button>
-                            <button class="cine-btn" data-ctrl="sat" data-val="high">Vivid</button>
-                        </div>
-                    </div>
-                    <div class="cine-ctrl-row">
-                        <span class="cine-ctrl-label">Dim</span>
-                        <div class="cine-btn-group">
-                            <button class="cine-btn" data-ctrl="dim" data-val="low">Light</button>
-                            <button class="cine-btn" data-ctrl="dim" data-val="med">Std</button>
-                            <button class="cine-btn" data-ctrl="dim" data-val="high">Dark</button>
-                        </div>
-                    </div>
+                    <div class="cine-ctrl-row"><span class="cine-ctrl-label">Blur</span><div class="cine-btn-group"><button class="cine-btn" data-ctrl="blur" data-val="low">Soft</button><button class="cine-btn" data-ctrl="blur" data-val="med">Std</button><button class="cine-btn" data-ctrl="blur" data-val="high">Strong</button></div></div>
+                    <div class="cine-divider"></div><div class="cine-ctrl-row"><span class="cine-ctrl-label">Sat</span><div class="cine-btn-group"><button class="cine-btn" data-ctrl="sat" data-val="low">Low</button><button class="cine-btn" data-ctrl="sat" data-val="med">Std</button><button class="cine-btn" data-ctrl="sat" data-val="high">Vivid</button></div></div>
+                    <div class="cine-divider"></div><div class="cine-ctrl-row"><span class="cine-ctrl-label">Dim</span><div class="cine-btn-group"><button class="cine-btn" data-ctrl="dim" data-val="low">Light</button><button class="cine-btn" data-ctrl="dim" data-val="med">Std</button><button class="cine-btn" data-ctrl="dim" data-val="high">Dark</button></div></div>
                 </div>
             </div>
             <div class="setting">
                 <div class="setting-row">
-                    <div class="label-group"><div class="icon-box">🚀</div><span class="label">10x Speed Booster</span></div>
+                    <div class="label-group">
+                        <div class="icon-box">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M2.5 11 A6 6 0 0 1 13.5 11"/><line x1="8" y1="11" x2="10.5" y2="6" stroke="#ef4444" stroke-width="1.5"/><circle cx="8" cy="11" r="1.2" fill="#ef4444" stroke="none"/><line x1="4" y1="11" x2="4.5" y2="9.5" stroke="#ef4444" stroke-width="1" opacity="0.5"/><line x1="12" y1="11" x2="11.5" y2="9.5" stroke="#ef4444" stroke-width="1" opacity="0.5"/><line x1="8" y1="5.5" x2="8" y2="6.5" stroke="#ef4444" stroke-width="1" opacity="0.5"/></svg>
+                        </div>
+                        <span class="label">10x Speed Booster</span>
+                    </div>
                     <label class="switch"><input type="checkbox" id="toggle-speed"><span class="slider"></span></label>
                 </div>
             </div>
             <div class="setting" id="setting-audio">
                 <div class="setting-row">
-                    <div class="label-group"><div class="icon-box">🔊</div><span class="label">Sound Booster</span></div>
+                    <div class="label-group">
+                        <div class="icon-box">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M2.5 5.5 H5 L8 2.5 V13.5 L5 10.5 H2.5 Z"/><path d="M10 5 C11.5 6 11.5 10 10 11"/><path d="M11.5 3.5 C13.5 5 13.5 11 11.5 12.5"/></svg>
+                        </div>
+                        <span class="label">Sound Booster</span>
+                    </div>
                     <label class="switch"><input type="checkbox" id="toggle-audio"><span class="slider"></span></label>
                 </div>
             </div>
             <div class="setting">
                 <div class="setting-row">
-                    <div class="label-group"><div class="icon-box">📱</div><span class="label">Shorts Auto-Scroll</span></div>
+                    <div class="label-group">
+                        <div class="icon-box">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="#ec4899" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="4.5" y="1.5" width="7" height="13" rx="1.5"/><path d="M6.5 5.5 L8 4 L9.5 5.5"/><path d="M6.5 10.5 L8 12 L9.5 10.5"/></svg>
+                        </div>
+                        <span class="label">Shorts Auto-Scroll</span>
+                    </div>
                     <label class="switch"><input type="checkbox" id="toggle-autoscroll"><span class="slider"></span></label>
                 </div>
             </div>
             <div class="setting" id="setting-download">
                 <div class="setting-row">
-                    <div class="label-group"><div class="icon-box">⬇️</div><span class="label">Smart Download</span></div>
+                    <div class="label-group">
+                        <div class="icon-box">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M8 2 V10"/><path d="M5 7.5 L8 10.5 L11 7.5"/><path d="M2 12.5 V14 H14 V12.5"/></svg>
+                        </div>
+                        <span class="label">Smart Download</span>
+                        <span class="info-btn info-btn--gold" data-tip="download"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+                    </div>
                     <label class="switch"><input type="checkbox" id="toggle-download"><span class="slider"></span></label>
-                </div>
-                <div class="premium-warning" id="download-premium-warning">
-                    <span class="warn-icon">⚠️</span>
-                    <span class="warn-text"><strong>Premium users: keep this OFF.</strong></span>
                 </div>
             </div>
             <div class="setting" id="setting-fullscreen">
                 <div class="setting-row">
-                    <div class="label-group"><div class="icon-box">⛶</div><span class="label">Auto Fullscreen on YouTube</span></div>
+                    <div class="label-group">
+                        <div class="icon-box">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="#14b8a6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M2 5 V2 H5"/><path d="M11 2 H14 V5"/><path d="M14 11 V14 H11"/><path d="M5 14 H2 V11"/></svg>
+                        </div>
+                        <span class="label">Auto Fullscreen on YouTube</span>
+                    </div>
                     <label class="switch"><input type="checkbox" id="toggle-fullscreen"><span class="slider"></span></label>
                 </div>
                 <div class="fullscreen-hint" id="fullscreen-hint">
-                    <span class="warn-icon">💡</span>
-                    <span class="warn-text">Youtube fullscreen Mode — Press <strong>F11</strong> to exit.</span>
+                    <span class="warn-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+                    <span class="warn-text">YouTube fullscreen — Press <strong>F11</strong> to exit.</span>
                 </div>
             </div>
-            <!-- Auto Resume Toggle -->
             <div class="setting" id="setting-autoResume">
                 <div class="setting-row">
-                    <div class="label-group"><div class="icon-box">▶️</div><span class="label">Auto Resume</span></div>
+                    <div class="label-group">
+                        <div class="icon-box">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="8" cy="8" r="6.5"/><path d="M6 5.5 L11 8 L6 10.5 Z" fill="#22d3ee" stroke="none"/></svg>
+                        </div>
+                        <span class="label">Auto Resume</span>
+                    </div>
                     <label class="switch"><input type="checkbox" id="toggle-autoResume"><span class="slider"></span></label>
                 </div>
             </div>
         </div>
 
-        <button id="open-resume-history" class="btn">📋 Watch History &amp; Resume</button>
+        <button id="open-resume-history" class="btn">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><polyline points="8 5 8 8 10 10"/></svg>
+            Watch History &amp; Resume
+        </button>
+
+        <div style="display:flex;justify-content:center;">
+          <button id="open-report-panel" class="report-btn">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 L14.5 13.5 H1.5 Z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg>
+            Report an Issue
+          </button>
+        </div>
 
         <div class="footer">
-            Made with ❤️ by Archimetrix
+            Made with <svg viewBox="0 0 14 14" fill="#f43f5e" stroke="none" width="11" height="11" style="vertical-align:-1px;display:inline-block"><path d="M7 12 C7 12 1 8 1 4.5 C1 2.5 2.5 1 4.5 1 C5.5 1 6.5 1.6 7 2.3 C7.5 1.6 8.5 1 9.5 1 C11.5 1 13 2.5 13 4.5 C13 8 7 12 7 12Z"/></svg> by Archimetrix
             <div class="footer-btns">
                 <a href="https://github.com/Archimetrix/Youtube-Pro-Plus" target="_blank" class="github-btn">
                     <svg viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-                    Star the repo
+                    Star on GitHub
                 </a>
                 <a href="https://buymeacoffee.com/archimetrix" target="_blank" class="coffee-btn">
-                    ☕ Buy Me a Coffee
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5 H12 L11 13 H3.5 Z"/><path d="M12 6.5 C13.5 6.5 14 7 14 8 C14 9 13.5 9.5 12 9.5"/><path d="M4.5 2.5 C4.5 1.5 5.5 1 5.5 2.5"/><path d="M7 2.5 C7 1.5 8 1 8 2.5"/></svg>
+                    Buy Me a Coffee
                 </a>
             </div>
         </div>
     </div>
 
-    <!-- ── Resume History Panel ─────────────────────────────────────────── -->
     <div id="resume-panel">
         <div class="rp-header">
-            <h3>📋 Watch History</h3>
+            <h3>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><polyline points="8 5 8 8 10 10"/></svg>
+                Watch History
+            </h3>
             <div class="rp-header-right">
-                <button class="rp-icon-btn" id="rp-recap-btn" title="My Recap">📊</button>
-                <button class="rp-icon-btn" id="rp-settings-btn" title="Resume Settings">⚙️</button>
-                <button class="rp-icon-btn" id="rp-close-btn" title="Back">✕</button>
+                <button class="rp-icon-btn" id="rp-recap-btn" title="My Recap">
+                    <svg viewBox="0 0 16 16" fill="none" stroke-width="2" stroke-linecap="round"><line x1="4" y1="14" x2="4" y2="7" stroke="#f43f5e"/><line x1="8" y1="14" x2="8" y2="3" stroke="#f59e0b"/><line x1="12" y1="14" x2="12" y2="9" stroke="#22d3ee"/></svg>
+                </button>
+                <button class="rp-icon-btn" id="rp-settings-btn" title="Resume Settings">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/><circle cx="5" cy="4" r="1.5" fill="var(--bg)" stroke="currentColor"/><circle cx="10" cy="8" r="1.5" fill="var(--bg)" stroke="currentColor"/><circle cx="6" cy="12" r="1.5" fill="var(--bg)" stroke="currentColor"/></svg>
+                </button>
+                <button class="rp-icon-btn" id="rp-close-btn" title="Back">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
+                </button>
             </div>
         </div>
         <div class="rp-search">
@@ -876,10 +553,9 @@
         </div>
         <div class="rp-list" id="rp-list"></div>
 
-        <!-- Resume Settings Sub-panel -->
         <div id="resume-settings-panel">
             <div class="rsp-header">
-                <button class="rsp-back" id="rsp-back-btn">‹</button>
+                <button class="rsp-back" id="rsp-back-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 3 5 8 10 13"/></svg></button>
                 <h3>Resume Settings</h3>
             </div>
             <div class="rsp-body">
@@ -888,33 +564,15 @@
                         <span class="rsp-toggle-label">Auto Resume</span>
                         <label class="switch"><input type="checkbox" id="rsp-pause-toggle"><span class="slider"></span></label>
                     </div>
-                    <div style="font-size:11px;color:#555;margin-top:3px;">Toggle auto-resume on/off globally.</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Toggle auto-resume on/off globally.</div>
                 </div>
-                <div class="rsp-field">
-                    <label>Only resume videos longer than</label>
-                    <div class="rsp-row">
-                        <input type="number" id="rsp-min-length" min="1" max="999">
-                        <span class="rsp-unit">minutes</span>
-                    </div>
-                </div>
-                <div class="rsp-field">
-                    <label>Only resume if I watched at least</label>
-                    <div class="rsp-row">
-                        <input type="number" id="rsp-min-watch" min="1" max="999">
-                        <span class="rsp-unit">minutes</span>
-                    </div>
-                </div>
-                <div class="rsp-field">
-                    <label>Mark as complete when within</label>
-                    <div class="rsp-row">
-                        <input type="number" id="rsp-mark-played" min="1" max="999">
-                        <span class="rsp-unit">seconds from end</span>
-                    </div>
-                </div>
+                <div class="rsp-field"><label>Only resume videos longer than</label><div class="rsp-row"><input type="number" id="rsp-min-length" min="1" max="999"><span class="rsp-unit">minutes</span></div></div>
+                <div class="rsp-field"><label>Only resume if I watched at least</label><div class="rsp-row"><input type="number" id="rsp-min-watch" min="1" max="999"><span class="rsp-unit">minutes</span></div></div>
+                <div class="rsp-field"><label>Mark as complete when within</label><div class="rsp-row"><input type="number" id="rsp-mark-played" min="1" max="999"><span class="rsp-unit">seconds from end</span></div></div>
                 <div class="rsp-field">
                     <label>Auto-remove videos after</label>
                     <div class="rsp-row">
-                        <select id="rsp-delete-after" style="background:#1a1a1a;color:#e0e0e0;border:1px solid #444;border-radius:6px;padding:6px 10px;font-size:13px;cursor:pointer;outline:none;flex:1;">
+                        <select id="rsp-delete-after" style="background:#111;color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;cursor:pointer;outline:none;flex:1;">
                             <option value="180">6 months</option>
                             <option value="365">1 year</option>
                             <option value="1095">3 years</option>
@@ -923,16 +581,21 @@
                     </div>
                 </div>
                 <button class="rsp-save" id="rsp-save-btn">Save Settings</button>
-                <div class="rsp-saved-msg" id="rsp-saved-msg">✓ Settings saved!</div>
-
-                <!-- Backup & Restore -->
+                <div class="rsp-saved-msg" id="rsp-saved-msg">Settings saved</div>
                 <div class="rsp-backup-section">
-                    <label>📦 Backup &amp; Restore</label>
-                    <p>Export all your watch history &amp; play counts to a file, then import it on any browser to keep your data.</p>
+                    <label>
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="12" height="10" rx="1"/><path d="M2 7 H14"/><path d="M5 1.5 L5 4 M8 1.5 L8 4 M11 1.5 L11 4"/></svg>
+                        Backup &amp; Restore
+                    </label>
+                    <p>Export your watch history and play counts to a file, then import it on any browser to keep your data.</p>
                     <div class="rsp-backup-btns">
-                        <button class="rsp-backup-btn" id="rsp-backup-btn">📥 Backup Data</button>
-                        <button class="rsp-restore-btn" id="rsp-restore-btn" style="display:flex;align-items:center;justify-content:center;cursor:pointer;">
-                            📤 Restore Data
+                        <button class="rsp-backup-btn" id="rsp-backup-btn">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9 V2 M5.5 4.5 L8 2 L10.5 4.5"/><path d="M2 11 V14 H14 V11"/></svg>
+                            Backup Data
+                        </button>
+                        <button class="rsp-restore-btn" id="rsp-restore-btn">
+                            <svg viewBox="0 0 16 16" fill="currentColor" stroke="none"><rect x="6" y="1" width="4" height="6.5" rx="0.5"/><polygon points="3,6 8,12.5 13,6"/><rect x="2" y="13" width="12" height="3" rx="1.5"/></svg>
+                            Restore Data
                         </button>
                     </div>
                     <div class="rsp-backup-msg" id="rsp-backup-msg"></div>
@@ -940,57 +603,114 @@
             </div>
         </div>
 
-        <!-- Recap Panel -->
         <div id="recap-panel">
             <div class="recap-header">
-                <button class="rsp-back" id="recap-back-btn">‹</button>
-                <h3>📊 My Recap</h3>
+                <button class="rsp-back" id="recap-back-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 3 5 8 10 13"/></svg></button>
+                <h3>
+                    <svg viewBox="0 0 16 16" fill="none" stroke-width="2" stroke-linecap="round"><line x1="4" y1="14" x2="4" y2="7" stroke="#f43f5e"/><line x1="8" y1="14" x2="8" y2="3" stroke="#f59e0b"/><line x1="12" y1="14" x2="12" y2="9" stroke="#22d3ee"/></svg>
+                    My Recap
+                </h3>
             </div>
             <div class="recap-total" id="recap-total"></div>
             <div class="recap-body">
-                <div class="recap-section-title">🎬 Top 5 Videos</div>
+                <div class="recap-section-title">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3.5" width="13" height="9" rx="1"/><line x1="1.5" y1="6" x2="3.5" y2="6"/><line x1="12.5" y1="6" x2="14.5" y2="6"/><line x1="5" y1="3.5" x2="5" y2="12.5"/><line x1="11" y1="3.5" x2="11" y2="12.5"/></svg>
+                    Top 5 Videos
+                </div>
                 <div id="recap-videos-list"></div>
-                <div class="recap-section-title" style="margin-top:6px;">📺 Top 5 Channels</div>
+                <div class="recap-section-title" style="margin-top:6px;">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="9" rx="1"/><polyline points="2 7 5 5 8 7 11 5 14 7"/><line x1="2" y1="13.5" x2="14" y2="13.5"/></svg>
+                    Top 5 Channels
+                </div>
                 <div id="recap-channels-list"></div>
             </div>
         </div>
     </div>
 
     <div id="info-tooltip-box">
-        <strong id="info-tooltip-title">⚠️ A note from the developer</strong>
-        <span id="info-tooltip-body">I know about all UI bugs. YouTube constantly changes its code — when I fix one thing, 2 more break the next day. It's a cat &amp; mouse game. As a solo dev I can't chase every change instantly. Thanks for your patience! 🙏</span>
+        <strong id="info-tooltip-title">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 L14.5 13.5 H1.5 Z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg>
+            Note from the developer
+        </strong>
+        <span id="info-tooltip-body"></span>
     </div>
 
-    <!-- ── First-Install Welcome Screen ────────────────────────────────────── -->
     <div id="welcome-screen" style="display:none;">
-        <span class="welcome-star-emoji">⭐</span>
+        <div class="welcome-star-emoji">
+            <svg viewBox="0 0 32 32" fill="rgba(99,102,241,0.25)" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4 L19.5 12 L28 12.5 L22 18.5 L24 27 L16 22.5 L8 27 L10 18.5 L4 12.5 L12.5 12 Z"/></svg>
+        </div>
         <h2 class="welcome-title">One small favour?</h2>
-        <p class="welcome-sub">
-            <strong>YouTube Pro +</strong> is completely free.<br>
-            A GitHub star helps others discover it — it takes 2 seconds!
-        </p>
+        <p class="welcome-sub"><strong>YouTube Pro+</strong> is completely free.<br>A GitHub star helps others discover it — it takes 2 seconds!</p>
         <a id="welcome-star-btn" href="https://github.com/Archimetrix/Youtube-Pro-Plus" target="_blank">
-            ⭐ &nbsp;Star the Repo
+            <svg viewBox="0 0 16 16" fill="currentColor" stroke="none" width="16" height="16"><path d="M8 1 L10 6 L15.5 6 L11 9.5 L13 15 L8 11.5 L3 15 L5 9.5 L0.5 6 L6 6 Z"/></svg>
+            Star the Repo
         </a>
         <a id="welcome-coffee-btn" href="https://buymeacoffee.com/archimetrix" target="_blank">
-            ☕ &nbsp;Buy Me a Coffee
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5 H12 L11 13 H3.5 Z"/><path d="M12 6.5 C13.5 6.5 14 7 14 8 C14 9 13.5 9.5 12 9.5"/><path d="M4.5 2.5 C4.5 1.5 5.5 1 5.5 2.5"/><path d="M7 2.5 C7 1.5 8 1 8 2.5"/></svg>
+            Buy Me a Coffee
         </a>
         <button id="welcome-use-btn" style="display:none"></button>
         <div class="welcome-divider"></div>
     </div>
 
-    <!-- ── Cinematic Mode Disclaimer Modal ──────────────────────────────────── -->
     <div id="cinematic-disclaimer-overlay">
         <div id="cinematic-disclaimer-modal">
-            <div class="cinematic-modal-icon">🎬</div>
+            <div class="cinematic-modal-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="1.5"/><line x1="2" y1="9" x2="5" y2="9"/><line x1="2" y1="13" x2="5" y2="13"/><line x1="2" y1="17" x2="5" y2="17"/><line x1="19" y1="9" x2="22" y2="9"/><line x1="19" y1="13" x2="22" y2="13"/><line x1="19" y1="17" x2="22" y2="17"/><line x1="7" y1="5" x2="7" y2="19"/><line x1="17" y1="5" x2="17" y2="19"/></svg>
+            </div>
             <h3 class="cinematic-modal-title">Cinematic Mode — Read Before Enabling</h3>
             <div class="cinematic-modal-body">
                 <p>Cinematic Mode works in both <strong>Light &amp; Dark</strong> mode on YouTube.</p>
-                <p>⚠️ <strong>Using Dark Mode?</strong> You <em>must</em> turn off <em>Ambient Mode</em> from YouTube's player settings <strong>and</strong> from this extension panel — otherwise Cinematic Mode won't work as expected.</p>
+                <p><strong>Using Dark Mode?</strong> You <em>must</em> turn off <em>Ambient Mode</em> from YouTube's player settings <strong>and</strong> from this extension panel — otherwise Cinematic Mode won't work as expected.</p>
                 <p>Please make sure you've read the above before turning this on.</p>
             </div>
-            <button id="cinematic-confirm-btn">✅ &nbsp;Ok I understand — Turn on</button>
+            <button id="cinematic-confirm-btn">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5 8.5 6 12 13.5 4"/></svg>
+                Got it — Turn on
+            </button>
             <button id="cinematic-cancel-btn">Cancel</button>
+        </div>
+    </div>
+
+    <!-- ── Report an Issue Panel ─────────────────────────────────────────── -->
+    <div id="report-panel">
+        <div class="rp-header">
+            <h3>
+                <svg viewBox="0 0 16 16" fill="none" stroke="#f87171" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 L14.5 13.5 H1.5 Z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="#f87171" stroke="none"/></svg>
+                Report an Issue
+            </h3>
+            <div class="rp-header-right">
+                <button class="rp-icon-btn" id="report-close-btn" title="Close">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
+                </button>
+            </div>
+        </div>
+        <div class="report-body">
+            <p class="report-desc">
+                Found a bug? Describe it below and attach screenshots if you have them — your report goes straight to our inbox. 🙏
+            </p>
+            <div class="report-field">
+                <label>Your Name <span style="font-size:10px;color:var(--text-muted);font-weight:400">(optional)</span></label>
+                <input type="text" id="report-name" placeholder="Anonymous">
+            </div>
+            <div class="report-field">
+                <label>Describe the issue <span style="color:#ef4444">*</span></label>
+                <textarea id="report-message" placeholder="What went wrong? What were you doing when it happened? Any details help a lot..."></textarea>
+            </div>
+            <div class="report-field">
+                <label>Screenshots <span style="font-size:10px;color:var(--text-muted);font-weight:400">(optional, up to 3 — max 10 MB total)</span></label>
+                <div class="report-upload-area" id="report-upload-area">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="14" height="10" rx="1.5"/><circle cx="5.5" cy="7" r="1.2"/><path d="M1 11 L4.5 7.5 L7 10 L10 7 L15 11"/></svg>
+                    <span>Click to attach images</span>
+                    <input type="file" id="report-file-input" accept="image/*" multiple>
+                </div>
+                <div class="report-preview-grid" id="report-preview-grid"></div>
+            </div>
+            <button id="report-submit-btn">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="14" y1="2" x2="6" y2="10"/><path d="M14 2 L9 14 L6 10 L2 7 Z"/></svg>
+                Send Report
+            </button>
+            <div id="report-status"></div>
         </div>
     </div>
 

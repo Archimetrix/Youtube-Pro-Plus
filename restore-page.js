@@ -38,7 +38,7 @@ function normalizeBackupVideo(v) {
 function processFile(file) {
   if (!file) return;
   if (!file.name.endsWith('.json')) {
-    setStatus('✗ Please select a .json backup file.', 'error');
+    setStatus('Please select a .json backup file.', 'error');
     return;
   }
 
@@ -48,7 +48,7 @@ function processFile(file) {
   const reader = new FileReader();
 
   reader.onerror = () => {
-    setStatus('✗ Failed to read file.', 'error');
+    setStatus('Failed to read file.', 'error');
     setProgress(0);
   };
 
@@ -64,7 +64,7 @@ function processFile(file) {
 
       chrome.storage.local.get(['ytProVideos', 'resumeSettings'], (existing) => {
         if (chrome.runtime.lastError) {
-          setStatus('✗ Storage error: ' + chrome.runtime.lastError.message, 'error');
+          setStatus('Storage error: ' + chrome.runtime.lastError.message, 'error');
           setProgress(0);
           return;
         }
@@ -106,13 +106,13 @@ function processFile(file) {
 
         chrome.storage.local.set(toSave, () => {
           if (chrome.runtime.lastError) {
-            setStatus('✗ Failed to save: ' + chrome.runtime.lastError.message, 'error');
+            setStatus('Failed to save: ' + chrome.runtime.lastError.message, 'error');
             setProgress(0);
             return;
           }
 
           setProgress(100);
-          setStatus('✓ Restored! ' + finalVideos.length + ' total videos (' + newCount + ' new added).', 'success');
+          setStatus('Restored! ' + finalVideos.length + ' total videos (' + newCount + ' new added).', 'success');
 
           chrome.runtime.sendMessage({ action: 'restoreComplete' }, () => {
             void chrome.runtime.lastError; // suppress unchecked error if popup is closed
@@ -124,7 +124,7 @@ function processFile(file) {
       });
 
     } catch (err) {
-      setStatus('✗ ' + (err.message || 'Invalid backup file!'), 'error');
+      setStatus('' + (err.message || 'Invalid backup file!'), 'error');
       setProgress(0);
     }
   };
