@@ -2,7 +2,7 @@
   <img src="imgs/logo.png" alt="YouTube Pro Plus Logo" width="150"/>
   <h1> YouTube Pro Plus</h1>
 
-  ![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)
+  ![Version](https://img.shields.io/badge/version-2.3-blue.svg)
   ![Platform](https://img.shields.io/badge/platform-Firefox%20%7C%20Edge%20%7C%20Chromium-green.svg)
 </div>
 
