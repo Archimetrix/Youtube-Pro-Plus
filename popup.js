@@ -907,3 +907,89 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 })();
+
+
+// ─── Manual Update Checker ────────────────────────────────────────────────────
+// Lets users trigger an on-demand update check from the "Check for Update"
+// button, in addition to the 24-hour automatic background alarm check.
+
+(function () {
+    const btn    = document.getElementById('check-update-btn');
+    const label  = document.getElementById('check-update-label');
+    if (!btn || !label) return;
+
+    const MANIFEST_URL  = 'https://raw.githubusercontent.com/Archimetrix/Youtube-Pro-Plus/main/manifest.json';
+    const DOWNLOAD_URL  = 'https://github.com/Archimetrix/Youtube-Pro-Plus/archive/refs/heads/main.zip';
+    let busy = false;
+
+    function isNewerVersion(local, remote) {
+        const parse = v => v.split('.').map(n => parseInt(n, 10) || 0);
+        const l = parse(local), r = parse(remote);
+        for (let i = 0; i < Math.max(l.length, r.length); i++) {
+            const a = l[i] || 0, b = r[i] || 0;
+            if (b > a) return true;
+            if (b < a) return false;
+        }
+        return false;
+    }
+
+    function setState(state, text) {
+        btn.classList.remove('is-checking', 'is-uptodate', 'is-found', 'is-error');
+        if (state) btn.classList.add(state);
+        label.textContent = text;
+        btn.disabled = (state === 'is-checking');
+    }
+
+    function resetAfter(ms) {
+        setTimeout(() => {
+            setState(null, 'Check for Update');
+            busy = false;
+        }, ms);
+    }
+
+    function showUpdateBanner(version) {
+        // Populate and reveal the top banner so the user can open the instructions
+        const banner      = document.getElementById('update-banner');
+        const versionSpan = document.getElementById('update-banner-version');
+        const panelVer    = document.getElementById('uip-version-label');
+        if (banner && versionSpan) {
+            versionSpan.textContent = 'v' + version;
+            if (panelVer) panelVer.textContent = version;
+            banner.classList.add('visible');
+        }
+    }
+
+    btn.addEventListener('click', async () => {
+        if (busy) return;
+        busy = true;
+
+        setState('is-checking', 'Checking…');
+
+        try {
+            const res = await fetch(MANIFEST_URL, { cache: 'no-store' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            const remote       = await res.json();
+            const localVersion = chrome.runtime.getManifest().version;
+
+            if (isNewerVersion(localVersion, remote.version)) {
+                // Save flag so the automatic banner still works too
+                chrome.storage.local.set({
+                    updateAvailable:       { version: remote.version, url: DOWNLOAD_URL },
+                    updateBannerDismissed: null
+                });
+                setState('is-found', 'Update Available!');
+                // Directly open the ZIP download — no extra steps needed
+                chrome.tabs.create({ url: DOWNLOAD_URL });
+                resetAfter(3000);
+            } else {
+                setState('is-uptodate', 'Up to date ✓');
+                resetAfter(3000);
+            }
+
+        } catch (err) {
+            setState('is-error', 'Check failed — retry');
+            resetAfter(3000);
+        }
+    });
+})();

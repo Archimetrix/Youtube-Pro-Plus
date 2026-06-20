@@ -361,7 +361,7 @@
         /* ── Report Button ─────────────────────────────────────────────────────── */
         .report-btn {
             display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-            width: auto; margin: 6px auto 0; padding: 5px 16px;
+            width: auto; margin: 6px auto 0; padding: 5px 14px;
             background: linear-gradient(135deg, rgba(239,68,68,0.09), rgba(239,68,68,0.03));
             border: 1px solid rgba(239,68,68,0.26); border-radius: 999px;
             color: #fca5a5; font-size: 11.5px; font-weight: 600; cursor: pointer; outline: none;
@@ -371,6 +371,25 @@
         }
         .report-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
         .report-btn:hover { background: rgba(239,68,68,0.15); box-shadow: 0 4px 18px rgba(239,68,68,0.13); border-color: rgba(239,68,68,0.50); transform: translateY(-1px); }
+        /* ── Check for Update Button ───────────────────────────────────────────── */
+        .update-check-btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+            width: auto; margin: 6px auto 0; padding: 5px 14px;
+            background: linear-gradient(135deg, rgba(99,102,241,0.09), rgba(99,102,241,0.03));
+            border: 1px solid rgba(99,102,241,0.26); border-radius: 999px;
+            color: #a5b4fc; font-size: 11.5px; font-weight: 600; cursor: pointer; outline: none;
+            letter-spacing: -0.1px; transition: all 0.22s ease; opacity: 0;
+            animation: fadeIn 0.45s ease-out 0.54s forwards; font-family: inherit;
+        }
+        .update-check-btn svg { width: 13px; height: 13px; flex-shrink: 0; transition: transform 0.6s linear; }
+        .update-check-btn:hover:not(:disabled) { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.50); transform: translateY(-1px); }
+        .update-check-btn:disabled { cursor: default; }
+        .update-check-btn.is-checking { opacity: 0.75; }
+        .update-check-btn.is-checking svg { animation: spinOnce 1s linear infinite; }
+        .update-check-btn.is-uptodate { color: #6ee7b7; border-color: rgba(16,185,129,0.38); background: rgba(16,185,129,0.07); }
+        .update-check-btn.is-found { color: #a5b4fc; border-color: rgba(99,102,241,0.52); background: rgba(99,102,241,0.15); }
+        .update-check-btn.is-error { color: #fcd34d; border-color: rgba(245,158,11,0.38); background: rgba(245,158,11,0.07); }
+        @keyframes spinOnce { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         /* ── Report Panel ──────────────────────────────────────────────────────── */
         #report-panel { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); z-index: 9999; display: none; flex-direction: column; border-radius: 18px; overflow: hidden; }
         #report-panel.visible { display: flex; }
@@ -666,7 +685,14 @@
             Watch History &amp; Resume
         </button>
 
-        <div style="display:flex;justify-content:center;">
+        <div style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;">
+          <button id="check-update-btn" class="update-check-btn">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13.5 8 A5.5 5.5 0 1 1 10.5 3.2"/>
+                <polyline points="10.5 1.5 10.5 3.5 12.5 3.5"/>
+            </svg>
+            <span id="check-update-label">Check for Update</span>
+          </button>
           <button id="open-report-panel" class="report-btn">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 L14.5 13.5 H1.5 Z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg>
             Report an Issue
