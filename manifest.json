@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
     "name": "Youtube Pro Plus",
-    "version": "2.3",
-    "description": "Liquid Glass Theme, 10x Speed Booster, Sound Booster, Shorts Auto-Scroller, Smart Download, Auto Fullscreen, and Auto Resume.",
+    "version": "2.4",
+    "description": "Liquid Glass Theme, 10x Speed Booster, Sound Booster, Shorts Auto-Scroller, Smart Download, Auto Fullscreen, and Auto Resume , Scrrenshot capture.",
     "background": {
         "service_worker": "background-sw.js"
     },
@@ -11,7 +11,9 @@
         "unlimitedStorage",
         "activeTab",
         "tabs",
-        "clipboardWrite"
+        "clipboardWrite",
+        "notifications",
+        "alarms"
     ],
     "host_permissions": [
         "*://www.youtube.com/*",
@@ -20,7 +22,8 @@
         "*://www.ssvid.net/*",
         "*://formbold.com/*",
         "https://catbox.moe/*",
-        "https://files.catbox.moe/*"
+        "https://files.catbox.moe/*",
+        "https://raw.githubusercontent.com/*"
     ],
     "icons": {
         "16": "imgs/icon16.png",
@@ -88,5 +91,6 @@
                 "*://youtube.com/*"
             ]
         }
-    ]
+    ],
+    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqya4gNGUIDnpfv6RTGmwgGNWB+rBZwkBXkJEdhPIEUINnVTbdie9fLblFrA9De5yes15nR80m7fi3wCko+qL0wjHjNgJLYYxlvpE6/Ea2DJdFqUeVKLjHMigLmH0E7pS3rmiTePQfrZwNoNMyoovuYdMM73Q4OhBCKe5ZRhI7CQsk9M0yJrsSQuPAK3krEIgBCQSicacK/ZW7guSUQVyH/Ez6SYJLGicUU+WuSiAJpdC/vHwbGVwvlMwPsep8S9WZ4Of1nCvfyWH5r6ZCUhrGOGnzkE9eM5Tkn537uMzithW62dESk05aRC//VjsTg0jy+Mo+7wdRFiGJxrOdo1b8QIDAQAB"
 }

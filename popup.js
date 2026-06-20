@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const toggles = ['theme', 'premium', 'ambient', 'cinematic', 'speed', 'audio', 'autoscroll', 'download', 'fullscreen', 'autoResume'];
+    const toggles = ['theme', 'premium', 'ambient', 'cinematic', 'speed', 'audio', 'autoscroll', 'download', 'fullscreen', 'autoResume', 'screenshot'];
     const masterToggleBtn = document.getElementById('master-toggle');
 
     // ── Load all settings ───────────────────────────────────────────────────
@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 chrome.runtime.sendMessage({ action: 'fullscreenToggleChanged', state: isChecked }).catch(() => {});
             }
 
-            if (['premium', 'ambient', 'cinematic', 'download', 'autoResume'].includes(toggle)) {
+            if (['premium', 'ambient', 'cinematic', 'download', 'autoResume', 'screenshot'].includes(toggle)) {
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                     if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: `toggle${toggle}`, state: isChecked }).catch(() => {});
                 });
@@ -693,6 +693,10 @@ document.addEventListener('DOMContentLoaded', () => {
         download: {
             title: ' Premium Users — Important',
             body:  'If you are a YouTube Premium subscriber, keep Smart Download turned OFF. This feature uses a third-party downloader and may conflict with YouTube Premium\'s built-in download feature.'
+        },
+        screenshot: {
+            title: 'Video Screenshot',
+            body:  'Adds a camera button to the player and the Alt+Shift+S shortcut. Captures only the video frame itself — no controls, no overlays. If the video is playing it pauses for the capture, then resumes automatically.'
         }
     };
 
@@ -843,3 +847,63 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     // ─────────────────────────────────────────────────────────────────────────
 });
+
+
+// ─── Update Banner + Instructions Panel ──────────────────────────────────────
+// Reads the updateAvailable flag set by the background service worker.
+// Shows a dismissable top banner; "How to Update" opens a step-by-step panel
+// that guides the user to overwrite their existing folder (preserving storage).
+
+(function () {
+    const banner        = document.getElementById('update-banner');
+    const versionSpan   = document.getElementById('update-banner-version');
+    const howToBtn      = document.getElementById('update-banner-btn');
+    const dismissBtn    = document.getElementById('update-banner-dismiss');
+    const panel         = document.getElementById('update-instructions-panel');
+    const panelVersion  = document.getElementById('uip-version-label');
+    const backBtn       = document.getElementById('uip-back-btn');
+    const downloadBtn   = document.getElementById('uip-download-btn');
+
+    if (!banner || !panel) return;
+
+    const DOWNLOAD_URL = 'https://github.com/Archimetrix/Youtube-Pro-Plus/archive/refs/heads/main.zip';
+
+    chrome.storage.local.get(['updateAvailable', 'updateBannerDismissed'], (result) => {
+        const info = result.updateAvailable;
+        if (!info || !info.version) return;
+
+        // Don't re-show if user already dismissed this exact version
+        if (result.updateBannerDismissed === info.version) return;
+
+        // Populate both banner and panel with the version number
+        versionSpan.textContent = 'v' + info.version;
+        if (panelVersion) panelVersion.textContent = info.version;
+        banner.classList.add('visible');
+
+        // ── "How to Update" → open instructions panel ──
+        howToBtn.addEventListener('click', () => {
+            panel.classList.add('visible');
+        });
+
+        // ── Back button → close panel ──
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                panel.classList.remove('visible');
+            });
+        }
+
+        // ── Download button → trigger the ZIP download ──
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', () => {
+                chrome.tabs.create({ url: info.url || DOWNLOAD_URL });
+            });
+        }
+
+        // ── Dismiss banner — remember per version ──
+        dismissBtn.addEventListener('click', () => {
+            chrome.storage.local.set({ updateBannerDismissed: info.version });
+            banner.classList.remove('visible');
+            panel.classList.remove('visible');
+        });
+    });
+})();

@@ -176,3 +176,100 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         return true; // keep message channel open for async response
     }
 });
+
+
+// ─── Auto Update Checker ──────────────────────────────────────────────────────
+// Fetches the manifest.json from GitHub every 24 hours and compares versions.
+// If a newer version is found it shows a Chrome notification and stores a flag
+// in chrome.storage.local so the popup can also display an update banner.
+
+const UPDATE_ALARM_NAME   = 'ytpro-update-check';
+const UPDATE_CHECK_URL    = 'https://raw.githubusercontent.com/Archimetrix/Youtube-Pro-Plus/main/manifest.json';
+const UPDATE_INTERVAL_MIN = 1440; // 24 hours in minutes
+const GITHUB_DOWNLOAD_URL = 'https://github.com/Archimetrix/Youtube-Pro-Plus/archive/refs/heads/main.zip';
+
+/** Semantic-version compare. Returns true if remote > local. */
+function isNewerVersion(local, remote) {
+    const toNum = v => v.split('.').map(n => parseInt(n, 10) || 0);
+    const l = toNum(local);
+    const r = toNum(remote);
+    for (let i = 0; i < Math.max(l.length, r.length); i++) {
+        const a = l[i] || 0, b = r[i] || 0;
+        if (b > a) return true;
+        if (b < a) return false;
+    }
+    return false;
+}
+
+async function checkForUpdate() {
+    try {
+        const res = await fetch(UPDATE_CHECK_URL, { cache: 'no-store' });
+        if (!res.ok) return;
+
+        const remoteManifest = await res.json();
+        const remoteVersion  = remoteManifest.version;
+        const localVersion   = chrome.runtime.getManifest().version;
+
+        if (!remoteVersion || !isNewerVersion(localVersion, remoteVersion)) {
+            // Up to date — clear any stale update flag
+            chrome.storage.local.set({ updateAvailable: null });
+            return;
+        }
+
+        // Store for popup banner
+        chrome.storage.local.set({
+            updateAvailable: { version: remoteVersion, url: GITHUB_DOWNLOAD_URL }
+        });
+
+        // Show a Chrome system notification
+        chrome.notifications.create('ytpro-update', {
+            type:     'basic',
+            iconUrl:  'imgs/icon128.png',
+            title:    'YouTube Pro+ Update Available 🎉',
+            message:  `v${remoteVersion} is ready! Click the extension icon and tap "Update" for step-by-step instructions.`,
+            priority: 1
+        });
+
+        console.log(`[YT Pro+] Update available: ${localVersion} → ${remoteVersion}`);
+    } catch (err) {
+        // Network errors are silent — check will retry next cycle
+        console.warn('[YT Pro+] Update check failed:', err.message);
+    }
+}
+
+// Open GitHub when the notification button is clicked
+chrome.notifications.onButtonClicked.addListener((notifId, btnIndex) => {
+    if (notifId === 'ytpro-update' && btnIndex === 0) {
+        chrome.tabs.create({ url: GITHUB_DOWNLOAD_URL });
+    }
+});
+
+// Also open GitHub when the notification body is clicked
+chrome.notifications.onClicked.addListener((notifId) => {
+    if (notifId === 'ytpro-update') {
+        chrome.tabs.create({ url: GITHUB_DOWNLOAD_URL });
+        chrome.notifications.clear('ytpro-update');
+    }
+});
+
+// Register the periodic alarm and run an immediate check on install / browser start
+chrome.alarms.get(UPDATE_ALARM_NAME, (alarm) => {
+    if (!alarm) {
+        chrome.alarms.create(UPDATE_ALARM_NAME, {
+            delayInMinutes:  1,               // first check 1 min after SW wakes
+            periodInMinutes: UPDATE_INTERVAL_MIN
+        });
+    }
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === UPDATE_ALARM_NAME) checkForUpdate();
+});
+
+// Also check whenever the extension is installed or updated
+chrome.runtime.onInstalled.addListener((details) => {
+    if (details.reason === 'install' || details.reason === 'update') {
+        // Small delay so the SW is fully awake before hitting the network
+        setTimeout(checkForUpdate, 3000);
+    }
+});

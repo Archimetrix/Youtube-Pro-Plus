@@ -312,6 +312,52 @@
         @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pulseGlow { 0% { box-shadow: 0 0 4px rgba(16,185,129,0.1); } 100% { box-shadow: 0 0 12px rgba(16,185,129,0.38); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* ── Update Banner ─────────────────────────────────────────────────────── */
+        #update-banner {
+            display: none; align-items: center; gap: 8px;
+            margin: 4px 4px 0; padding: 9px 10px 9px 12px;
+            background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(99,102,241,0.08));
+            border: 1px solid rgba(99,102,241,0.42); border-radius: 12px;
+            box-shadow: 0 0 18px rgba(99,102,241,0.18);
+            animation: updateBannerIn 0.38s cubic-bezier(0.34,1.36,0.64,1) forwards;
+            cursor: default;
+        }
+        #update-banner.visible { display: flex; }
+        .update-banner-icon {
+            width: 28px; height: 28px; flex-shrink: 0;
+            background: rgba(99,102,241,0.18); border: 1px solid rgba(99,102,241,0.36);
+            border-radius: 8px; display: flex; align-items: center; justify-content: center;
+        }
+        .update-banner-icon svg { width: 14px; height: 14px; }
+        .update-banner-text { flex: 1; min-width: 0; }
+        .update-banner-title {
+            font-size: 11.5px; font-weight: 700; color: #a5b4fc;
+            line-height: 1.2; margin-bottom: 2px;
+        }
+        .update-banner-sub { font-size: 10.5px; color: rgba(165,180,252,0.6); line-height: 1.3; }
+        .update-banner-sub strong { color: #a5b4fc; font-weight: 700; }
+        .update-banner-btn {
+            flex-shrink: 0; padding: 5px 10px;
+            background: rgba(99,102,241,0.22); border: 1px solid rgba(99,102,241,0.5);
+            border-radius: 8px; color: #a5b4fc; font-size: 11px; font-weight: 700;
+            cursor: pointer; transition: all 0.2s ease; font-family: inherit; white-space: nowrap;
+        }
+        .update-banner-btn:hover {
+            background: rgba(99,102,241,0.38); box-shadow: 0 0 12px rgba(99,102,241,0.3);
+            transform: translateY(-1px);
+        }
+        .update-banner-dismiss {
+            flex-shrink: 0; width: 20px; height: 20px;
+            background: none; border: none; color: rgba(165,180,252,0.4);
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            border-radius: 4px; transition: color 0.2s, background 0.2s; padding: 0;
+        }
+        .update-banner-dismiss:hover { color: rgba(165,180,252,0.9); background: rgba(255,255,255,0.07); }
+        .update-banner-dismiss svg { width: 11px; height: 11px; }
+        @keyframes updateBannerIn {
+            from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
         /* ── Report Button ─────────────────────────────────────────────────────── */
         .report-btn {
             display: inline-flex; align-items: center; justify-content: center; gap: 5px;
@@ -357,9 +403,109 @@
         #report-status { font-size: 11.5px; text-align: center; min-height: 16px; line-height: 1.5; }
         #report-status.success { color: #4ade80; }
         #report-status.error { color: #f87171; }
+        /* ── Update Instructions Panel ──────────────────────────────────────────── */
+        #update-instructions-panel {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg); z-index: 99999; display: none; flex-direction: column;
+            border-radius: 18px; overflow: hidden;
+            animation: slideInRight 0.22s ease-out;
+        }
+        #update-instructions-panel.visible { display: flex; }
+        .uip-header {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 14px 8px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+        }
+        .uip-header h3 {
+            margin: 0; font-size: 14px; font-weight: 700; flex: 1;
+            background: linear-gradient(125deg, #fff 25%, #a5b4fc 75%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .uip-body { flex: 1; overflow-y: auto; padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+        .uip-version-pill {
+            display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+            padding: 4px 10px; background: rgba(99,102,241,0.14);
+            border: 1px solid rgba(99,102,241,0.38); border-radius: 20px;
+            font-size: 11px; font-weight: 700; color: #a5b4fc;
+        }
+        .uip-version-pill svg { width: 11px; height: 11px; }
+        .uip-warning {
+            display: flex; gap: 8px; padding: 9px 10px;
+            background: rgba(245,158,11,0.09); border: 1px solid rgba(245,158,11,0.28);
+            border-radius: 10px;
+        }
+        .uip-warning svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; color: #f59e0b; }
+        .uip-warning p { margin: 0; font-size: 11px; color: #fcd34d; line-height: 1.55; }
+        .uip-warning p strong { color: #f59e0b; }
+        .uip-steps { display: flex; flex-direction: column; gap: 7px; }
+        .uip-step {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 9px 10px; background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.07); border-radius: 10px;
+            transition: border-color 0.2s;
+        }
+        .uip-step:hover { border-color: rgba(99,102,241,0.28); }
+        .uip-step-num {
+            width: 22px; height: 22px; flex-shrink: 0;
+            background: rgba(99,102,241,0.16); border: 1px solid rgba(99,102,241,0.38);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 800; color: #a5b4fc; line-height: 1;
+        }
+        .uip-step-content { flex: 1; min-width: 0; }
+        .uip-step-title { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+        .uip-step-desc { font-size: 11px; color: var(--text-sub); line-height: 1.5; }
+        .uip-step-desc strong { color: rgba(255,255,255,0.85); }
+        .uip-step-desc em { color: #a5b4fc; font-style: normal; font-weight: 600; }
+        .uip-step-desc code {
+            background: rgba(255,255,255,0.09); border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 4px; padding: 1px 5px; font-size: 10.5px; font-family: 'SF Mono', 'Consolas', monospace;
+            color: #c4b5fd;
+        }
+        .uip-success {
+            display: flex; gap: 8px; padding: 9px 10px;
+            background: rgba(16,185,129,0.09); border: 1px solid rgba(16,185,129,0.28);
+            border-radius: 10px;
+        }
+        .uip-success svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; color: #10b981; }
+        .uip-success p { margin: 0; font-size: 11px; color: #6ee7b7; line-height: 1.55; }
+        .uip-success p strong { color: #10b981; }
+        .uip-download-btn {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; padding: 11px 16px; margin-top: 4px;
+            background: linear-gradient(135deg, rgba(99,102,241,0.22), rgba(99,102,241,0.1));
+            border: 1px solid rgba(99,102,241,0.5); border-radius: 11px;
+            color: #c7d2fe; font-size: 13px; font-weight: 700; cursor: pointer;
+            transition: all 0.22s ease; font-family: inherit;
+            box-shadow: 0 4px 18px rgba(99,102,241,0.2);
+        }
+        .uip-download-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+        .uip-download-btn:hover {
+            background: rgba(99,102,241,0.34); box-shadow: 0 6px 24px rgba(99,102,241,0.32);
+            transform: translateY(-1px); color: #fff;
+        }
+        .uip-download-btn:active { transform: translateY(0); }
     </style>
 </head>
 <body>
+    <!-- ── Update Available Banner (shown when a newer version is on GitHub) ── -->
+    <div id="update-banner">
+        <div class="update-banner-icon">
+            <svg viewBox="0 0 16 16" fill="none" stroke="#a5b4fc" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 2 V9 M5 6.5 L8 9 L11 6.5"/>
+                <path d="M3 11 V13.5 H13 V11"/>
+            </svg>
+        </div>
+        <div class="update-banner-text">
+            <div class="update-banner-title">New Update Available!</div>
+            <div class="update-banner-sub">Version <strong id="update-banner-version"></strong> is ready on GitHub</div>
+        </div>
+        <button class="update-banner-btn" id="update-banner-btn">How to Update</button>
+        <button class="update-banner-dismiss" id="update-banner-dismiss" title="Dismiss">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                <line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/>
+            </svg>
+        </button>
+    </div>
+
     <div class="glass-container" id="main-view">
         <div class="header">
             <div class="title-group">
@@ -499,6 +645,18 @@
                         <span class="label">Auto Resume</span>
                     </div>
                     <label class="switch"><input type="checkbox" id="toggle-autoResume"><span class="slider"></span></label>
+                </div>
+            </div>
+            <div class="setting" id="setting-screenshot">
+                <div class="setting-row">
+                    <div class="label-group">
+                        <div class="icon-box">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="#00d2ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M5.5 3 L4.5 4.5 H2.5 A1.5 1.5 0 0 0 1 6 V12 A1.5 1.5 0 0 0 2.5 13.5 H13.5 A1.5 1.5 0 0 0 15 12 V6 A1.5 1.5 0 0 0 13.5 4.5 H11.5 L10.5 3 Z"/><circle cx="8" cy="9" r="2.3"/></svg>
+                        </div>
+                        <span class="label">Video Screenshot</span>
+                        <span class="info-btn" data-tip="screenshot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+                    </div>
+                    <label class="switch"><input type="checkbox" id="toggle-screenshot"><span class="slider"></span></label>
                 </div>
             </div>
         </div>
@@ -711,6 +869,61 @@
                 Send Report
             </button>
             <div id="report-status"></div>
+        </div>
+    </div>
+
+    <!-- ── Update Instructions Panel ──────────────────────────────────────────── -->
+    <div id="update-instructions-panel">
+        <div class="uip-header">
+            <button class="rsp-back" id="uip-back-btn">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 3 5 8 10 13"/></svg>
+            </button>
+            <h3>How to Update</h3>
+        </div>
+        <div class="uip-body">
+            <div class="uip-version-pill">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 V9 M5 6.5 L8 9 L11 6.5"/><path d="M3 11 V13.5 H13 V11"/></svg>
+                <span>v<span id="uip-version-label"></span> is available</span>
+            </div>
+
+            <div class="uip-warning">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 L14.5 13.5 H1.5 Z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg>
+                <p><strong>Important:</strong> Always update into your <strong>existing</strong> extension folder — never load a new folder. This keeps your settings and watch history safe.</p>
+            </div>
+
+            <div class="uip-steps">
+                <div class="uip-step">
+                    <div class="uip-step-num">1</div>
+                    <div class="uip-step-content">
+                        <div class="uip-step-title">Download the latest ZIP</div>
+                        <div class="uip-step-desc">Tap the button below. The ZIP will save to your Downloads folder.</div>
+                    </div>
+                </div>
+                <div class="uip-step">
+                    <div class="uip-step-num">2</div>
+                    <div class="uip-step-content">
+                        <div class="uip-step-title">Extract into your existing folder</div>
+                        <div class="uip-step-desc">Unzip the file, then <strong>copy all the extracted files</strong> into the <em>same folder</em> you originally loaded the extension from — choose <strong>"Replace all"</strong> when prompted.</div>
+                    </div>
+                </div>
+                <div class="uip-step">
+                    <div class="uip-step-num">3</div>
+                    <div class="uip-step-content">
+                        <div class="uip-step-title">Reload the extension in Chrome</div>
+                        <div class="uip-step-desc">Go to <code>chrome://extensions</code>, find <strong>YouTube Pro+</strong>, and click the <em>↻ refresh icon</em> on its card. Done!</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="uip-success">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5 8.5 6 12 13.5 4"/></svg>
+                <p><strong>Your settings and watch history are fully preserved</strong> because updating the same folder keeps the same extension ID and storage.</p>
+            </div>
+
+            <button class="uip-download-btn" id="uip-download-btn">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 V10 M5 7.5 L8 10.5 L11 7.5"/><path d="M2 12.5 V14 H14 V12.5"/></svg>
+                Download Latest ZIP (Step 1)
+            </button>
         </div>
     </div>
 
