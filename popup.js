@@ -857,14 +857,10 @@ document.addEventListener('DOMContentLoaded', () => {
 (function () {
     const banner        = document.getElementById('update-banner');
     const versionSpan   = document.getElementById('update-banner-version');
-    const howToBtn      = document.getElementById('update-banner-btn');
+    const downloadBtn   = document.getElementById('update-banner-btn');
     const dismissBtn    = document.getElementById('update-banner-dismiss');
-    const panel         = document.getElementById('update-instructions-panel');
-    const panelVersion  = document.getElementById('uip-version-label');
-    const backBtn       = document.getElementById('uip-back-btn');
-    const downloadBtn   = document.getElementById('uip-download-btn');
 
-    if (!banner || !panel) return;
+    if (!banner) return;
 
     const DOWNLOAD_URL = 'https://github.com/Archimetrix/Youtube-Pro-Plus/archive/refs/heads/main.zip';
 
@@ -875,35 +871,19 @@ document.addEventListener('DOMContentLoaded', () => {
         // Don't re-show if user already dismissed this exact version
         if (result.updateBannerDismissed === info.version) return;
 
-        // Populate both banner and panel with the version number
+        // Populate banner with the version number
         versionSpan.textContent = 'v' + info.version;
-        if (panelVersion) panelVersion.textContent = info.version;
         banner.classList.add('visible');
 
-        // ── "How to Update" → open instructions panel ──
-        howToBtn.addEventListener('click', () => {
-            panel.classList.add('visible');
+        // ── Download button → trigger the ZIP download directly ──
+        downloadBtn.addEventListener('click', () => {
+            chrome.tabs.create({ url: info.url || DOWNLOAD_URL });
         });
-
-        // ── Back button → close panel ──
-        if (backBtn) {
-            backBtn.addEventListener('click', () => {
-                panel.classList.remove('visible');
-            });
-        }
-
-        // ── Download button → trigger the ZIP download ──
-        if (downloadBtn) {
-            downloadBtn.addEventListener('click', () => {
-                chrome.tabs.create({ url: info.url || DOWNLOAD_URL });
-            });
-        }
 
         // ── Dismiss banner — remember per version ──
         dismissBtn.addEventListener('click', () => {
             chrome.storage.local.set({ updateBannerDismissed: info.version });
             banner.classList.remove('visible');
-            panel.classList.remove('visible');
         });
     });
 })();
@@ -918,7 +898,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const label  = document.getElementById('check-update-label');
     if (!btn || !label) return;
 
-    const MANIFEST_URL  = 'https://raw.githubusercontent.com/Archimetrix/Youtube-Pro-Plus/main/manifest.json';
+    const MANIFEST_URL  = 'https://api.github.com/repos/Archimetrix/Youtube-Pro-Plus/contents/manifest.json';
     const DOWNLOAD_URL  = 'https://github.com/Archimetrix/Youtube-Pro-Plus/archive/refs/heads/main.zip';
     let busy = false;
 
@@ -948,13 +928,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showUpdateBanner(version) {
-        // Populate and reveal the top banner so the user can open the instructions
+        // Populate and reveal the top banner
         const banner      = document.getElementById('update-banner');
         const versionSpan = document.getElementById('update-banner-version');
-        const panelVer    = document.getElementById('uip-version-label');
         if (banner && versionSpan) {
             versionSpan.textContent = 'v' + version;
-            if (panelVer) panelVer.textContent = version;
             banner.classList.add('visible');
         }
     }
@@ -966,7 +944,10 @@ document.addEventListener('DOMContentLoaded', () => {
         setState('is-checking', 'Checking…');
 
         try {
-            const res = await fetch(MANIFEST_URL, { cache: 'no-store' });
+            const res = await fetch(MANIFEST_URL, {
+                headers: { 'Accept': 'application/vnd.github.v3.raw' },
+                cache: 'no-store'
+            });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
             const remote       = await res.json();

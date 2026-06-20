@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "Youtube Pro Plus",
     "version": "2.5",
-    "description": "Liquid Glass Theme, 10x Speed Booster, Sound Booster, Shorts Auto-Scroller, Smart Download, Auto Fullscreen, and Auto Resume , Scrrenshot capture, auto update extension.",
+    "description": "Liquid Glass Theme, 10x Speed Booster, Sound Booster, Shorts Auto-Scroller, Smart Download, Auto Fullscreen, and Auto Resume , Scrrenshot capture...",
     "background": {
         "service_worker": "background-sw.js"
     },
@@ -23,7 +23,8 @@
         "*://formbold.com/*",
         "https://catbox.moe/*",
         "https://files.catbox.moe/*",
-        "https://raw.githubusercontent.com/*"
+        "https://raw.githubusercontent.com/*",
+        "https://api.github.com/*"
     ],
     "icons": {
         "16": "imgs/icon16.png",

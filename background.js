@@ -184,7 +184,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 // in chrome.storage.local so the popup can also display an update banner.
 
 const UPDATE_ALARM_NAME   = 'ytpro-update-check';
-const UPDATE_CHECK_URL    = 'https://raw.githubusercontent.com/Archimetrix/Youtube-Pro-Plus/main/manifest.json';
+const UPDATE_CHECK_URL    = 'https://api.github.com/repos/Archimetrix/Youtube-Pro-Plus/contents/manifest.json';
 const UPDATE_INTERVAL_MIN = 1440; // 24 hours in minutes
 const GITHUB_DOWNLOAD_URL = 'https://github.com/Archimetrix/Youtube-Pro-Plus/archive/refs/heads/main.zip';
 
@@ -203,7 +203,12 @@ function isNewerVersion(local, remote) {
 
 async function checkForUpdate() {
     try {
-        const res = await fetch(UPDATE_CHECK_URL, { cache: 'no-store' });
+        // Accept: application/vnd.github.v3.raw → returns the file content directly,
+        // bypassing GitHub's CDN cache which can hold stale content for minutes.
+        const res = await fetch(UPDATE_CHECK_URL, {
+            headers: { 'Accept': 'application/vnd.github.v3.raw' },
+            cache: 'no-store'
+        });
         if (!res.ok) return;
 
         const remoteManifest = await res.json();
