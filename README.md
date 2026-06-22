@@ -50,6 +50,7 @@ Click the image below to watch the full showcase and installation guide:
 * **🔁 Shorts Auto-Scroller:** A robust background script that intelligently detects when a YouTube Short finishes and automatically scrolls to the next one—completely hands-free.
 * **⬇️ Smart Download:** A smart third-party download support added replacing the default download button (if you want to use the normal download then just turn off the setting in the extension).
 * **⏯️ History and auto resume :** A smart system  storing all your watched vidios with date and duration of vidios watched. When you click on the video next time it will play feom where you left it last time and you can change which ever settings you like -- and also there is a recap intregation in it it will tell you your all time top 5 vidios and top 5 chanels .
+* **📸 Screenshot Videosframe **  You can screenshot videos with alt+shift+s or there is a camera icon in player just click that .
 ---
 
 ## 🛠️ Local Installation (Chrome, Opera, Brave, Vivaldi etc.)
