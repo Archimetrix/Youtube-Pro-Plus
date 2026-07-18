@@ -97,14 +97,38 @@ function initAutoScroll() {
 let downloadInterceptActive = false;
 let downloadButtonObserver = null;
 
-// Selectors that cover YouTube's download button in all its forms
+// Selectors that cover YouTube's download entry point in all its forms.
+// YouTube has moved this around over time — from a dedicated player-area
+// button, to a masthead button, to (currently) a line item inside the
+// "⋮" (more actions) overflow menu. The overflow-menu version isn't a
+// <button> at all, it's a menu-item custom element, so we match broadly
+// and rely on isDownloadLabel() below to filter to the right one.
 const DL_BTN_SELECTORS = [
     'ytd-download-button-renderer button',
     'button[aria-label="Download video"]',
-    'button[aria-label*="Download"]',
+    'button[aria-label*="Download" i]',
     '.ytp-download-button',
     'yt-button-shape button',
+    // Overflow ("...") menu — rendered as menu-item elements, not buttons.
+    'tp-yt-paper-item',
+    'ytd-menu-service-item-renderer',
+    'yt-list-item-view-model',
+    '[role="menuitem"]',
+    '[role="menuitemradio"]',
 ].join(', ');
+
+// True only for elements whose visible text/label is actually "Download" —
+// needed because several of the selectors above (menu items, list items)
+// match plenty of unrelated UI too (Save, Report, Clip, etc).
+function isDownloadLabel(el) {
+    if (!el) return false;
+    const label = (el.getAttribute('aria-label') || el.innerText || el.textContent || '')
+        .trim()
+        .toLowerCase();
+    // Match "download" as a whole word-ish token so we don't accidentally
+    // match something like "downloaded" mid-sentence in an unrelated string.
+    return /(^|[^a-z])download([^a-z]|$)/.test(label);
+}
 
 // Force-enable a single button regardless of YouTube's disabled state
 function forceEnableDownloadButton(btn) {
@@ -118,7 +142,7 @@ function forceEnableDownloadButton(btn) {
     btn.style.cursor = 'pointer';
 
     // Also un-disable wrapper elements YouTube uses
-    const renderer = btn.closest('ytd-download-button-renderer, yt-button-shape, .yt-button-shape-with-explainer');
+    const renderer = btn.closest('ytd-download-button-renderer, yt-button-shape, .yt-button-shape-with-explainer, tp-yt-paper-item, ytd-menu-service-item-renderer');
     if (renderer) {
         renderer.removeAttribute('disabled');
         renderer.removeAttribute('aria-disabled');
@@ -132,10 +156,13 @@ function startDownloadButtonWatcher() {
     if (downloadButtonObserver) return;
 
     // Enable any buttons already on the page
-    document.querySelectorAll(DL_BTN_SELECTORS).forEach(forceEnableDownloadButton);
+    document.querySelectorAll(DL_BTN_SELECTORS).forEach(btn => {
+        if (isDownloadLabel(btn)) forceEnableDownloadButton(btn);
+    });
 
     downloadButtonObserver = new MutationObserver(() => {
         document.querySelectorAll(DL_BTN_SELECTORS).forEach(btn => {
+            if (!isDownloadLabel(btn)) return; // leave unrelated menu items alone
             // Re-enable whenever YouTube disables the button again
             if (btn.hasAttribute('disabled') || btn.getAttribute('aria-disabled') === 'true' ||
                 btn.style.pointerEvents === 'none' || btn.dataset.ytProForced !== '1') {
@@ -174,12 +201,17 @@ function removeDownloadIntercept() {
 }
 
 function handleDownloadClick(e) {
-    const btn = e.target.closest(DL_BTN_SELECTORS);
-
+    // composedPath() sees through shadow-DOM boundaries the overflow menu's
+    // popup may be rendered in; e.target alone can get retargeted to a
+    // shadow host and miss the actual menu-item element.
+    const path = typeof e.composedPath === 'function' ? e.composedPath() : [e.target];
+    let btn = null;
+    for (const node of path) {
+        if (!(node instanceof Element)) continue;
+        const match = node.closest ? node.closest(DL_BTN_SELECTORS) : null;
+        if (match && isDownloadLabel(match)) { btn = match; break; }
+    }
     if (!btn) return;
-
-    const label = (btn.getAttribute('aria-label') || btn.innerText || '').toLowerCase();
-    if (!label.includes('download')) return;
 
     e.preventDefault();
     e.stopImmediatePropagation();
@@ -194,7 +226,7 @@ function handleDownloadClick(e) {
         ssvid_pending_url: videoUrl,
         ssvid_pending_ts:  Date.now()
     }, () => {
-        window.open('https://ssvid.net/en/youtube-video-downloader-4', '_blank', 'noopener,noreferrer');
+        window.open('https://vidssave.com/youtube-video-downloader-8hs', '_blank', 'noopener,noreferrer');
     });
 }
 
@@ -445,11 +477,53 @@ class YTProAutoResume {
     }
 
     async injectPlayerButton() {
+        // Don't stack a second button if one's already there.
+        if (document.querySelector("#yt-pro-resume-switch")) return;
+
         const blacklisted = await this.checkBlacklist(window.location.href);
         const imgSrc   = blacklisted ? RESUME_ICON_INACTIVE : RESUME_ICON_ACTIVE;
         const tooltip  = blacklisted ? "Video will not auto-resume" : "Video will auto-resume";
         const button   = this.createPlayerButton(imgSrc, tooltip);
-        document.querySelector("div.ytp-right-controls")?.prepend(button);
+
+        this.mountButtonWhenReady(button);
+    }
+
+    // The player controls (div.ytp-right-controls) aren't guaranteed to exist
+    // the instant we try to inject — YouTube's player can still be mounting
+    // asynchronously after the page's `load` event, especially on a cold
+    // cache or a slower machine/connection. A single querySelector attempt
+    // silently drops the button in that case and nothing ever retries it
+    // (the only other trigger is a full SPA navigation). So: poll for a
+    // bounded time, and back it with a MutationObserver so we catch it the
+    // instant it appears rather than waiting for the next poll tick.
+    mountButtonWhenReady(button, attempts = 0) {
+        if (document.querySelector("#yt-pro-resume-switch")) return; // got mounted another way already
+
+        const controls = document.querySelector("div.ytp-right-controls");
+        if (controls) {
+            controls.prepend(button);
+            return;
+        }
+
+        if (attempts >= 100) return; // ~30s ceiling — give up quietly past that
+
+        if (attempts === 0) {
+            const observer = new MutationObserver(() => {
+                const c = document.querySelector("div.ytp-right-controls");
+                if (c && !document.querySelector("#yt-pro-resume-switch")) {
+                    c.prepend(button);
+                    observer.disconnect();
+                } else if (document.querySelector("#yt-pro-resume-switch")) {
+                    observer.disconnect();
+                }
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+            // Safety net in case the observer never fires (e.g. controls
+            // appear via an attribute change rather than a new node).
+            setTimeout(() => observer.disconnect(), 30000);
+        }
+
+        setTimeout(() => this.mountButtonWhenReady(button, attempts + 1), 300);
     }
 
     createPlayerButton(imgSrc, tooltip) {
@@ -534,8 +608,8 @@ class YTProAutoResume {
 
     initDB() {
         return new Promise(resolve => {
-            chrome.storage.local.get("ytProVideos", data => {
-                if (!data.ytProVideos) {
+            chrome.storage.local.getBytesInUse("ytProVideos", bytes => {
+                if (bytes === 0 || bytes === undefined) {
                     chrome.storage.local.set({ ytProVideos: [] }, resolve);
                 } else {
                     resolve();
@@ -546,8 +620,8 @@ class YTProAutoResume {
 
     initSettings() {
         return new Promise(resolve => {
-            chrome.storage.local.get("resumeSettings", data => {
-                if (!data.resumeSettings) {
+            chrome.storage.local.getBytesInUse("resumeSettings", bytes => {
+                if (bytes === 0 || bytes === undefined) {
                     chrome.storage.local.set({
                         resumeSettings: {
                             pauseResume: false,
@@ -643,7 +717,22 @@ class YTProAutoResume {
                 const storedVideo = await this.checkStoredLinks(window.location.href);
                 if (storedVideo.time > resumeUserSettings.minWatchTime &&
                     !storedVideo.complete && !storedVideo.doNotResume) {
-                    document.querySelector("video").currentTime = storedVideo.time;
+                    const video = document.querySelector("video");
+                    if (video) {
+                        video.currentTime = storedVideo.time;
+                        // Seeking a media element can leave it paused even if
+                        // YouTube's own player had just started (or was about
+                        // to start) playback — make sure the resumed video
+                        // actually plays instead of sitting there paused.
+                        const nudgePlay = () => { if (video.paused) video.play().catch(() => {}); };
+                        nudgePlay();
+                        // The seek itself is async (video may briefly go into
+                        // a 'seeking' state) — retry once it's ready, and once
+                        // more shortly after in case YouTube's own player
+                        // logic paused it right after we resumed it.
+                        video.addEventListener('seeked', nudgePlay, { once: true });
+                        setTimeout(nudgePlay, 400);
+                    }
                 }
                 resumeBlacklist = storedVideo.doNotResume;
             } catch {
@@ -1077,12 +1166,6 @@ function getCineDim(s) {
         video.addEventListener('playing', onPlaying);
         canvas._onPlaying = () => { video.removeEventListener('playing', onPlaying); };
 
-        // Firefox-specific: by the time attach() runs the video may already be
-        // playing (the 'playing' event already fired and we missed it).
-        // Check immediately and also after a short delay to catch late starters.
-        if (!video.paused && video.readyState >= 2) { onPlaying(); }
-        else { setTimeout(() => { if (!video.paused && video.readyState >= 2) onPlaying(); }, 400); }
-
         // Wipe canvas instantly when YouTube swaps the video source
         function onSourceChange() { clearCanvas(); }
         video.addEventListener('emptied',   onSourceChange);
@@ -1192,9 +1275,7 @@ function getCineDim(s) {
         if (!document.body.classList.contains('yt-pro-cinematic')) return;
         clearCanvas();
         stop();
-        // Firefox: use 200ms so we attach before the video starts playing.
-        // The already-playing guard inside _doAttach handles any remaining race.
-        if (isWatchPage()) retryTimer = setTimeout(attach, 200);
+        if (isWatchPage()) retryTimer = setTimeout(attach, 600);
     });
 
     // Fallback URL poll (handles cases where yt-navigate-finish misfires)
@@ -1205,7 +1286,7 @@ function getCineDim(s) {
         if (!document.body.classList.contains('yt-pro-cinematic')) return;
         clearCanvas();
         stop();
-        if (isWatchPage()) retryTimer = setTimeout(attach, 200);
+        if (isWatchPage()) retryTimer = setTimeout(attach, 600);
     }, 300);
 
     // Re-attach if YouTube's SPA removes our canvas from the DOM
@@ -1241,8 +1322,220 @@ function getCineDim(s) {
     };
 })();
 
+// ─── Player Screenshot Feature ───────────────────────────────────────────────
+// Captures ONLY the actual video frame — native resolution, no player chrome,
+// no controls, no overlays — by drawing the <video> element onto an offscreen
+// canvas. This is what makes it crop to "just the video" automatically: the
+// canvas only ever contains decoded video pixels, never surrounding DOM.
+let screenshotFeatureActive = false;
+let screenshotPollInterval  = null;
+let screenshotKeyHandler    = null;
 
-if (isCtxValid()) chrome.storage.local.get(['masterEnabled', 'theme', 'premium', 'ambient', 'cinematic', 'speed', 'autoscroll', 'download', 'autoResume'], (result) => {
+function getActiveVideoForScreenshot() {
+    if (window.location.pathname.includes('/shorts/')) {
+        const shortsVideo = getShortsActiveVideo();
+        if (shortsVideo) return shortsVideo;
+    }
+    return document.querySelector('.html5-video-player video.html5-main-video') ||
+           document.querySelector('video.html5-main-video') ||
+           document.querySelector('video');
+}
+
+function ytProShotToast(message, isError) {
+    document.getElementById('yt-pro-shot-toast')?.remove();
+    const toast = document.createElement('div');
+    toast.id = 'yt-pro-shot-toast';
+    toast.textContent = message;
+    toast.style.cssText = [
+        'position:fixed', 'bottom:28px', 'left:50%',
+        'transform:translateX(-50%) translateY(10px)',
+        'background:rgba(20,20,20,0.85)',
+        'color:' + (isError ? '#ff6b6b' : '#00d2ff'),
+        'padding:10px 18px', 'border-radius:999px',
+        'font:600 13px/1.2 "SF Pro Text",Roboto,Arial,sans-serif',
+        'letter-spacing:.2px', 'z-index:2147483647',
+        'backdrop-filter:blur(14px)', '-webkit-backdrop-filter:blur(14px)',
+        'border:1px solid rgba(255,255,255,0.14)',
+        'box-shadow:0 8px 28px rgba(0,0,0,0.45)',
+        'opacity:0', 'pointer-events:none',
+        'transition:opacity .25s ease, transform .25s ease'
+    ].join(';');
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => {
+        toast.style.opacity   = '1';
+        toast.style.transform = 'translateX(-50%) translateY(0)';
+    });
+    setTimeout(() => {
+        toast.style.opacity   = '0';
+        toast.style.transform = 'translateX(-50%) translateY(10px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 1800);
+}
+
+// Quick white flash over the EXACT video element's rect — both a "shutter"
+// confirmation and a visual proof that only that rect is being captured.
+function ytProShotFlash(video) {
+    const rect = video.getBoundingClientRect();
+    const flash = document.createElement('div');
+    flash.style.cssText = [
+        'position:fixed',
+        `top:${rect.top}px`, `left:${rect.left}px`,
+        `width:${rect.width}px`, `height:${rect.height}px`,
+        'background:#fff', 'opacity:0.85', 'pointer-events:none',
+        'z-index:2147483647', 'transition:opacity 0.35s ease'
+    ].join(';');
+    document.body.appendChild(flash);
+    requestAnimationFrame(() => { flash.style.opacity = '0'; });
+    setTimeout(() => flash.remove(), 400);
+}
+
+function ytProShotFilename(video) {
+    const titleEl = document.querySelector(
+        'h1.ytd-watch-metadata yt-formatted-string, h1.title.style-scope.ytd-video-primary-info-renderer'
+    );
+    let title = (titleEl?.textContent || document.title || 'youtube-video').trim();
+    title = title.replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '-').slice(0, 60) || 'youtube-video';
+
+    const t = Math.max(0, Math.floor(video.currentTime || 0));
+    const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+    const pad = n => String(n).padStart(2, '0');
+    const stamp = h > 0 ? `${h}-${pad(m)}-${pad(s)}` : `${pad(m)}-${pad(s)}`;
+
+    return `${title}_${stamp}.png`;
+}
+
+function ytProCaptureFrame(video) {
+    if (!video || video.readyState < 2) {
+        ytProShotToast('Video frame not ready yet', true);
+        return;
+    }
+    const w = video.videoWidth, h = video.videoHeight;
+    if (!w || !h) {
+        ytProShotToast('Could not read video frame', true);
+        return;
+    }
+
+    ytProShotFlash(video);
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+
+    try {
+        ctx.drawImage(video, 0, 0, w, h);
+    } catch (e) {
+        // Tainted canvas — shouldn't happen on YouTube's own player, guard anyway
+        ytProShotToast('Screenshot blocked for this video', true);
+        return;
+    }
+
+    canvas.toBlob((blob) => {
+        if (!blob) { ytProShotToast('Screenshot failed', true); return; }
+        const url = URL.createObjectURL(blob);
+        const a   = document.createElement('a');
+        a.href     = url;
+        a.download = ytProShotFilename(video);
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        ytProShotToast('Screenshot saved');
+    }, 'image/png');
+}
+
+function ytProTakeScreenshot() {
+    const video = getActiveVideoForScreenshot();
+    if (!video) {
+        ytProShotToast('No video found', true);
+        return;
+    }
+
+    const wasPlaying = !video.paused && !video.ended;
+    if (wasPlaying) video.pause();
+
+    // drawImage() inside ytProCaptureFrame() is synchronous, so the frame is
+    // already locked into the canvas by the time we get here — safe to resume.
+    ytProCaptureFrame(video);
+
+    if (wasPlaying) {
+        video.play().catch(() => {}); // .catch silences rare autoplay-policy errors
+    }
+}
+
+function createScreenshotButton() {
+    const button = document.createElement('button');
+    button.classList.add('ytp-button', 'yt-pro-screenshot-btn');
+    button.id    = 'yt-pro-screenshot-btn';
+    button.title = 'Screenshot video frame (Alt+Shift+S)';
+    button.setAttribute('aria-label', 'Screenshot video frame');
+    button.style.cssText = 'background:transparent;border:0;outline:none;cursor:pointer;padding:0;vertical-align:top;';
+    button.innerHTML =
+        '<svg viewBox="0 0 24 24" width="24" height="24" style="display:block;margin:auto;" xmlns="http://www.w3.org/2000/svg">' +
+        '<path d="M9 4 L7.5 6 H5 a2 2 0 0 0 -2 2 v9 a2 2 0 0 0 2 2 h14 a2 2 0 0 0 2 -2 V8 a2 2 0 0 0 -2 -2 h-2.5 L15 4 Z" fill="#fff"/>' +
+        '<circle cx="12" cy="13" r="3.4" fill="#0f0f0f"/>' +
+        '<circle cx="12" cy="13" r="2.2" fill="#fff"/>' +
+        '</svg>';
+    button.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        ytProTakeScreenshot();
+    });
+    return button;
+}
+
+function injectScreenshotButton() {
+    if (document.getElementById('yt-pro-screenshot-btn')) return;
+    const rightControls = document.querySelector('div.ytp-right-controls');
+    if (!rightControls) return;
+
+    const button    = createScreenshotButton();
+    const resumeBtn = document.getElementById('yt-pro-resume-switch');
+    if (resumeBtn && resumeBtn.parentElement === rightControls) {
+        resumeBtn.insertAdjacentElement('afterend', button);
+    } else {
+        rightControls.prepend(button);
+    }
+}
+
+function initScreenshotFeature() {
+    if (screenshotFeatureActive) return;
+    screenshotFeatureActive = true;
+
+    injectScreenshotButton();
+
+    if (!screenshotPollInterval) {
+        // Re-inject if YouTube's SPA rebuilds the player controls on navigation
+        screenshotPollInterval = setInterval(() => {
+            if (screenshotFeatureActive) injectScreenshotButton();
+        }, 1000);
+    }
+
+    if (!screenshotKeyHandler) {
+        screenshotKeyHandler = (e) => {
+            if (!e.altKey || !e.shiftKey || e.key.toLowerCase() !== 's') return;
+            const active     = document.activeElement;
+            const tag        = (active?.tagName || '').toLowerCase();
+            const isEditable = active?.isContentEditable || tag === 'input' || tag === 'textarea';
+            if (isEditable) return; // don't hijack the shortcut while user is typing
+
+            e.preventDefault();
+            e.stopPropagation();
+            ytProTakeScreenshot();
+        };
+        document.addEventListener('keydown', screenshotKeyHandler, true);
+    }
+}
+
+function removeScreenshotFeature() {
+    screenshotFeatureActive = false;
+    if (screenshotPollInterval) { clearInterval(screenshotPollInterval); screenshotPollInterval = null; }
+    if (screenshotKeyHandler)   { document.removeEventListener('keydown', screenshotKeyHandler, true); screenshotKeyHandler = null; }
+    document.getElementById('yt-pro-screenshot-btn')?.remove();
+}
+
+
+if (isCtxValid()) chrome.storage.local.get(['masterEnabled', 'theme', 'premium', 'ambient', 'cinematic', 'speed', 'autoscroll', 'download', 'autoResume', 'screenshot'], (result) => {
     if (result.masterEnabled === false) return;
 
     if (result.theme    !== false) {
@@ -1255,14 +1548,13 @@ if (isCtxValid()) chrome.storage.local.get(['masterEnabled', 'theme', 'premium',
     }
     if (result.cinematic === true) {
         document.body.classList.add('yt-pro-cinematic');
-        // Firefox: 300ms — video often starts before 800ms, rely on the
-        // already-playing guard inside _doAttach to catch any timing races.
-        setTimeout(() => window._ytProCinematic?.attach(), 300);
+        setTimeout(() => window._ytProCinematic?.attach(), 800);
     }
     if (result.speed    !== false) injectScript('inject-speed.js');
     if (result.autoscroll !== false) initAutoScroll();
     if (result.download !== false) initDownloadIntercept();
     if (result.autoResume !== false) initBadgeInjection();
+    if (result.screenshot !== false) initScreenshotFeature();
 });
 
 // Auto Resume is initialised inside the class (checks its own toggle)
@@ -1276,6 +1568,7 @@ if (isCtxValid()) chrome.runtime.onMessage.addListener((request, sender, sendRes
             window._ytProCinematic?.stop();
             if (autoScrollInterval) clearInterval(autoScrollInterval);
             removeDownloadIntercept();
+            removeScreenshotFeature();
             document.querySelectorAll('link.yt-pro-injected-asset').forEach(el => el.remove());
             destroyMastheadGuard();
             // Remove resume button from player if present
@@ -1297,6 +1590,8 @@ if (isCtxValid()) chrome.runtime.onMessage.addListener((request, sender, sendRes
         window._ytProCinematic?.applySettings(request.settings);
     } else if (request.action === 'toggledownload') {
         request.state ? initDownloadIntercept() : removeDownloadIntercept();
+    } else if (request.action === 'togglescreenshot') {
+        request.state ? initScreenshotFeature() : removeScreenshotFeature();
     } else if (request.action === 'toggleautoResume') {
         if (!request.state) {
             document.querySelector('#yt-pro-resume-switch')?.remove();

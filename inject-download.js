@@ -104,7 +104,8 @@
 
     // ── 7. Collect individual format rows ─────────────────────────────────────
     function collectRows() {
-        // ssvid.net uses <li> rows inside a <ul>
+        // ssvid.net / vidssave.com both use <li> rows inside a <ul> (or
+        // similarly-shaped list/table markup) for each quality option.
         // Also catch table rows and generic format/quality containers on other sites
         const candidates = Array.from(document.querySelectorAll(
             'li, tr, .item, .format-row, .quality-row, ' +

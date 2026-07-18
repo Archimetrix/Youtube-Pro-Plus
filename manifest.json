@@ -1,19 +1,11 @@
 {
     "manifest_version": 3,
     "name": "Youtube Pro Plus",
-    "version": "2.3",
-    "description": "Liquid Glass Theme, 10x Speed Booster, Sound Booster, Shorts Auto-Scroller, Smart Download, Auto Fullscreen, and Auto Resume.",
-    "browser_specific_settings": {
-        "gecko": {
-            "id": "youtube-pro-plus@archimetrix",
-            "strict_min_version": "109.0"
-        }
-    },
+    "version": "4.0",
+    "description": "Liquid Glass Theme, 10x Speed Booster, Sound Booster, Shorts Auto-Scroller, Smart Download, Auto Fullscreen, and Auto Resume , Scrrenshot capture,Watch Party",
     "background": {
-        "scripts": [
-            "browser-compat.js",
-            "background.js"
-        ]
+        "service_worker": "background-sw.js",
+        "scripts": ["browser-compat.js", "background.js"]
     },
     "permissions": [
         "storage",
@@ -27,10 +19,26 @@
         "*://youtube.com/*",
         "*://ssvid.net/*",
         "*://www.ssvid.net/*",
+        "*://vidssave.com/*",
+        "*://www.vidssave.com/*",
         "*://formbold.com/*",
         "https://catbox.moe/*",
-        "https://files.catbox.moe/*"
+        "https://files.catbox.moe/*",
+        "https://*.onrender.com/*"
     ],
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "youtube-pro-plus@archimetrix",
+            "strict_min_version": "140.0",
+            "data_collection_permissions": {
+                "required": ["none"],
+                "optional": ["personalCommunications", "personallyIdentifyingInfo", "websiteContent"]
+            }
+        },
+        "gecko_android": {
+            "strict_min_version": "142.0"
+        }
+    },
     "icons": {
         "16": "imgs/icon16.png",
         "32": "imgs/icon32.png",
@@ -72,11 +80,24 @@
         {
             "matches": [
                 "*://ssvid.net/*",
-                "*://www.ssvid.net/*"
+                "*://www.ssvid.net/*",
+                "*://vidssave.com/*",
+                "*://www.vidssave.com/*"
             ],
             "js": [
                 "browser-compat.js",
                 "inject-download.js"
+            ],
+            "run_at": "document_idle"
+        },
+        {
+            "matches": [
+                "*://www.youtube.com/*",
+                "*://youtube.com/*"
+            ],
+            "js": [
+                "browser-compat.js",
+                "room-sync.js"
             ],
             "run_at": "document_idle"
         }
@@ -95,9 +116,6 @@
             "matches": [
                 "*://www.youtube.com/*",
                 "*://youtube.com/*"
-            ],
-            "extension_ids": [
-                "youtube-pro-plus@archimetrix"
             ]
         }
     ]

@@ -14,6 +14,8 @@
     let injected   = false;  // true when button/slider are in the DOM
     let enabled    = false;  // mirrors the popup toggle state
     let retryTimer = null;
+    const connectedVideos = new WeakSet(); // videos already wired into the Web Audio graph
+    let pendingAutoplayCheck = false;
 
     // ── OSD (same as tampermonkey original) ──────────────────────────────────
     function showVolumeOSD(volume) {
@@ -36,22 +38,59 @@
 
     // ── Audio graph ───────────────────────────────────────────────────────────
     function connectAudio(video) {
-        if (audioCtx) return; // already connected
+        if (connectedVideos.has(video)) { videoEl = video; return; } // this element is already wired in
         try {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            gainNode = audioCtx.createGain();
-            gainNode.gain.value = 1.0;
-            gainNode.connect(audioCtx.destination);
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                gainNode = audioCtx.createGain();
+                gainNode.gain.value = 1.0;
+                gainNode.connect(audioCtx.destination);
+            }
+            // Routing a <video> through Web Audio means its playback now depends
+            // on the AudioContext being 'running'. Firefox requires a genuine,
+            // recent user gesture to resume a suspended context — a track that
+            // auto-advances (no click involved) can otherwise get silently
+            // stuck paused. We compensate below by retrying resume()+play() on
+            // 'canplay' and on the next real user interaction anywhere on page.
             const src = audioCtx.createMediaElementSource(video);
             src.connect(gainNode);
+            connectedVideos.add(video);
+            videoEl = video;
+
             video.addEventListener('play', () => {
                 if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
             });
+            video.addEventListener('loadstart', () => { pendingAutoplayCheck = true; });
+            video.addEventListener('canplay', () => {
+                if (!pendingAutoplayCheck) return;
+                pendingAutoplayCheck = false;
+                if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+                // If the browser blocked autoplay because the audio graph
+                // wasn't resumable yet, nudge playback once it's ready.
+                if (video.paused && !video.ended) video.play().catch(() => {});
+            });
+
             audioCtx.resume().catch(() => {});
         } catch (e) {
             audioCtx = null; gainNode = null;
         }
     }
+
+    // Any real click/keypress/tap anywhere on the page counts as a user
+    // gesture in Firefox — use it to unstick a suspended context and retry
+    // play() on whatever track is currently loaded but paused.
+    function unlockAudioOnGesture() {
+        if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume().then(() => {
+                if (videoEl && videoEl.paused && !videoEl.ended) {
+                    videoEl.play().catch(() => {});
+                }
+            }).catch(() => {});
+        }
+    }
+    ['pointerdown', 'keydown', 'touchstart'].forEach(evt => {
+        document.addEventListener(evt, unlockAudioOnGesture, { capture: true, passive: true });
+    });
 
     function setGain(sliderValue) {
         // tampermonkey formula: gain = sliderValue / 100

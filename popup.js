@@ -19,21 +19,15 @@
         mainView.style.display      = 'none';
         welcomeScreen.style.display = 'flex';
 
-        starBtn.addEventListener('click', (e) => {
-            e.preventDefault();
+        starBtn.addEventListener('click', () => {
             chrome.storage.local.set({ hasSeenWelcome: true });
-            chrome.tabs.create({ url: starBtn.href });
-            window.close();
         });
 
         // Fix: coffee button also dismisses the welcome screen
         const coffeeBtn = document.getElementById('welcome-coffee-btn');
         if (coffeeBtn) {
-            coffeeBtn.addEventListener('click', (e) => {
-                e.preventDefault();
+            coffeeBtn.addEventListener('click', () => {
                 chrome.storage.local.set({ hasSeenWelcome: true });
-                chrome.tabs.create({ url: coffeeBtn.href });
-                window.close();
             });
         }
 
@@ -72,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const toggles = ['theme', 'premium', 'ambient', 'cinematic', 'speed', 'audio', 'autoscroll', 'download', 'fullscreen', 'autoResume'];
+    const toggles = ['theme', 'premium', 'ambient', 'cinematic', 'speed', 'audio', 'autoscroll', 'download', 'fullscreen', 'autoResume', 'screenshot', 'watchparty'];
     const masterToggleBtn = document.getElementById('master-toggle');
 
     // ── Load all settings ───────────────────────────────────────────────────
@@ -139,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 chrome.runtime.sendMessage({ action: 'fullscreenToggleChanged', state: isChecked }).catch(() => {});
             }
 
-            if (['premium', 'ambient', 'cinematic', 'download', 'autoResume'].includes(toggle)) {
+            if (['premium', 'ambient', 'cinematic', 'download', 'autoResume', 'screenshot', 'watchparty'].includes(toggle)) {
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                     if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: `toggle${toggle}`, state: isChecked }).catch(() => {});
                 });
@@ -699,6 +693,14 @@ document.addEventListener('DOMContentLoaded', () => {
         download: {
             title: ' Premium Users — Important',
             body:  'If you are a YouTube Premium subscriber, keep Smart Download turned OFF. This feature uses a third-party downloader and may conflict with YouTube Premium\'s built-in download feature.'
+        },
+        screenshot: {
+            title: 'Video Screenshot',
+            body:  'Adds a camera button to the player and the Alt+Shift+S shortcut. Captures only the video frame itself — no controls, no overlays. If the video is playing it pauses for the capture, then resumes automatically.'
+        },
+        watchparty: {
+            title: 'Watch Party',
+            body:  'Adds a Watch Party button next to Create in the YouTube header. Create a room to host and share the code, or join a room to follow along — only the host controls playback. Turn this off to remove the button entirely.'
         }
     };
 
@@ -726,9 +728,129 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ── Report an Issue — opens dedicated tab (avoids Firefox popup-closes-on-file-dialog bug) ──
+    // ── Report an Issue Panel ────────────────────────────────────────────────
+    const reportPanel     = document.getElementById('report-panel');
+    const reportCloseBtn  = document.getElementById('report-close-btn');
+    const reportFileInput = document.getElementById('report-file-input');
+    const reportPreview   = document.getElementById('report-preview-grid');
+    const reportSubmitBtn = document.getElementById('report-submit-btn');
+    const reportStatus    = document.getElementById('report-status');
+
+    let reportImageFiles = [];
+
     document.getElementById('open-report-panel').addEventListener('click', () => {
-        chrome.tabs.create({ url: chrome.runtime.getURL('report-page.html') });
+        reportPanel.classList.add('visible');
+        reportStatus.textContent = '';
+        reportStatus.className   = '';
+    });
+
+    reportCloseBtn.addEventListener('click', () => {
+        reportPanel.classList.remove('visible');
+    });
+
+    reportFileInput.addEventListener('change', () => {
+        Array.from(reportFileInput.files).forEach(file => {
+            if (reportImageFiles.length >= 3 || !file.type.startsWith('image/')) return;
+            reportImageFiles.push(file);
+        });
+        reportFileInput.value = '';
+        renderReportPreviews();
+    });
+
+    function renderReportPreviews() {
+        reportPreview.innerHTML = '';
+        reportImageFiles.forEach((file, idx) => {
+            const url  = URL.createObjectURL(file);
+            const item = document.createElement('div');
+            item.className = 'report-preview-item';
+            const img  = document.createElement('img');
+            img.src    = url;
+            img.onload = () => URL.revokeObjectURL(url);
+            const rmBtn = document.createElement('button');
+            rmBtn.className   = 'report-preview-remove';
+            rmBtn.textContent = '×';
+            rmBtn.addEventListener('click', () => {
+                reportImageFiles.splice(idx, 1);
+                renderReportPreviews();
+            });
+            item.appendChild(img);
+            item.appendChild(rmBtn);
+            reportPreview.appendChild(item);
+        });
+        const uploadArea = document.getElementById('report-upload-area');
+        if (uploadArea) uploadArea.style.display = reportImageFiles.length >= 3 ? 'none' : '';
+    }
+
+    reportSubmitBtn.addEventListener('click', async () => {
+        const name    = (document.getElementById('report-name').value    || '').trim();
+        const message = (document.getElementById('report-message').value || '').trim();
+
+        if (!message) {
+            reportStatus.className   = 'error';
+            reportStatus.textContent = '\u26a0\ufe0f Please describe the issue before sending.';
+            return;
+        }
+
+        reportSubmitBtn.disabled   = true;
+        reportStatus.className     = '';
+        reportStatus.textContent   = '\ud83d\udce4 Sending\u2026';
+
+        try {
+            // Upload each screenshot to catbox.moe (free, anonymous, permanent hosting).
+            // Gmail blocks data: URLs but renders normal https:// image links fine.
+            const uploadToCatbox = async (file) => {
+                const fd = new FormData();
+                fd.append('reqtype',     'fileupload');
+                fd.append('fileToUpload', file, file.name || 'screenshot.jpg');
+                const r = await fetch('https://catbox.moe/user/api.php', { method: 'POST', body: fd });
+                if (!r.ok) throw new Error('catbox upload failed: ' + r.status);
+                const url = (await r.text()).trim();
+                if (!url.startsWith('https://')) throw new Error('Bad catbox response: ' + url);
+                return url;
+            };
+
+            let screenshotHtml = '';
+            if (reportImageFiles.length > 0) {
+                const urls = await Promise.all(reportImageFiles.map(uploadToCatbox));
+                const imgTags = urls.map((url, i) =>
+                    `<div style="margin:8px 0;"><strong>Screenshot ${i + 1}</strong><br><a href="${url}"><img src="${url}" alt="Screenshot ${i + 1}" style="max-width:600px;display:block;border:1px solid #ccc;border-radius:4px;margin-top:4px;"></a></div>`
+                ).join('');
+                screenshotHtml = `<br><br><hr style="border:none;border-top:1px solid #ccc;margin:12px 0;"><strong>Screenshots (${urls.length})</strong><br><br>${imgTags}`;
+            }
+
+            const formData = new FormData();
+            formData.append('Name',    name || 'Anonymous');
+            formData.append('Message', message + screenshotHtml);
+            formData.append('Browser', navigator.userAgent);
+
+            const res  = await fetch('https://formbold.com/s/3A7PM', {
+                method: 'POST',
+                body:   formData
+            });
+
+            if (res.ok) {
+                reportStatus.className   = 'success';
+                reportStatus.textContent = '\u2705 Report sent! We will look into it soon. Thank you!';
+                document.getElementById('report-name').value    = '';
+                document.getElementById('report-message').value = '';
+                reportImageFiles = [];
+                renderReportPreviews();
+                // Clean up any leftover download grid from previous attempts
+                const oldGrid = document.getElementById('report-download-grid');
+                if (oldGrid) oldGrid.remove();
+            } else {
+                throw new Error('Server returned ' + res.status);
+            }
+        } catch (err) {
+            reportStatus.className   = 'error';
+            reportStatus.textContent = '\u274c Failed to send. Check your internet and try again.';
+            console.error('[Report] Error:', err);
+        }
+
+        reportSubmitBtn.disabled = false;
     });
     // ─────────────────────────────────────────────────────────────────────────
 });
+
+
+
