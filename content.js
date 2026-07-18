@@ -97,14 +97,38 @@ function initAutoScroll() {
 let downloadInterceptActive = false;
 let downloadButtonObserver = null;
 
-// Selectors that cover YouTube's download button in all its forms
+// Selectors that cover YouTube's download entry point in all its forms.
+// YouTube has moved this around over time — from a dedicated player-area
+// button, to a masthead button, to (currently) a line item inside the
+// "⋮" (more actions) overflow menu. The overflow-menu version isn't a
+// <button> at all, it's a menu-item custom element, so we match broadly
+// and rely on isDownloadLabel() below to filter to the right one.
 const DL_BTN_SELECTORS = [
     'ytd-download-button-renderer button',
     'button[aria-label="Download video"]',
-    'button[aria-label*="Download"]',
+    'button[aria-label*="Download" i]',
     '.ytp-download-button',
     'yt-button-shape button',
+    // Overflow ("...") menu — rendered as menu-item elements, not buttons.
+    'tp-yt-paper-item',
+    'ytd-menu-service-item-renderer',
+    'yt-list-item-view-model',
+    '[role="menuitem"]',
+    '[role="menuitemradio"]',
 ].join(', ');
+
+// True only for elements whose visible text/label is actually "Download" —
+// needed because several of the selectors above (menu items, list items)
+// match plenty of unrelated UI too (Save, Report, Clip, etc).
+function isDownloadLabel(el) {
+    if (!el) return false;
+    const label = (el.getAttribute('aria-label') || el.innerText || el.textContent || '')
+        .trim()
+        .toLowerCase();
+    // Match "download" as a whole word-ish token so we don't accidentally
+    // match something like "downloaded" mid-sentence in an unrelated string.
+    return /(^|[^a-z])download([^a-z]|$)/.test(label);
+}
 
 // Force-enable a single button regardless of YouTube's disabled state
 function forceEnableDownloadButton(btn) {
@@ -118,7 +142,7 @@ function forceEnableDownloadButton(btn) {
     btn.style.cursor = 'pointer';
 
     // Also un-disable wrapper elements YouTube uses
-    const renderer = btn.closest('ytd-download-button-renderer, yt-button-shape, .yt-button-shape-with-explainer');
+    const renderer = btn.closest('ytd-download-button-renderer, yt-button-shape, .yt-button-shape-with-explainer, tp-yt-paper-item, ytd-menu-service-item-renderer');
     if (renderer) {
         renderer.removeAttribute('disabled');
         renderer.removeAttribute('aria-disabled');
@@ -132,10 +156,13 @@ function startDownloadButtonWatcher() {
     if (downloadButtonObserver) return;
 
     // Enable any buttons already on the page
-    document.querySelectorAll(DL_BTN_SELECTORS).forEach(forceEnableDownloadButton);
+    document.querySelectorAll(DL_BTN_SELECTORS).forEach(btn => {
+        if (isDownloadLabel(btn)) forceEnableDownloadButton(btn);
+    });
 
     downloadButtonObserver = new MutationObserver(() => {
         document.querySelectorAll(DL_BTN_SELECTORS).forEach(btn => {
+            if (!isDownloadLabel(btn)) return; // leave unrelated menu items alone
             // Re-enable whenever YouTube disables the button again
             if (btn.hasAttribute('disabled') || btn.getAttribute('aria-disabled') === 'true' ||
                 btn.style.pointerEvents === 'none' || btn.dataset.ytProForced !== '1') {
@@ -174,12 +201,17 @@ function removeDownloadIntercept() {
 }
 
 function handleDownloadClick(e) {
-    const btn = e.target.closest(DL_BTN_SELECTORS);
-
+    // composedPath() sees through shadow-DOM boundaries the overflow menu's
+    // popup may be rendered in; e.target alone can get retargeted to a
+    // shadow host and miss the actual menu-item element.
+    const path = typeof e.composedPath === 'function' ? e.composedPath() : [e.target];
+    let btn = null;
+    for (const node of path) {
+        if (!(node instanceof Element)) continue;
+        const match = node.closest ? node.closest(DL_BTN_SELECTORS) : null;
+        if (match && isDownloadLabel(match)) { btn = match; break; }
+    }
     if (!btn) return;
-
-    const label = (btn.getAttribute('aria-label') || btn.innerText || '').toLowerCase();
-    if (!label.includes('download')) return;
 
     e.preventDefault();
     e.stopImmediatePropagation();
@@ -194,7 +226,7 @@ function handleDownloadClick(e) {
         ssvid_pending_url: videoUrl,
         ssvid_pending_ts:  Date.now()
     }, () => {
-        window.open('https://ssvid.net/en/youtube-video-downloader-4', '_blank', 'noopener,noreferrer');
+        window.open('https://vidssave.com/youtube-video-downloader-8hs', '_blank', 'noopener,noreferrer');
     });
 }
 

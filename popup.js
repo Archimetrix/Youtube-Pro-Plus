@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const toggles = ['theme', 'premium', 'ambient', 'cinematic', 'speed', 'audio', 'autoscroll', 'download', 'fullscreen', 'autoResume', 'screenshot'];
+    const toggles = ['theme', 'premium', 'ambient', 'cinematic', 'speed', 'audio', 'autoscroll', 'download', 'fullscreen', 'autoResume', 'screenshot', 'watchparty'];
     const masterToggleBtn = document.getElementById('master-toggle');
 
     // ── Load all settings ───────────────────────────────────────────────────
@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 chrome.runtime.sendMessage({ action: 'fullscreenToggleChanged', state: isChecked }).catch(() => {});
             }
 
-            if (['premium', 'ambient', 'cinematic', 'download', 'autoResume', 'screenshot'].includes(toggle)) {
+            if (['premium', 'ambient', 'cinematic', 'download', 'autoResume', 'screenshot', 'watchparty'].includes(toggle)) {
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                     if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: `toggle${toggle}`, state: isChecked }).catch(() => {});
                 });
@@ -697,6 +697,10 @@ document.addEventListener('DOMContentLoaded', () => {
         screenshot: {
             title: 'Video Screenshot',
             body:  'Adds a camera button to the player and the Alt+Shift+S shortcut. Captures only the video frame itself — no controls, no overlays. If the video is playing it pauses for the capture, then resumes automatically.'
+        },
+        watchparty: {
+            title: 'Watch Party',
+            body:  'Adds a Watch Party button next to Create in the YouTube header. Create a room to host and share the code, or join a room to follow along — only the host controls playback. Turn this off to remove the button entirely.'
         }
     };
 

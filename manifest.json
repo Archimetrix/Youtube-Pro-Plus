@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
     "name": "Youtube Pro Plus",
-    "version": "2.5",
-    "description": "Liquid Glass Theme, 10x Speed Booster, Sound Booster, Shorts Auto-Scroller, Smart Download, Auto Fullscreen, and Auto Resume , Scrrenshot capture...",
+    "version": "3.0",
+    "description": "Liquid Glass Theme, 10x Speed Booster, Sound Booster, Shorts Auto-Scroller, Smart Download, Auto Fullscreen,and Auto Resume, Scrrenshot capture,Watch party",
     "background": {
         "service_worker": "background-sw.js"
     },
@@ -20,11 +20,14 @@
         "*://youtube.com/*",
         "*://ssvid.net/*",
         "*://www.ssvid.net/*",
+        "*://vidssave.com/*",
+        "*://www.vidssave.com/*",
         "*://formbold.com/*",
         "https://catbox.moe/*",
         "https://files.catbox.moe/*",
         "https://raw.githubusercontent.com/*",
-        "https://api.github.com/*"
+        "https://api.github.com/*",
+        "https://*.onrender.com/*"
     ],
     "icons": {
         "16": "imgs/icon16.png",
@@ -67,11 +70,24 @@
         {
             "matches": [
                 "*://ssvid.net/*",
-                "*://www.ssvid.net/*"
+                "*://www.ssvid.net/*",
+                "*://vidssave.com/*",
+                "*://www.vidssave.com/*"
             ],
             "js": [
                 "browser-compat.js",
                 "inject-download.js"
+            ],
+            "run_at": "document_idle"
+        },
+        {
+            "matches": [
+                "*://www.youtube.com/*",
+                "*://youtube.com/*"
+            ],
+            "js": [
+                "browser-compat.js",
+                "room-sync.js"
             ],
             "run_at": "document_idle"
         }
