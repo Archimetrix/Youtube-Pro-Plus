@@ -2,7 +2,7 @@
   <img src="imgs/logo.png" alt="YouTube Pro Plus Logo" width="150"/>
   <h1> YouTube Pro Plus</h1>
 
-  ![Version](https://img.shields.io/badge/version-3.0-blue.svg)
+  ![Version](https://img.shields.io/badge/version-2.5-blue.svg)
   ![Platform](https://img.shields.io/badge/platform-Firefox%20%7C%20Edge%20%7C%20Chromium-green.svg)
 </div>
 
@@ -49,9 +49,8 @@ Click the image below to watch the full showcase and installation guide:
 * **🎛️ Sound Booster :Boost yt vidios sound as much you need .
 * **🔁 Shorts Auto-Scroller:** A robust background script that intelligently detects when a YouTube Short finishes and automatically scrolls to the next one—completely hands-free.
 * **⬇️ Smart Download:** A smart third-party download support added replacing the default download button (if you want to use the normal download then just turn off the setting in the extension).
-* **⏯️ History and auto resume :** A smart system  storing all your watched vidios with date and duration of vidios watched. When you click on the video next time it will play feom where you left it last time and you can change which ever settings you like -- and also there is a recapintregation in it it will tell you your all time top 5 vidios and top 5 chanels .
+* **⏯️ History and auto resume :** A smart system  storing all your watched vidios with date and duration of vidios watched. When you click on the video next time it will play feom where you left it last time and you can change which ever settings you like -- and also there is a recap intregation in it it will tell you your all time top 5 vidios and top 5 chanels .
 * **📸 Screenshot Videosframe **  You can screenshot videos with alt+shift+s or there is a camera icon in player just click that .
-* **🌐 Watch Party ** A server room feature for watching vidios together .
 ---
 
 ## 🛠️ Local Installation (Chrome, Opera, Brave, Vivaldi etc.)

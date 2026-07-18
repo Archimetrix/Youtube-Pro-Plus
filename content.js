@@ -477,11 +477,53 @@ class YTProAutoResume {
     }
 
     async injectPlayerButton() {
+        // Don't stack a second button if one's already there.
+        if (document.querySelector("#yt-pro-resume-switch")) return;
+
         const blacklisted = await this.checkBlacklist(window.location.href);
         const imgSrc   = blacklisted ? RESUME_ICON_INACTIVE : RESUME_ICON_ACTIVE;
         const tooltip  = blacklisted ? "Video will not auto-resume" : "Video will auto-resume";
         const button   = this.createPlayerButton(imgSrc, tooltip);
-        document.querySelector("div.ytp-right-controls")?.prepend(button);
+
+        this.mountButtonWhenReady(button);
+    }
+
+    // The player controls (div.ytp-right-controls) aren't guaranteed to exist
+    // the instant we try to inject — YouTube's player can still be mounting
+    // asynchronously after the page's `load` event, especially on a cold
+    // cache or a slower machine/connection. A single querySelector attempt
+    // silently drops the button in that case and nothing ever retries it
+    // (the only other trigger is a full SPA navigation). So: poll for a
+    // bounded time, and back it with a MutationObserver so we catch it the
+    // instant it appears rather than waiting for the next poll tick.
+    mountButtonWhenReady(button, attempts = 0) {
+        if (document.querySelector("#yt-pro-resume-switch")) return; // got mounted another way already
+
+        const controls = document.querySelector("div.ytp-right-controls");
+        if (controls) {
+            controls.prepend(button);
+            return;
+        }
+
+        if (attempts >= 100) return; // ~30s ceiling — give up quietly past that
+
+        if (attempts === 0) {
+            const observer = new MutationObserver(() => {
+                const c = document.querySelector("div.ytp-right-controls");
+                if (c && !document.querySelector("#yt-pro-resume-switch")) {
+                    c.prepend(button);
+                    observer.disconnect();
+                } else if (document.querySelector("#yt-pro-resume-switch")) {
+                    observer.disconnect();
+                }
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+            // Safety net in case the observer never fires (e.g. controls
+            // appear via an attribute change rather than a new node).
+            setTimeout(() => observer.disconnect(), 30000);
+        }
+
+        setTimeout(() => this.mountButtonWhenReady(button, attempts + 1), 300);
     }
 
     createPlayerButton(imgSrc, tooltip) {
