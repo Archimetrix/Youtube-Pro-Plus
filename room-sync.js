@@ -21,6 +21,20 @@
     const MAX_RECONNECT_ATTEMPTS = 8;  // ~ covers a slow Render free-tier cold start
     const CHAT_RENDER_LIMIT = 200;     // how many recent chat lines we keep in memory client-side
     const AVATAR_COUNT = 50;           // matches the server's MAX_CLIENTS_PER_ROOM — one look per possible member
+    // A guest should hear from the server at least every HOST_BROADCAST_MS
+    // (the host's heartbeat/time-sync). If nothing at all has arrived in
+    // this long, the socket is almost certainly a "zombie" — readyState
+    // still says OPEN and outgoing sends still appear to work, but the
+    // server→client direction has silently died (common on flaky mobile
+    // networks / laptop sleep-wake / some proxies). The server's ping/pong
+    // only protects it from dead clients, nothing protects the client from
+    // a dead-feeling-alive server link — this does.
+    // NOTE: 8s is still tight — only 3s of slack past the 5s heartbeat
+    // itself — so an occasionally-delayed (not dead) heartbeat under normal
+    // network jitter can trigger a reconnect. That's a deliberate trade for
+    // faster recovery; if reconnects start happening on a healthy
+    // connection, widen this back up.
+    const GUEST_STALE_MS = 8000;
 
     let ws = null;
     let roomCode = null;
@@ -35,6 +49,7 @@
     let reconnectTimer = null;
     let intentionalClose = false;
     let isSessionRestore = false; // true only for the fresh-script-load restore attempt in init()
+    let lastInboundAt = Date.now(); // updated on every message actually received from the server
 
     // ── Chat ─────────────────────────────────────────────────────────────
     // Chat is entirely tied to the current room session — it lives only in
@@ -582,9 +597,11 @@
 
         ws.onopen = () => {
             reconnectAttempts = 0;
+            lastInboundAt = Date.now();
             onOpen();
         };
         ws.onmessage = (evt) => {
+            lastInboundAt = Date.now(); // any frame at all proves the link is still alive
             let msg;
             try { msg = JSON.parse(evt.data); } catch { return; }
             handleServerMessage(msg);
@@ -632,6 +649,24 @@
             });
         }, delay);
     }
+
+    // Every few seconds, check whether a connected guest has actually heard
+    // anything from the server recently. The host's heartbeat alone should
+    // guarantee a message at least every HOST_BROADCAST_MS — if we've gone
+    // quiet for much longer than that while still "connected", the socket
+    // is a zombie: outgoing sends can keep appearing to work (which is why
+    // the host still sees your chat) while every incoming broadcast —
+    // other people's chat echoes, playback sync, everything — silently
+    // never arrives. Forcing a close here hands off to the exact same
+    // battle-tested reconnect path (attemptReconnect → guestToken resume)
+    // used for a real network drop, so it comes back cleanly.
+    function checkStaleConnection() {
+        if (isHost || !roomCode || !ws || ws.readyState !== WebSocket.OPEN) return;
+        if (Date.now() - lastInboundAt > GUEST_STALE_MS) {
+            try { ws.close(); } catch {}
+        }
+    }
+    setInterval(checkStaleConnection, 2000);
 
     function handleServerMessage(msg) {
         switch (msg.type) {
