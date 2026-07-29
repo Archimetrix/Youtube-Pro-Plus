@@ -2,7 +2,7 @@
   <img src="imgs/logo.png" alt="YouTube Pro Plus Logo" width="150"/>
   <h1>YouTube Pro Plus</h1>
 
-  ![Version](https://img.shields.io/badge/version-4.1-blue.svg)
+  ![Version](https://img.shields.io/badge/version-4.2-blue.svg)
   ![Platform](https://img.shields.io/badge/platform-Firefox%20%7C%20Edge%20%7C%20Chromium-green.svg)
 </div>
 
@@ -52,6 +52,7 @@ Click the image below to watch the full showcase and installation guide:
 * **⏯️ History & Auto-Resume:** A smart system that stores every video you've watched, along with the date and duration watched. Next time you click a video, it resumes right where you left off, with full control over the relevant settings — plus a built-in recap showing your all-time top 5 videos and top 5 channels.
 * **📸 Screenshot Video Frames:** Screenshot any video with `Alt+Shift+S`, or click the camera icon in the player.
 * **🎉 Watch Party:** Watch videos together with friends and family, with in-YouTube chat included.
+* **🎉 Auto Miniplayer:** A miniplayer automatically shows up when you scroll down .
 
 ---
 
