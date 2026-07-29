@@ -1217,6 +1217,16 @@
         chrome.runtime.onMessage.addListener((msg) => {
             if (msg && msg.action === 'togglewatchparty') {
                 if (msg.state) enableFeature(); else disableFeature();
+            } else if (msg && msg.action === 'masterToggleChanged') {
+                if (msg.state) {
+                    // Master turned back on — respect the individual Watch Party
+                    // toggle rather than force-enabling it.
+                    getStorage(['watchparty']).then(({ watchparty }) => {
+                        if (watchparty !== false) enableFeature();
+                    });
+                } else {
+                    disableFeature();
+                }
             }
         });
     }
@@ -1252,10 +1262,10 @@
     }
 
     function init() {
-        getStorage(['watchparty']).then(({ watchparty }) => {
-            if (watchparty === false) {
+        getStorage(['masterEnabled', 'watchparty']).then(({ masterEnabled, watchparty }) => {
+            if (masterEnabled === false || watchparty === false) {
                 featureEnabled = false;
-                return; // user turned Watch Party off — don't build any UI
+                return; // extension (or Watch Party specifically) is turned off — don't build any UI
             }
             enableFeature();
         });

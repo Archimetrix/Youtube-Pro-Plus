@@ -1142,7 +1142,7 @@ function getCineDim(s) {
         // canvas backing texture by pointer — zero pixel copy, zero CPU work.
         ctx = canvas.getContext('bitmaprenderer');
 
-        // Fade in only once the new video actually starts playing
+        // Fade in once the video starts playing
         function onPlaying() {
             if (!canvas) return;
             canvas.style.transition = 'opacity 0.6s ease';
@@ -1150,6 +1150,18 @@ function getCineDim(s) {
         }
         video.addEventListener('playing', onPlaying);
         canvas._onPlaying = () => { video.removeEventListener('playing', onPlaying); };
+
+        // Race-condition guard: if the video started playing fast (cached,
+        // short clip, preloaded) it may have already fired 'playing' BEFORE
+        // this listener was attached (attach() is delayed ~600ms to let
+        // YouTube swap the video element on SPA navigation). In that case
+        // the canvas would stay stuck at opacity 0 forever, only recovering
+        // if the user manually paused/played the video again. Catch that
+        // "already playing" state immediately instead of waiting on a future
+        // event that isn't coming.
+        if (!video.paused && !video.ended && video.readyState >= 2) {
+            onPlaying();
+        }
 
         // Wipe canvas instantly when YouTube swaps the video source
         function onSourceChange() { clearCanvas(); }
@@ -1520,7 +1532,382 @@ function removeScreenshotFeature() {
 }
 
 
-if (isCtxValid()) chrome.storage.local.get(['masterEnabled', 'theme', 'premium', 'ambient', 'cinematic', 'speed', 'autoscroll', 'download', 'autoResume', 'screenshot'], (result) => {
+// ─── Auto Mini Player ─────────────────────────────────────────────────────────
+// Shrinks the YouTube player into a small draggable floating window whenever
+// the player scrolls out of view, and restores it to normal size when it
+// scrolls back into view. Adapted from "YouTube Mini Player" userscript by
+// AkiyaKiko (https://github.com/AkiyaKiko/YouTubeMiniPlayer), integrated to
+// respect this extension's master/feature toggle system.
+let miniPlayerFeatureActive = false;
+
+const ytProMP = {
+    className: 'yt-pro-mini-player-active',
+    playerElement: null,
+    outerContainer: null,
+    innerContainer: null,
+    videoElement: null,
+    ivVideoContent: null,
+    bottomChrome: null,
+
+    originalOuterStyle: null,
+    originalInnerStyle: null,
+    originalVideoStyle: null,
+    originalIvStyle: null,
+
+    intersectionObserver: null,
+    setupObserver: null,
+    resizeHandler: null,
+
+    isActive: false,
+    initializedUrl: null,
+    isDragging: false,
+    dragOffsetX: 0,
+    dragOffsetY: 0,
+
+    isFullscreen() {
+        return !!document.fullscreenElement;
+    },
+
+    // Audio-only "song" tracks render on a static album-art background
+    // instead of a real video frame, so outerContainer/video offsetHeight
+    // can come back as 0 (or otherwise not reflect a real 16:9 frame).
+    // That turns aspectRatio into Infinity/NaN and collapses the mini
+    // player to zero height. Fall back to the video's own intrinsic
+    // dimensions, then to standard 16:9, whenever the measured ratio
+    // isn't a sane finite number.
+    getSafeAspectRatio() {
+        const w = this.outerContainer?.offsetWidth;
+        const h = this.outerContainer?.offsetHeight;
+        let ratio = w && h ? w / h : NaN;
+
+        if (!isFinite(ratio) || ratio <= 0) {
+            const vw = this.videoElement?.videoWidth;
+            const vh = this.videoElement?.videoHeight;
+            ratio = vw && vh ? vw / vh : NaN;
+        }
+
+        if (!isFinite(ratio) || ratio <= 0) ratio = 16 / 9;
+        return ratio;
+    },
+
+    isAudioOnlyTrack() {
+        // Audio-only "song" tracks never get real decoded video frames,
+        // so videoWidth/videoHeight stay 0 once metadata has loaded.
+        // The miniplayer's background-art scaling is unreliable for these
+        // (YouTube's own song-mode DOM/CSS shifts around), so we simply
+        // don't float it for audio-only playback rather than show a
+        // broken/cropped miniplayer.
+        const v = this.videoElement;
+        return !!v && v.readyState >= 1 && v.videoWidth === 0 && v.videoHeight === 0;
+    },
+
+    minimize() {
+        if (!this.outerContainer || this.isActive || this.isFullscreen()) return;
+        if (this.isAudioOnlyTrack()) return;
+
+        this.originalOuterStyle = this.outerContainer.getAttribute('style');
+        this.originalInnerStyle = this.innerContainer?.getAttribute('style');
+        this.originalVideoStyle = this.videoElement?.getAttribute('style');
+        this.originalIvStyle    = this.ivVideoContent?.getAttribute('style');
+
+        const storedPlayerHeight = this.playerElement.offsetHeight;
+        this.originalPlayerWidth = this.playerElement.style.width;
+        this.originalPlayerBg    = this.playerElement.style.backgroundSize + '|' + this.playerElement.style.backgroundPosition;
+        this.playerElement.style.height = `${storedPlayerHeight}px`;
+
+        const floatingWidth  = window.innerWidth / 5;
+        const aspectRatio    = this.getSafeAspectRatio();
+        const floatingHeight = floatingWidth / aspectRatio;
+        const rightOffset    = window.innerWidth * 0.03;
+        const bottomOffset   = window.innerHeight * 0.02;
+
+        Object.assign(this.outerContainer.style, {
+            position: 'fixed',
+            bottom: `${bottomOffset}px`,
+            right: `${rightOffset}px`,
+            left: 'auto',
+            top: 'auto',
+            width: `${floatingWidth}px`,
+            height: `${floatingHeight}px`,
+            zIndex: '3000',
+            boxShadow: '2px 2px 5px rgba(0, 0, 0, 0.3)',
+            minWidth: '0px',
+        });
+        this.outerContainer.classList.add(this.className);
+        this.isActive = true;
+
+        if (this.innerContainer) {
+            this.innerContainer.style.width = `${floatingWidth}px`;
+            this.innerContainer.style.height = `${floatingHeight}px`;
+            this.innerContainer.style.paddingTop = '0px';
+        }
+        if (this.bottomChrome) this.bottomChrome.style.display = 'none';
+        if (this.videoElement) {
+            this.videoElement.style.width = `${floatingWidth}px`;
+            this.videoElement.style.height = `${floatingHeight}px`;
+        }
+        if (this.ivVideoContent) {
+            this.ivVideoContent.style.width = `${floatingWidth}px`;
+            this.ivVideoContent.style.height = `${floatingHeight}px`;
+        }
+
+        // Audio-only "song" tracks paint their album art as a CSS
+        // background-image directly on #movie_player (behind the blank
+        // video element), sized for the full player. Without forcing
+        // cover/center here, shrinking the container just crops a tiny
+        // corner of that background instead of scaling the art down.
+        this.playerElement.style.width = `${floatingWidth}px`;
+        this.playerElement.style.backgroundSize = 'cover';
+        this.playerElement.style.backgroundPosition = 'center';
+
+        this.enableDragging();
+    },
+
+    restore() {
+        if (!this.outerContainer || !this.isActive || this.isFullscreen()) return;
+
+        this.outerContainer.setAttribute('style', this.originalOuterStyle || '');
+        this.outerContainer.classList.remove(this.className);
+        this.isActive = false;
+
+        if (this.playerElement) {
+            this.playerElement.style.height = '';
+            this.playerElement.style.width  = this.originalPlayerWidth || '';
+            const [bgSize, bgPos] = (this.originalPlayerBg || '|').split('|');
+            this.playerElement.style.backgroundSize = bgSize || '';
+            this.playerElement.style.backgroundPosition = bgPos || '';
+        }
+        if (this.innerContainer) this.innerContainer.setAttribute('style', this.originalInnerStyle || '');
+        if (this.bottomChrome) this.bottomChrome.style.display = '';
+        if (this.videoElement) this.videoElement.setAttribute('style', this.originalVideoStyle || '');
+        if (this.ivVideoContent) this.ivVideoContent.setAttribute('style', this.originalIvStyle || '');
+
+        this.disableDragging();
+
+        // YouTube's own player only recalculates the control/progress bar
+        // width in response to an actual resize event. Since we resize the
+        // player via direct inline styles (no browser resize event fires),
+        // .ytp-chrome-bottom can stay stuck at the floating-miniplayer width
+        // even after we've restored the container to full size. Nudge it.
+        requestAnimationFrame(() => {
+            window.dispatchEvent(new Event('resize'));
+            this.playerElement?.dispatchEvent(new Event('resize'));
+        });
+    },
+
+    enableDragging() {
+        if (!this.outerContainer) return;
+        this._onMouseDown = this._onMouseDown || this.onMouseDown.bind(this);
+        this.outerContainer.addEventListener('mousedown', this._onMouseDown);
+    },
+
+    disableDragging() {
+        if (!this.outerContainer || !this._onMouseDown) return;
+        this.outerContainer.removeEventListener('mousedown', this._onMouseDown);
+    },
+
+    onMouseDown(e) {
+        if (!this.isActive) return;
+        this.isDragging = true;
+        const rect = this.outerContainer.getBoundingClientRect();
+        this.dragOffsetX = e.clientX - rect.left;
+        this.dragOffsetY = e.clientY - rect.top;
+        this._onMouseMove = this._onMouseMove || this.onMouseMove.bind(this);
+        this._onMouseUp   = this._onMouseUp   || this.onMouseUp.bind(this);
+        document.addEventListener('mousemove', this._onMouseMove);
+        document.addEventListener('mouseup', this._onMouseUp);
+        e.preventDefault();
+    },
+
+    onMouseMove(e) {
+        if (!this.isDragging) return;
+        this.outerContainer.style.left   = `${e.clientX - this.dragOffsetX}px`;
+        this.outerContainer.style.top    = `${e.clientY - this.dragOffsetY}px`;
+        this.outerContainer.style.right  = 'auto';
+        this.outerContainer.style.bottom = 'auto';
+    },
+
+    onMouseUp() {
+        this.isDragging = false;
+        document.removeEventListener('mousemove', this._onMouseMove);
+        document.removeEventListener('mouseup', this._onMouseUp);
+    },
+
+    observeVisibility() {
+        if (!this.playerElement) return;
+        if (this.intersectionObserver) this.intersectionObserver.disconnect();
+
+        this.intersectionObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                const rect = entry.boundingClientRect;
+                if (rect.bottom < 0) {
+                    if (!this.isFullscreen()) this.minimize();
+                } else {
+                    this.restore();
+                }
+            });
+        }, { threshold: 0 });
+
+        this.intersectionObserver.observe(this.playerElement);
+    },
+
+    handleResize() {
+        if (!this.outerContainer || !this.outerContainer.classList.contains(this.className)) return;
+
+        const floatingWidth  = window.innerWidth / 5;
+        const aspectRatio    = this.getSafeAspectRatio();
+        const floatingHeight = floatingWidth / aspectRatio;
+        const rightOffset    = window.innerWidth * 0.03;
+        const bottomOffset   = window.innerHeight * 0.02;
+
+        Object.assign(this.outerContainer.style, {
+            width: `${floatingWidth}px`,
+            height: `${floatingHeight}px`,
+            right: `${rightOffset}px`,
+            bottom: `${bottomOffset}px`,
+            left: 'auto',
+            top: 'auto',
+        });
+
+        if (this.innerContainer) {
+            this.innerContainer.style.width = `${floatingWidth}px`;
+            this.innerContainer.style.height = `${floatingHeight}px`;
+        }
+        if (this.videoElement) {
+            this.videoElement.style.width = `${floatingWidth}px`;
+            this.videoElement.style.height = `${floatingHeight}px`;
+        }
+        if (this.ivVideoContent) {
+            this.ivVideoContent.style.width = `${floatingWidth}px`;
+            this.ivVideoContent.style.height = `${floatingHeight}px`;
+        }
+        if (this.playerElement) {
+            this.playerElement.style.width = `${floatingWidth}px`;
+        }
+    },
+
+    waitForElements() {
+        if (this.setupObserver) return;
+        this.setupObserver = new MutationObserver((mutations, obs) => {
+            if (!miniPlayerFeatureActive) { obs.disconnect(); this.setupObserver = null; return; }
+            if (document.getElementById('player') &&
+                document.getElementById('player-container-outer') &&
+                document.getElementById('player-container-inner') &&
+                document.querySelector('video.video-stream.html5-main-video') &&
+                document.getElementById('contents')) {
+                obs.disconnect();
+                this.setupObserver = null;
+                this.setup();
+            }
+        });
+        this.setupObserver.observe(document.body, { childList: true, subtree: true });
+    },
+
+    setup() {
+        if (!miniPlayerFeatureActive) return;
+
+        this.playerElement   = document.getElementById('player');
+        this.outerContainer  = document.getElementById('player-container-outer');
+        this.innerContainer  = document.getElementById('player-container-inner');
+        this.videoElement    = document.querySelector('video.video-stream.html5-main-video');
+        this.ivVideoContent  = document.querySelector('.ytp-iv-video-content');
+        this.bottomChrome    = document.querySelector('.ytp-chrome-bottom');
+
+        if (this.playerElement && this.outerContainer && this.innerContainer && this.videoElement) {
+            this.observeVisibility();
+
+            if (!this.resizeHandler) {
+                this.resizeHandler = this.handleResize.bind(this);
+                window.addEventListener('resize', this.resizeHandler);
+            }
+
+            this.isActive = false;
+            const rect = this.playerElement.getBoundingClientRect();
+            if (rect.bottom < 0) this.minimize(); else this.restore();
+
+            this.initializedUrl = location.href;
+        } else {
+            this.waitForElements();
+        }
+    },
+
+    teardown() {
+        if (this.intersectionObserver) { this.intersectionObserver.disconnect(); this.intersectionObserver = null; }
+        if (this.setupObserver)        { this.setupObserver.disconnect(); this.setupObserver = null; }
+        if (this.resizeHandler)        { window.removeEventListener('resize', this.resizeHandler); this.resizeHandler = null; }
+        this.restore();
+
+        this.playerElement  = null;
+        this.outerContainer = null;
+        this.innerContainer = null;
+        this.videoElement   = null;
+        this.ivVideoContent = null;
+        this.bottomChrome   = null;
+        this.initializedUrl = null;
+        this.isActive       = false;
+        this.isDragging     = false;
+    },
+
+    checkUrlAndSetup() {
+        if (!miniPlayerFeatureActive) return;
+        if (location.pathname.startsWith('/watch')) {
+            if (location.href !== this.initializedUrl) {
+                this.teardown();
+                setTimeout(() => { if (miniPlayerFeatureActive) this.setup(); }, 500);
+            }
+        } else {
+            this.teardown();
+        }
+    },
+
+    urlWatcherInterval: null,
+    lastUrl: null,
+
+    startUrlWatcher() {
+        if (this.urlWatcherInterval) return;
+        this.lastUrl = location.href;
+        this.urlWatcherInterval = setInterval(() => {
+            if (!miniPlayerFeatureActive) return;
+            if (location.href !== this.lastUrl) {
+                this.lastUrl = location.href;
+                this.checkUrlAndSetup();
+            }
+        }, 300);
+    },
+
+    stopUrlWatcher() {
+        if (this.urlWatcherInterval) { clearInterval(this.urlWatcherInterval); this.urlWatcherInterval = null; }
+    },
+};
+
+function initMiniPlayerFeature() {
+    if (miniPlayerFeatureActive) return;
+    miniPlayerFeatureActive = true;
+
+    if (!document.getElementById('yt-pro-miniplayer-style')) {
+        const style = document.createElement('style');
+        style.id = 'yt-pro-miniplayer-style';
+        style.textContent = `
+            .${ytProMP.className} {
+                transition: width 0.3s ease, height 0.3s ease, right 0.3s ease, bottom 0.3s ease, top 0.3s ease, left 0.3s ease;
+                cursor: move;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    ytProMP.checkUrlAndSetup();
+    ytProMP.startUrlWatcher();
+}
+
+function removeMiniPlayerFeature() {
+    miniPlayerFeatureActive = false;
+    ytProMP.stopUrlWatcher();
+    ytProMP.teardown();
+    document.getElementById('yt-pro-miniplayer-style')?.remove();
+}
+
+if (isCtxValid()) chrome.storage.local.get(['masterEnabled', 'theme', 'premium', 'ambient', 'cinematic', 'speed', 'autoscroll', 'download', 'autoResume', 'screenshot', 'miniplayer'], (result) => {
     if (result.masterEnabled === false) return;
 
     if (result.theme    !== false) {
@@ -1540,6 +1927,7 @@ if (isCtxValid()) chrome.storage.local.get(['masterEnabled', 'theme', 'premium',
     if (result.download !== false) initDownloadIntercept();
     if (result.autoResume !== false) initBadgeInjection();
     if (result.screenshot !== false) initScreenshotFeature();
+    if (result.miniplayer !== false) initMiniPlayerFeature();
 });
 
 // Auto Resume is initialised inside the class (checks its own toggle)
@@ -1554,6 +1942,7 @@ if (isCtxValid()) chrome.runtime.onMessage.addListener((request, sender, sendRes
             if (autoScrollInterval) clearInterval(autoScrollInterval);
             removeDownloadIntercept();
             removeScreenshotFeature();
+            removeMiniPlayerFeature();
             document.querySelectorAll('link.yt-pro-injected-asset').forEach(el => el.remove());
             destroyMastheadGuard();
             // Remove resume button from player if present
@@ -1577,6 +1966,8 @@ if (isCtxValid()) chrome.runtime.onMessage.addListener((request, sender, sendRes
         request.state ? initDownloadIntercept() : removeDownloadIntercept();
     } else if (request.action === 'togglescreenshot') {
         request.state ? initScreenshotFeature() : removeScreenshotFeature();
+    } else if (request.action === 'toggleminiplayer') {
+        request.state ? initMiniPlayerFeature() : removeMiniPlayerFeature();
     } else if (request.action === 'toggleautoResume') {
         if (!request.state) {
             document.querySelector('#yt-pro-resume-switch')?.remove();

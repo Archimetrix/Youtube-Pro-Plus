@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
     "name": "Youtube Pro Plus",
-    "version": "4.1",
-    "description": "Liquid Glass Theme, 10x Speed Booster, Sound Booster, Shorts Auto-Scroller, Smart Download, Auto Fullscreen, and Auto Resume , Scrrenshot capture,Watch Party",
+    "version": "4.2",
+    "description": "Liquid Glass Theme, 10x Speed Booster, Sound Booster, Shorts Auto-Scroller, Smart Download, Auto Fullscreen, and Auto Resume , Scrrenshot capture,Watch Party, Miniplayer",
     "background": {
         "service_worker": "background-sw.js"
     },

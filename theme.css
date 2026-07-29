@@ -241,9 +241,11 @@ html:not([dark]) .ytSuggestionComponentRoundedSuggestion:hover { background: rgb
 
 /* --- VIDEO CARD 3-DOT — always visible, no scale (avoids clip) --- */
 .ytLockupMetadataViewModelMenuButton { overflow: visible !important; }
+.ytLockupMetadataViewModelMenuButton button-view-model { display: inline-flex !important; align-items: center !important; justify-content: center !important; }
 .ytLockupMetadataViewModelMenuButton button-view-model,
-.ytLockupMetadataViewModelMenuButton button { opacity: 1 !important; visibility: visible !important; border-radius: 2000px !important; transition: background var(--bounce), box-shadow var(--bounce) !important; }
-.ytLockupMetadataViewModelMenuButton button:hover { background: rgba(255,255,255,0.14) !important; box-shadow: 0 2px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.12) !important; transform: none !important; backdrop-filter: none !important; }
+.ytLockupMetadataViewModelMenuButton button { opacity: 1 !important; visibility: visible !important; border-radius: 2000px !important; background: var(--sf) !important; backdrop-filter: blur(var(--blur)) !important; -webkit-backdrop-filter: blur(var(--blur)) !important; box-shadow: var(--shadow-base) !important; transition: background var(--bounce), box-shadow var(--bounce) !important; }
+.ytLockupMetadataViewModelMenuButton button { width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important; box-sizing: border-box !important; }
+.ytLockupMetadataViewModelMenuButton button:hover { background: var(--sf) !important; backdrop-filter: blur(var(--blur)) !important; -webkit-backdrop-filter: blur(var(--blur)) !important; box-shadow: var(--shadow-hover) !important; transform: none !important; }
 /* Suppress yt-interaction fill which causes flash */
 .ytLockupMetadataViewModelMenuButton yt-interaction .fill,
 .ytLockupMetadataViewModelMenuButton .ytSpecTouchFeedbackShapeFill { background: transparent !important; opacity: 0 !important; }

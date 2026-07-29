@@ -15,3 +15,20 @@ body.yt-pro-cinematic { overflow-x: hidden !important; }
 body.yt-pro-ambient .style-scope.ytd-watch-flexy#player-container-inner { overflow: hidden; border-radius: 20px; box-shadow: 0px 16px 32px #00000054, 0px 0px 4px #00000038; }
 @media (width: 1920px) { body.yt-pro-ambient #cinematics.ytd-watch-flexy { transform: scaleX(1.8) scaleY(1.7) translateX(130px) translateY(100px); } }
 @media (width: 1280px) { body.yt-pro-ambient #cinematics.ytd-watch-flexy { transform: scaleX(2) scaleY(2.1) translateX(190px) translateY(100px) !important; } }
+
+/* ── Fix: Cinematic Mode background transparency must not depend on Liquid Glass ── */
+body.yt-pro-cinematic ytd-app,
+body.yt-pro-cinematic ytd-masthead,
+body.yt-pro-cinematic #page-manager.ytd-app,
+body.yt-pro-cinematic #content.ytd-app { background: transparent !important; }
+body.yt-pro-cinematic { background: transparent !important; }
+html:has(body.yt-pro-cinematic)[dark] body { background-color: transparent !important; }
+
+/* ── Fix: keep the real 3-dot / actions menu unscaled during Super Ambient ── */
+body.yt-pro-ambient #cinematics.ytd-watch-flexy #actions,
+body.yt-pro-ambient #cinematics.ytd-watch-flexy #menu,
+body.yt-pro-ambient #cinematics.ytd-watch-flexy ytd-menu-renderer,
+body.yt-pro-ambient #cinematics.ytd-watch-flexy #top-level-buttons-computed {
+    transform: scale(0.3333) !important;
+    transform-origin: right center !important;
+}

@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const toggles = ['theme', 'premium', 'ambient', 'cinematic', 'speed', 'audio', 'autoscroll', 'download', 'fullscreen', 'autoResume', 'screenshot', 'watchparty'];
+    const toggles = ['theme', 'premium', 'ambient', 'cinematic', 'speed', 'audio', 'autoscroll', 'download', 'fullscreen', 'autoResume', 'screenshot', 'watchparty', 'miniplayer'];
     const masterToggleBtn = document.getElementById('master-toggle');
 
     // ── Load all settings ───────────────────────────────────────────────────
@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 chrome.runtime.sendMessage({ action: 'fullscreenToggleChanged', state: isChecked }).catch(() => {});
             }
 
-            if (['premium', 'ambient', 'cinematic', 'download', 'autoResume', 'screenshot', 'watchparty'].includes(toggle)) {
+            if (['premium', 'ambient', 'cinematic', 'download', 'autoResume', 'screenshot', 'watchparty', 'miniplayer'].includes(toggle)) {
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                     if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: `toggle${toggle}`, state: isChecked }).catch(() => {});
                 });
@@ -701,6 +701,10 @@ document.addEventListener('DOMContentLoaded', () => {
         watchparty: {
             title: 'Watch Party',
             body:  'Adds a Watch Party button next to Create in the YouTube header. Create a room to host and share the code, or join a room to follow along — only the host controls playback. Turn this off to remove the button entirely.'
+        },
+        miniplayer: {
+            title: 'Auto Mini Player',
+            body:  'Automatically shrinks the video into a small floating window you can drag anywhere once you scroll past the player, then restores it to normal size when you scroll back up. Turn this off to disable the auto-shrink behavior.'
         }
     };
 
