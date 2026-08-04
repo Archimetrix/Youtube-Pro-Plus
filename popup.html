@@ -425,9 +425,92 @@
         #report-status.success { color: #4ade80; }
         #report-status.error { color: #f87171; }
 
+        /* ══════════════════════════════════════════════════════════════════
+           LIQUID GLASS — iOS 26 style refraction layer
+           Ref: https://github.com/archisvaze/liquid-glass
+           Adds SVG feDisplacementMap-based refraction + specular edge highlight
+           on top of the existing backdrop-filter glass. Chromium-only backdrop
+           filter reference degrades gracefully to the original blur elsewhere.
+           ══════════════════════════════════════════════════════════════════ */
+        .glass-container,
+        #resume-panel, #recap-panel, #resume-settings-panel, #report-panel {
+            position: relative;
+            background: radial-gradient(ellipse at -8% 0%, rgba(99,102,241,0.20) 0%, rgba(99,102,241,0.06) 40%, transparent 65%), rgba(13,13,22,0.62) !important;
+            backdrop-filter: url(#liquid-glass-distortion) blur(20px) saturate(165%) !important;
+            -webkit-backdrop-filter: blur(20px) saturate(165%) !important;
+            isolation: isolate;
+        }
+        .glass-container::before,
+        #resume-panel::before, #recap-panel::before, #resume-settings-panel::before, #report-panel::before {
+            content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
+            background: linear-gradient(128deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.05) 28%, rgba(255,255,255,0.02) 55%, rgba(255,255,255,0.22) 78%, rgba(255,255,255,0.5) 100%);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor; mask-composite: exclude;
+            pointer-events: none; z-index: 2;
+        }
+        .glass-container::after,
+        #resume-panel::after, #recap-panel::after, #resume-settings-panel::after, #report-panel::after {
+            content: ""; position: absolute; left: 6%; right: 6%; top: 0; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+            pointer-events: none; z-index: 2;
+        }
+
+        /* Liquid-glass buttons & interactive chips */
+        .btn, .power-btn, .icon-box, .info-btn, .github-btn, .coffee-btn,
+        .cine-btn, .rp-icon-btn, .rsp-save, .rsp-backup-btn, .rsp-restore-btn,
+        #report-submit-btn, #welcome-star-btn, #welcome-use-btn, #welcome-coffee-btn,
+        #cinematic-confirm-btn, #cinematic-cancel-btn, .update-banner-btn, .rsp-back {
+            position: relative;
+            backdrop-filter: url(#liquid-glass-distortion-sm) blur(6px) saturate(160%) !important;
+            -webkit-backdrop-filter: blur(6px) saturate(160%) !important;
+            isolation: isolate;
+            overflow: hidden;
+        }
+        .btn::before, .power-btn::before, .icon-box::before, .info-btn::before,
+        .github-btn::before, .coffee-btn::before, .cine-btn::before, .rp-icon-btn::before,
+        .rsp-save::before, .rsp-backup-btn::before, .rsp-restore-btn::before,
+        #report-submit-btn::before, #welcome-star-btn::before, #welcome-use-btn::before,
+        #welcome-coffee-btn::before, #cinematic-confirm-btn::before, #cinematic-cancel-btn::before,
+        .update-banner-btn::before {
+            content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.5), rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.28));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor; mask-composite: exclude;
+            pointer-events: none; z-index: 1; opacity: 0.85; transition: opacity 0.25s ease;
+        }
+        .btn:hover::before, .power-btn:hover::before, .icon-box:hover::before, .info-btn:hover::before,
+        .github-btn:hover::before, .coffee-btn:hover::before, .cine-btn:hover::before, .rp-icon-btn:hover::before,
+        .rsp-save:hover::before, .rsp-backup-btn:hover::before, .rsp-restore-btn:hover::before,
+        #report-submit-btn:hover::before, #welcome-star-btn:hover::before, #welcome-use-btn:hover::before,
+        #welcome-coffee-btn:hover::before, #cinematic-confirm-btn:hover::before, #cinematic-cancel-btn:hover::before,
+        .update-banner-btn:hover::before {
+            opacity: 1;
+        }
+        .btn > *, .power-btn > *, .icon-box > *, .info-btn > *, .github-btn > *, .coffee-btn > *,
+        .cine-btn, .rp-icon-btn > *, #report-submit-btn > *, #welcome-star-btn > *, #welcome-use-btn > *,
+        #welcome-coffee-btn > *, #cinematic-confirm-btn > *, #cinematic-cancel-btn > *, .update-banner-btn > * {
+            position: relative; z-index: 2;
+        }
+        .btn:active, .power-btn:active, .github-btn:active, .coffee-btn:active,
+        #report-submit-btn:active, #welcome-star-btn:active, #cinematic-confirm-btn:active {
+            transform: scale(0.97) !important;
+        }
     </style>
 </head>
 <body>
+    <svg width="0" height="0" style="position:absolute; overflow:hidden;" aria-hidden="true">
+        <defs>
+            <filter id="liquid-glass-distortion" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+                <feTurbulence type="fractalNoise" baseFrequency="0.009 0.012" numOctaves="2" seed="9" result="noise"/>
+                <feGaussianBlur in="noise" stdDeviation="2.2" result="softNoise"/>
+                <feDisplacementMap in="SourceGraphic" in2="softNoise" scale="16" xChannelSelector="R" yChannelSelector="G"/>
+            </filter>
+            <filter id="liquid-glass-distortion-sm" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+                <feTurbulence type="fractalNoise" baseFrequency="0.03 0.045" numOctaves="2" seed="4" result="noise2"/>
+                <feDisplacementMap in="SourceGraphic" in2="noise2" scale="5" xChannelSelector="R" yChannelSelector="G"/>
+            </filter>
+        </defs>
+    </svg>
     <!-- ── Update Available Banner (shown when a newer version is on GitHub) ── -->
     <div id="update-banner">
         <div class="update-banner-icon">
