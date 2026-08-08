@@ -2,7 +2,7 @@
   <img src="imgs/logo.png" alt="YouTube Pro Plus Logo" width="150"/>
   <h1> YouTube Pro Plus</h1>
 
-  ![Version](https://img.shields.io/badge/version-4.1-blue.svg)
+  ![Version](https://img.shields.io/badge/version-5-blue.svg)
   ![Platform](https://img.shields.io/badge/platform-Firefox%20%7C%20Edge%20%7C%20Chromium-green.svg)
 </div>
 
@@ -48,10 +48,13 @@ Click the image below to watch the full showcase and installation guide:
 * **⚡ 10x Speed Booster:** Bypasses YouTube's native 2x speed limit, allowing you to seamlessly increase playback speed up to 10x directly from the native player settings.
 * **🎛️ Sound Booster :Boost yt vidios sound as much you need .
 * **🔁 Shorts Auto-Scroller:** A robust background script that intelligently detects when a YouTube Short finishes and automatically scrolls to the next one—completely hands-free.
+* **⬇️ Built in Downloader:**  A built in downloader that can download vidios in various qualities .
 * **⬇️ Smart Download:** A smart third-party download support added replacing the default download button (if you want to use the normal download then just turn off the setting in the extension).
 * **⏯️ History and auto resume :** A smart system  storing all your watched vidios with date and duration of vidios watched. When you click on the video next time it will play feom where you left it last time and you can change which ever settings you like -- and also there is a recap intregation in it it will tell you your all time top 5 vidios and top 5 chanels .
 * **📸 Screenshot Videosframe :**  You can screenshot videos with alt+shift+s or there is a camera icon in player just click that .
 * **🎉Watch Party :** Now you can watch vidios together with friends and family and also chat in youtube .
+* **🎞️ Auto Miniplayer:** A Miniplayer automatically appears when you scroll down .
+* **👎 Return Youtube Dislike** Return youtube dislike is now inside extension.
 ---
 
 ## 🛠️ Local Installation (Chrome, Opera, Brave, Vivaldi etc.)
