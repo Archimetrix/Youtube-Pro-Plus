@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const toggles = ['theme', 'premium', 'ambient', 'cinematic', 'speed', 'audio', 'autoscroll', 'download', 'fullscreen', 'autoResume', 'screenshot', 'watchparty', 'miniplayer'];
+    const toggles = ['theme', 'premium', 'ambient', 'cinematic', 'speed', 'audio', 'autoscroll', 'download', 'builtinDownloader', 'fullscreen', 'autoResume', 'screenshot', 'watchparty', 'miniplayer', 'returnDislike'];
     const masterToggleBtn = document.getElementById('master-toggle');
 
     // ── Load all settings ───────────────────────────────────────────────────
@@ -86,11 +86,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         toggles.forEach(toggle => {
-            const isEnabled = (toggle === 'fullscreen' || toggle === 'cinematic')
+            const isEnabled = (toggle === 'fullscreen' || toggle === 'cinematic' || toggle === 'download')
                 ? result[toggle] === true
                 : result[toggle] !== false;
             document.getElementById(`toggle-${toggle}`).checked = isEnabled;
         });
+
+        // ── Download / Built-in Downloader are mutually exclusive ───────────
+        // Only one download method can be active at a time. If storage ever
+        // ends up with both on (e.g. upgrading from an older version), Smart
+        // Download wins since it was the explicit later choice, and Built-in
+        // Downloader is switched off to match.
+        if (document.getElementById('toggle-download').checked &&
+            document.getElementById('toggle-builtinDownloader').checked) {
+            document.getElementById('toggle-builtinDownloader').checked = false;
+            chrome.storage.local.set({ builtinDownloader: false });
+        }
+        updateBuiltinDownloaderOpenBtn(document.getElementById('toggle-builtinDownloader').checked);
 
         checkFullscreenHint(result.fullscreen === true);
 
@@ -117,6 +129,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
             chrome.storage.local.set({ [toggle]: isChecked });
 
+            // ── Download / Built-in Downloader are mutually exclusive ────────
+            // Turning one on always switches the other off — a user can only
+            // have one active download method at a time.
+            if (toggle === 'download' && isChecked) {
+                const otherToggle = document.getElementById('toggle-builtinDownloader');
+                if (otherToggle.checked) {
+                    otherToggle.checked = false;
+                    chrome.storage.local.set({ builtinDownloader: false });
+                    updateBuiltinDownloaderOpenBtn(false);
+                }
+            } else if (toggle === 'builtinDownloader' && isChecked) {
+                const otherToggle = document.getElementById('toggle-download');
+                if (otherToggle.checked) {
+                    otherToggle.checked = false;
+                    chrome.storage.local.set({ download: false });
+                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                        if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: 'toggledownload', state: false }).catch(() => {});
+                    });
+                }
+            }
+            // ──────────────────────────────────────────────────────────────────
+
             if (toggle === 'audio') {
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                     if (tabs[0]) {
@@ -133,7 +167,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 chrome.runtime.sendMessage({ action: 'fullscreenToggleChanged', state: isChecked }).catch(() => {});
             }
 
-            if (['premium', 'ambient', 'cinematic', 'download', 'autoResume', 'screenshot', 'watchparty', 'miniplayer'].includes(toggle)) {
+            if (toggle === 'builtinDownloader') {
+                updateBuiltinDownloaderOpenBtn(isChecked);
+            }
+
+            if (['premium', 'ambient', 'cinematic', 'download', 'autoResume', 'screenshot', 'watchparty', 'miniplayer', 'returnDislike'].includes(toggle)) {
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                     if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: `toggle${toggle}`, state: isChecked }).catch(() => {});
                 });
@@ -142,6 +180,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ── Helpers ─────────────────────────────────────────────────────────────
+    function updateBuiltinDownloaderOpenBtn(isEnabled) {
+        const openBtn = document.getElementById('open-builtin-downloader');
+        if (!openBtn) return;
+        openBtn.disabled = !isEnabled;
+        openBtn.style.opacity = isEnabled ? '1' : '0.5';
+        openBtn.style.cursor = isEnabled ? 'pointer' : 'not-allowed';
+    }
+
     function updateMasterUI(isEnabled) {
         if (isEnabled) {
             masterToggleBtn.classList.add('active');
@@ -692,7 +738,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         download: {
             title: ' Premium Users — Important',
-            body:  'If you are a YouTube Premium subscriber, keep Smart Download turned OFF. This feature uses a third-party downloader and may conflict with YouTube Premium\'s built-in download feature.'
+            body:  'Smart Download and the Built-in Downloader can\'t both be on — turning this on switches Built-in Downloader off automatically. If you are a YouTube Premium subscriber, keep Smart Download turned OFF. This feature uses a third-party downloader and may conflict with YouTube Premium\'s built-in download feature.'
         },
         screenshot: {
             title: 'Video Screenshot',
@@ -705,6 +751,14 @@ document.addEventListener('DOMContentLoaded', () => {
         miniplayer: {
             title: 'Auto Mini Player',
             body:  'Automatically shrinks the video into a small floating window you can drag anywhere once you scroll past the player, then restores it to normal size when you scroll back up. Turn this off to disable the auto-shrink behavior.'
+        },
+        returnDislike: {
+            title: 'Return Youtube Dislike',
+            body:  'Brings back the dislike count next to Like on every video, powered by the community-run returnyoutubedislike.com API. Turn this off to stop the extra network request and hide the count again.'
+        },
+        'builtin-downloader': {
+            title: 'Built-in Downloader',
+            body:  'Opens a separate downloader window that fetches video/audio directly from YouTube (no third-party site). Pick a video, choose a format and quality, and it downloads straight to your device. This is on by default. It can\'t be on at the same time as Smart Download — turning this on switches Smart Download off automatically. Use the switch to turn the whole service off.'
         }
     };
 
@@ -982,3 +1036,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 })();
+
+// ── Built-in Downloader launcher ──────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    const openDownloaderBtn = document.getElementById('open-builtin-downloader');
+    if (openDownloaderBtn) {
+        openDownloaderBtn.addEventListener('click', () => {
+            if (openDownloaderBtn.disabled) return;
+            chrome.windows.create({
+                url: chrome.runtime.getURL('downloader-popup.html'),
+                type: 'popup',
+                width: 420,
+                height: 640
+            });
+        });
+    }
+});

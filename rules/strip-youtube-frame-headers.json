@@ -1,0 +1,33 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "responseHeaders": [
+        { "header": "x-frame-options", "operation": "remove" },
+        { "header": "content-security-policy", "operation": "remove" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "*youtube.com/watch*",
+      "resourceTypes": ["sub_frame"]
+    }
+  },
+  {
+    "id": 2,
+    "priority": 2,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "Origin", "operation": "set", "value": "https://www.youtube.com" },
+        { "header": "Referer", "operation": "set", "value": "https://www.youtube.com/" },
+        { "header": "Sec-Fetch-Site", "operation": "set", "value": "cross-site" },
+        { "header": "Sec-Fetch-Storage-Access", "operation": "set", "value": "active" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "*.googlevideo.com/videoplayback*"
+    }
+  }
+]

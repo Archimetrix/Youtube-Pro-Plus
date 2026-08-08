@@ -1,33 +1,40 @@
 {
     "manifest_version": 3,
     "name": "Youtube Pro Plus",
-    "version": "4.3",
-    "description": "Liquid Glass Theme, 10x Speed Booster, Sound Booster, Shorts Auto-Scroller, Smart Download, Auto Fullscreen, and Auto Resume , Scrrenshot capture,Watch Party, Miniplayer",
+    "version": "5",
+    "description": "Liquid Glass Theme, 10x Speed Booster, Sound Booster, Shorts Auto-Scroller, Smart Download, Auto Fullscreen, and Auto Resume , Scrrenshot capture,Watch Party, Miniplayer Now with a built-in YouTube video/audio downloader.",
     "background": {
         "service_worker": "background-sw.js"
     },
     "permissions": [
-        "storage",
-        "unlimitedStorage",
         "activeTab",
-        "tabs",
+        "alarms",
         "clipboardWrite",
+        "declarativeNetRequestWithHostAccess",
+        "downloads",
         "notifications",
-        "alarms"
+        "offscreen",
+        "storage",
+        "tabs",
+        "unlimitedStorage",
+        "webRequest"
     ],
     "host_permissions": [
+        "*://formbold.com/*",
+        "*://ssvid.net/*",
+        "*://vidssave.com/*",
+        "*://www.ssvid.net/*",
+        "*://www.vidssave.com/*",
         "*://www.youtube.com/*",
         "*://youtube.com/*",
-        "*://ssvid.net/*",
-        "*://www.ssvid.net/*",
-        "*://vidssave.com/*",
-        "*://www.vidssave.com/*",
-        "*://formbold.com/*",
+        "https://*.googlevideo.com/*",
+        "https://*.onrender.com/*",
+        "https://*.youtube.com/*",
+        "https://api.github.com/*",
         "https://catbox.moe/*",
         "https://files.catbox.moe/*",
         "https://raw.githubusercontent.com/*",
-        "https://api.github.com/*",
-        "https://*.onrender.com/*"
+        "https://returnyoutubedislikeapi.com/*"
     ],
     "icons": {
         "16": "imgs/icon16.png",
@@ -90,6 +97,64 @@
                 "room-sync.js"
             ],
             "run_at": "document_idle"
+        },
+        {
+            "matches": [
+                "*://www.youtube.com/*",
+                "*://youtube.com/*"
+            ],
+            "js": [
+                "return-youtube-dislike.js"
+            ],
+            "run_at": "document_idle"
+        },
+        {
+            "matches": [
+                "https://www.youtube.com/*"
+            ],
+            "all_frames": true,
+            "css": [
+                "content-scripts/youtube.css"
+            ],
+            "js": [
+                "content-scripts/youtube.js"
+            ]
+        },
+        {
+            "matches": [
+                "https://www.youtube.com/*"
+            ],
+            "all_frames": true,
+            "css": [
+                "content-scripts/youtube-main.css"
+            ],
+            "js": [
+                "content-scripts/youtube-main.js"
+            ],
+            "world": "MAIN"
+        },
+        {
+            "matches": [
+                "https://www.youtube.com/*"
+            ],
+            "all_frames": false,
+            "run_at": "document_start",
+            "js": [
+                "content-scripts/page-sabr-fetch.js"
+            ],
+            "world": "MAIN"
+        },
+        {
+            "matches": [
+                "https://www.youtube.com/*"
+            ],
+            "all_frames": true,
+            "run_at": "document_start",
+            "js": [
+                "content-scripts/iframe-mute.js",
+                "content-scripts/visibility-spoof.js"
+            ],
+            "world": "MAIN"
         }
     ],
     "web_accessible_resources": [
@@ -107,7 +172,29 @@
                 "*://www.youtube.com/*",
                 "*://youtube.com/*"
             ]
+        },
+        {
+            "resources": [
+                "offscreen.html",
+                "download-worker.html"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
         }
     ],
-    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqya4gNGUIDnpfv6RTGmwgGNWB+rBZwkBXkJEdhPIEUINnVTbdie9fLblFrA9De5yes15nR80m7fi3wCko+qL0wjHjNgJLYYxlvpE6/Ea2DJdFqUeVKLjHMigLmH0E7pS3rmiTePQfrZwNoNMyoovuYdMM73Q4OhBCKe5ZRhI7CQsk9M0yJrsSQuPAK3krEIgBCQSicacK/ZW7guSUQVyH/Ez6SYJLGicUU+WuSiAJpdC/vHwbGVwvlMwPsep8S9WZ4Of1nCvfyWH5r6ZCUhrGOGnzkE9eM5Tkn537uMzithW62dESk05aRC//VjsTg0jy+Mo+7wdRFiGJxrOdo1b8QIDAQAB"
+    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqya4gNGUIDnpfv6RTGmwgGNWB+rBZwkBXkJEdhPIEUINnVTbdie9fLblFrA9De5yes15nR80m7fi3wCko+qL0wjHjNgJLYYxlvpE6/Ea2DJdFqUeVKLjHMigLmH0E7pS3rmiTePQfrZwNoNMyoovuYdMM73Q4OhBCKe5ZRhI7CQsk9M0yJrsSQuPAK3krEIgBCQSicacK/ZW7guSUQVyH/Ez6SYJLGicUU+WuSiAJpdC/vHwbGVwvlMwPsep8S9WZ4Of1nCvfyWH5r6ZCUhrGOGnzkE9eM5Tkn537uMzithW62dESk05aRC//VjsTg0jy+Mo+7wdRFiGJxrOdo1b8QIDAQAB",
+    "content_security_policy": {
+        "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+    },
+    "minimum_chrome_version": "125.0",
+    "declarative_net_request": {
+        "rule_resources": [
+            {
+                "id": "strip-youtube-frame-headers",
+                "enabled": true,
+                "path": "rules/strip-youtube-frame-headers.json"
+            }
+        ]
+    }
 }

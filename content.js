@@ -1907,7 +1907,7 @@ function removeMiniPlayerFeature() {
     document.getElementById('yt-pro-miniplayer-style')?.remove();
 }
 
-if (isCtxValid()) chrome.storage.local.get(['masterEnabled', 'theme', 'premium', 'ambient', 'cinematic', 'speed', 'autoscroll', 'download', 'autoResume', 'screenshot', 'miniplayer'], (result) => {
+if (isCtxValid()) chrome.storage.local.get(['masterEnabled', 'theme', 'premium', 'ambient', 'cinematic', 'speed', 'autoscroll', 'download', 'autoResume', 'screenshot', 'miniplayer', 'returnDislike'], (result) => {
     if (result.masterEnabled === false) return;
 
     if (result.theme    !== false) {
@@ -1924,10 +1924,11 @@ if (isCtxValid()) chrome.storage.local.get(['masterEnabled', 'theme', 'premium',
     }
     if (result.speed    !== false) injectScript('inject-speed.js');
     if (result.autoscroll !== false) initAutoScroll();
-    if (result.download !== false) initDownloadIntercept();
+    if (result.download === true) initDownloadIntercept();
     if (result.autoResume !== false) initBadgeInjection();
     if (result.screenshot !== false) initScreenshotFeature();
     if (result.miniplayer !== false) initMiniPlayerFeature();
+    if (result.returnDislike !== false) window._ytProReturnDislike?.init();
 });
 
 // Auto Resume is initialised inside the class (checks its own toggle)
@@ -1943,6 +1944,7 @@ if (isCtxValid()) chrome.runtime.onMessage.addListener((request, sender, sendRes
             removeDownloadIntercept();
             removeScreenshotFeature();
             removeMiniPlayerFeature();
+            window._ytProReturnDislike?.teardown();
             document.querySelectorAll('link.yt-pro-injected-asset').forEach(el => el.remove());
             destroyMastheadGuard();
             // Remove resume button from player if present
@@ -1968,6 +1970,8 @@ if (isCtxValid()) chrome.runtime.onMessage.addListener((request, sender, sendRes
         request.state ? initScreenshotFeature() : removeScreenshotFeature();
     } else if (request.action === 'toggleminiplayer') {
         request.state ? initMiniPlayerFeature() : removeMiniPlayerFeature();
+    } else if (request.action === 'togglereturnDislike') {
+        request.state ? window._ytProReturnDislike?.init() : window._ytProReturnDislike?.teardown();
     } else if (request.action === 'toggleautoResume') {
         if (!request.state) {
             document.querySelector('#yt-pro-resume-switch')?.remove();
