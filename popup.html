@@ -432,9 +432,11 @@
            on top of the existing backdrop-filter glass. Chromium-only backdrop
            filter reference degrades gracefully to the original blur elsewhere.
            ══════════════════════════════════════════════════════════════════ */
+        .glass-container {
+            position: relative;
+        }
         .glass-container,
         #resume-panel, #recap-panel, #resume-settings-panel, #report-panel {
-            position: relative;
             background: radial-gradient(ellipse at -8% 0%, rgba(99,102,241,0.20) 0%, rgba(99,102,241,0.06) 40%, transparent 65%), rgba(13,13,22,0.62) !important;
             backdrop-filter: url(#liquid-glass-distortion) blur(20px) saturate(165%) !important;
             -webkit-backdrop-filter: blur(20px) saturate(165%) !important;
