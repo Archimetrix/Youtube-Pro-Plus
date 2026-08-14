@@ -66,11 +66,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const toggles = ['theme', 'premium', 'ambient', 'cinematic', 'speed', 'audio', 'autoscroll', 'download', 'builtinDownloader', 'fullscreen', 'autoResume', 'screenshot', 'watchparty', 'miniplayer', 'returnDislike'];
+    const toggles = ['theme', 'premium', 'ambient', 'cinematic', 'speed', 'audio', 'autoscroll', 'download', 'builtinDownloader', 'fullscreen', 'autoResume', 'screenshot', 'watchparty', 'miniplayer', 'returnDislike', 'sponsorblock'];
     const masterToggleBtn = document.getElementById('master-toggle');
 
     // ── Load all settings ───────────────────────────────────────────────────
-    chrome.storage.local.get(['masterEnabled', 'cinematicSettings', ...toggles], (result) => {
+    chrome.storage.local.get(['masterEnabled', 'cinematicSettings', 'sponsorblockCategories', ...toggles], (result) => {
         const isMasterEnabled = result.masterEnabled !== false;
         updateMasterUI(isMasterEnabled);
 
@@ -109,6 +109,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // ── Cinematic sub-controls ──────────────────────────────────────────
         const cineSettings = result.cinematicSettings || { blur: 'med', sat: 'med', dim: 'med' };
         initCineControls(cineSettings, result.cinematic === true);
+
+        // ── SponsorBlock category sub-controls ───────────────────────────────
+        const sbDefaults = { sponsor: true, selfpromo: true, interaction: true, intro: true, outro: true, preview: true, filler: false, music_offtopic: false };
+        const sbCategories = Object.assign({}, sbDefaults, result.sponsorblockCategories || {});
+        initSponsorBlockControls(sbCategories, result.sponsorblock !== false);
     });
 
     // ── Individual toggle listeners ─────────────────────────────────────────
@@ -124,6 +129,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (toggle === 'cinematic' && !isChecked) {
                 setCineControlsVisible(false);
+            }
+            // ────────────────────────────────────────────────────────────────
+
+            if (toggle === 'sponsorblock') {
+                setSponsorBlockControlsVisible(isChecked);
             }
             // ────────────────────────────────────────────────────────────────
 
@@ -171,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateBuiltinDownloaderOpenBtn(isChecked);
             }
 
-            if (['premium', 'ambient', 'cinematic', 'download', 'autoResume', 'screenshot', 'watchparty', 'miniplayer', 'returnDislike'].includes(toggle)) {
+            if (['premium', 'ambient', 'cinematic', 'download', 'autoResume', 'screenshot', 'watchparty', 'miniplayer', 'returnDislike', 'sponsorblock'].includes(toggle)) {
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                     if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: `toggle${toggle}`, state: isChecked }).catch(() => {});
                 });
@@ -265,6 +275,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // ─────────────────────────────────────────────────────────────────────────
 
+    // ── SponsorBlock Sub-Controls ────────────────────────────────────────────
+    function setSponsorBlockControlsVisible(visible) {
+        const panel = document.getElementById('sb-controls');
+        if (panel) panel.classList.toggle('visible', visible);
+    }
+
+    function initSponsorBlockControls(categories, sponsorblockOn) {
+        setSponsorBlockControlsVisible(sponsorblockOn);
+
+        document.querySelectorAll('.sb-controls input[data-cat]').forEach(input => {
+            const cat = input.dataset.cat;
+            input.checked = !!categories[cat];
+
+            input.addEventListener('change', (e) => {
+                chrome.storage.local.get('sponsorblockCategories', r => {
+                    const updated = Object.assign(
+                        { sponsor: true, selfpromo: true, interaction: true, intro: true, outro: true, preview: true, filler: false, music_offtopic: false },
+                        r.sponsorblockCategories,
+                        { [cat]: e.target.checked }
+                    );
+                    chrome.storage.local.set({ sponsorblockCategories: updated });
+                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                        if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: 'sponsorblockCategoriesChanged', categories: updated }).catch(() => {});
+                    });
+                });
+            });
+        });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
 
 
     function checkFullscreenHint(isFullscreenEnabled) {
@@ -281,8 +321,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let allVideos = [];
 
+    // ── Force full-coverage overlay geometry via JS ─────────────────────────
+    // Relying on CSS top:0/bottom:0 to stretch a panel to fill an ancestor
+    // whose own height is "auto" (i.e. determined by document flow) is
+    // unreliable in a Chrome extension popup, whose window auto-sizes to
+    // content in ways that can leave the percentage-based stretch resolving
+    // against the wrong box. Setting explicit pixel top/left/width/height
+    // at the moment the panel opens sidesteps that entirely — it always
+    // covers exactly what's on screen right now, regardless of any CSS
+    // ambiguity upstream.
+    function showFullscreenPanel(panel) {
+        const w = document.documentElement.clientWidth || document.body.clientWidth || 320;
+        const h = Math.max(
+            document.documentElement.scrollHeight,
+            document.body.scrollHeight,
+            window.innerHeight || 0,
+            400
+        );
+        panel.style.position = 'fixed';
+        panel.style.top = '0px';
+        panel.style.left = '0px';
+        panel.style.width = w + 'px';
+        panel.style.height = h + 'px';
+        panel.style.bottom = 'auto';
+        panel.style.right = 'auto';
+        panel.classList.add('visible');
+    }
+
     document.getElementById('open-resume-history').addEventListener('click', () => {
-        resumePanel.classList.add('visible');
+        showFullscreenPanel(resumePanel);
         loadResumeHistory();
     });
 
@@ -506,6 +573,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── Recap Panel ─────────────────────────────────────────────────────────
+    // Same idea as showFullscreenPanel, but for panels that should cover
+    // their parent panel (e.g. recap / resume-settings, nested inside the
+    // already-sized #resume-panel) rather than the whole popup.
+    function showSubPanel(panel, hostPanel) {
+        const rect = hostPanel.getBoundingClientRect();
+        panel.style.position = 'absolute';
+        panel.style.top = '0px';
+        panel.style.left = '0px';
+        panel.style.width = rect.width + 'px';
+        panel.style.height = rect.height + 'px';
+        panel.style.bottom = 'auto';
+        panel.style.right = 'auto';
+        panel.classList.add('visible');
+    }
+
     function openRecapPanel() {
         chrome.storage.local.get('ytProVideos', (data) => {
             const videos = data.ytProVideos || [];
@@ -531,7 +613,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             renderRecapPanel(topVideos, topChannels, videos.length);
         });
-        recapPanel.classList.add('visible');
+        showSubPanel(recapPanel, resumePanel);
     }
 
     function renderRecapPanel(topVideos, topChannels, totalCount) {
@@ -608,7 +690,7 @@ document.addEventListener('DOMContentLoaded', () => {
             );
             document.getElementById('rsp-delete-after').value = closest;
         });
-        resumeSettingsPanel.classList.add('visible');
+        showSubPanel(resumeSettingsPanel, resumePanel);
         document.getElementById('rsp-saved-msg').classList.remove('show');
     }
 
@@ -756,6 +838,10 @@ document.addEventListener('DOMContentLoaded', () => {
             title: 'Return Youtube Dislike',
             body:  'Brings back the dislike count next to Like on every video, powered by the community-run returnyoutubedislike.com API. Turn this off to stop the extra network request and hide the count again.'
         },
+        sponsorblock: {
+            title: 'SponsorBlock',
+            body:  'Automatically skips sponsor segments, intros, outros, self-promo, previews, and interaction reminders using the community-run SponsorBlock database (sponsor.ajay.app) — no separate extension needed. A small marker appears on the seek bar for each skipped section, and a toast shows what was skipped.'
+        },
         'builtin-downloader': {
             title: 'Built-in Downloader',
             body:  'Opens a separate downloader window that fetches video/audio directly from YouTube (no third-party site). Pick a video, choose a format and quality, and it downloads straight to your device. This is on by default. It can\'t be on at the same time as Smart Download — turning this on switches Smart Download off automatically. Use the switch to turn the whole service off.'
@@ -797,7 +883,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let reportImageFiles = [];
 
     document.getElementById('open-report-panel').addEventListener('click', () => {
-        reportPanel.classList.add('visible');
+        showFullscreenPanel(reportPanel);
         reportStatus.textContent = '';
         reportStatus.className   = '';
     });

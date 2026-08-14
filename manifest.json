@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
     "name": "Youtube Pro Plus",
-    "version": "5",
-    "description": "Liquid Glass Theme, 10x Speed Booster, Sound Booster, Shorts Auto-Scroller, Smart Download, Auto Fullscreen, and Auto Resume , Scrrenshot capture,Watch Party, Miniplayer Now with a built-in YouTube video/audio downloader.",
+    "version": "5.1",
+    "description": "A Free powerful extension for youtube with more than 16 features to completely overhaul your youtube experience.",
     "background": {
         "service_worker": "background-sw.js"
     },
@@ -34,7 +34,8 @@
         "https://catbox.moe/*",
         "https://files.catbox.moe/*",
         "https://raw.githubusercontent.com/*",
-        "https://returnyoutubedislikeapi.com/*"
+        "https://returnyoutubedislikeapi.com/*",
+        "https://sponsor.ajay.app/*"
     ],
     "icons": {
         "16": "imgs/icon16.png",
@@ -105,6 +106,16 @@
             ],
             "js": [
                 "return-youtube-dislike.js"
+            ],
+            "run_at": "document_idle"
+        },
+        {
+            "matches": [
+                "*://www.youtube.com/*",
+                "*://youtube.com/*"
+            ],
+            "js": [
+                "sponsorblock.js"
             ],
             "run_at": "document_idle"
         },

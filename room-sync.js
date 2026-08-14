@@ -1096,7 +1096,7 @@
     // Create/Join talk to the relay over the network, which can take a
     // couple seconds — show a spinner in the button (instead of leaving it
     // looking unresponsive) and guard against it hanging forever.
-    const CONNECT_WATCHDOG_MS = 12000;
+    const CONNECT_WATCHDOG_MS = 50000; // "Creating room…" stays visible for up to 50s before flipping to the "taking longer than expected" message
     let connectWatchdogTimer = null;
 
     function setButtonLoading(btn, loading) {

@@ -32,6 +32,15 @@
             background: var(--bg); color: var(--text);
             overflow-x: hidden; overflow-y: visible;
             scrollbar-width: none;
+            /* Overlay panels below (#resume-panel, #report-panel) use
+               position: absolute so they anchor to this box exactly — with
+               body left as the default static position, "fixed" elements
+               would anchor to the popup's initial viewport measurement
+               instead of body's actual (auto-growing) rendered size, and
+               end up appended after the real content instead of overlaying
+               it. This matches the pattern #recap-panel/#resume-settings-panel
+               already use correctly (anchored to #resume-panel). */
+            position: relative;
         }
         html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; }
         body.disabled-mode .settings-wrapper,
@@ -161,6 +170,18 @@
         /* Compact 3-column horizontal cine-controls — saves ~34px vs 3 vertical rows */
         .cine-controls { display: none; flex-direction: row; justify-content: space-between; gap: 4px; padding: 5px 0 5px 0; border-top: 1px solid rgba(255,255,255,0.04); margin-top: 2px; }
         .cine-controls.visible { display: flex; }
+        .sb-controls { display: none; flex-direction: column; gap: 0; padding: 4px 0 2px 0; border-top: 1px solid rgba(255,255,255,0.04); margin-top: 2px; }
+        .sb-controls.visible { display: flex; }
+        .sb-cat-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 2px; }
+        .sb-cat-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .sb-cat-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 4px rgba(0,0,0,0.4); }
+        .sb-cat-name { font-size: 11.5px; color: rgba(255,255,255,0.82); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sb-switch { position: relative; display: inline-block; width: 30px; height: 16px; flex-shrink: 0; }
+        .sb-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+        .sb-slider { position: absolute; cursor: pointer; inset: 0; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; transition: background 0.25s, border-color 0.25s; }
+        .sb-slider::before { content: ""; position: absolute; width: 10px; height: 10px; left: 2px; top: 50%; transform: translateY(-50%); background: #888; border-radius: 50%; transition: transform 0.25s, background 0.25s; }
+        .sb-switch input:checked + .sb-slider::before { transform: translateY(-50%) translateX(14px); }
+        .sb-switch input:checked + .sb-slider { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.16); }
         .cine-ctrl-row { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; flex: 1; }
         .cine-divider { width: 1px; background: rgba(255,255,255,0.12); align-self: stretch; margin: 0 2px; flex-shrink: 0; }
         .cine-ctrl-label { font-size: 8.5px; color: var(--text-sub); letter-spacing: 0.2px; line-height: 1; }
@@ -194,7 +215,7 @@
         .github-btn { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 4px auto 0; padding: 4px 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: rgba(255,255,255,0.65); text-decoration: none; border-radius: 20px; font-size: 11.5px; font-weight: 600; width: fit-content; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); }
         .github-btn svg { width: 13px; height: 13px; fill: currentColor; }
         .github-btn:hover { background: rgba(255,255,255,0.1); transform: scale(1.04); color: #fff; border-color: var(--border-hover); }
-        #resume-panel { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); z-index: 9999; display: none; flex-direction: column; border-radius: 18px; overflow: hidden; animation: slideInRight 0.22s ease-out; }
+        #resume-panel { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); z-index: 9999; display: none; flex-direction: column; border-radius: 18px; overflow: hidden; animation: slideInRight 0.22s ease-out; }
         #resume-panel.visible { display: flex; }
         @keyframes slideInRight { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
         .rp-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 8px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -393,7 +414,7 @@
         .update-check-btn.is-error { color: #fcd34d; border-color: rgba(245,158,11,0.38); background: rgba(245,158,11,0.07); }
         @keyframes spinOnce { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         /* ── Report Panel ──────────────────────────────────────────────────────── */
-        #report-panel { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); z-index: 9999; display: none; flex-direction: column; border-radius: 18px; overflow: hidden; }
+        #report-panel { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); z-index: 9999; display: none; flex-direction: column; border-radius: 18px; overflow: hidden; }
         #report-panel.visible { display: flex; }
         .report-body { flex: 1; overflow-y: auto; padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 10px; scrollbar-width: thin; scrollbar-color: #222 transparent; }
         .report-body::-webkit-scrollbar { width: 4px; }
@@ -453,6 +474,20 @@
             content: ""; position: absolute; left: 6%; right: 6%; top: 0; height: 1px;
             background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
             pointer-events: none; z-index: 2;
+        }
+
+        /* Full-screen overlay panels stack on top of other content (the main
+           settings view, or in the case of #recap-panel/#resume-settings-panel,
+           another one of our own panels). The shared liquid-glass rule above
+           makes them translucent + blurred, which is right for the small
+           floating main-view container but means these overlays let whatever
+           is behind them show through. Force them fully opaque instead —
+           same selectors, declared later, so this wins over the !important
+           background/backdrop-filter above. */
+        #resume-panel, #recap-panel, #resume-settings-panel, #report-panel {
+            background: #0a0a12 !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
         }
 
         /* Liquid-glass buttons & interactive chips */
@@ -712,6 +747,28 @@
                         <span class="info-btn" data-tip="returnDislike"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
                     </div>
                     <label class="switch"><input type="checkbox" id="toggle-returnDislike"><span class="slider"></span></label>
+                </div>
+            </div>
+            <div class="setting" id="setting-sponsorblock">
+                <div class="setting-row">
+                    <div class="label-group">
+                        <div class="icon-box">
+                            <svg viewBox="0 0 24 24" width="15" height="15" xmlns="http://www.w3.org/2000/svg"><path d="M12 2.2 L19 4.6 V11.2 C19 16.4 15.8 19.9 12 21.8 C8.2 19.9 5 16.4 5 11.2 V4.6 Z" fill="#e01e2b"/><path d="M12 3.5 L17.7 5.5 V11.1 C17.7 15.5 15.1 18.5 12 20.3 C8.9 18.5 6.3 15.5 6.3 11.1 V5.5 Z" fill="#fff"/><path d="M10.2 8.5 L15.1 11.4 L10.2 14.3 Z" fill="#e01e2b"/><circle cx="17.6" cy="17.6" r="4.2" fill="#f5a623" stroke="#8a5a06" stroke-width="0.6"/><text x="17.6" y="19.4" font-size="5.4" font-weight="700" font-family="Arial, sans-serif" text-anchor="middle" fill="#8a5a06">$</text></svg>
+                        </div>
+                        <span class="label">SponsorBlock</span>
+                        <span class="info-btn" data-tip="sponsorblock"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+                    </div>
+                    <label class="switch"><input type="checkbox" id="toggle-sponsorblock"><span class="slider"></span></label>
+                </div>
+                <div class="sb-controls" id="sb-controls">
+                    <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#00d400"></span><span class="sb-cat-name">Sponsor</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-sponsor" data-cat="sponsor"><span class="sb-slider"></span></label></div>
+                    <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#ffff00"></span><span class="sb-cat-name">Self-Promotion</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-selfpromo" data-cat="selfpromo"><span class="sb-slider"></span></label></div>
+                    <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#cc3fff"></span><span class="sb-cat-name">Interaction Reminder</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-interaction" data-cat="interaction"><span class="sb-slider"></span></label></div>
+                    <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#00ffff"></span><span class="sb-cat-name">Intermission/Intro</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-intro" data-cat="intro"><span class="sb-slider"></span></label></div>
+                    <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#0202ed"></span><span class="sb-cat-name">Endcards/Credits</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-outro" data-cat="outro"><span class="sb-slider"></span></label></div>
+                    <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#008fd6"></span><span class="sb-cat-name">Preview/Recap</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-preview" data-cat="preview"><span class="sb-slider"></span></label></div>
+                    <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#7300FF"></span><span class="sb-cat-name">Filler Tangent</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-filler" data-cat="filler"><span class="sb-slider"></span></label></div>
+                    <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#ff9900"></span><span class="sb-cat-name">Non-Music Section</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-music_offtopic" data-cat="music_offtopic"><span class="sb-slider"></span></label></div>
                 </div>
             </div>
             <div class="setting" id="setting-miniplayer">
