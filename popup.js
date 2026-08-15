@@ -148,6 +148,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     otherToggle.checked = false;
                     chrome.storage.local.set({ builtinDownloader: false });
                     updateBuiltinDownloaderOpenBtn(false);
+                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                        if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: 'togglebuiltinDownloader', state: false }).catch(() => {});
+                    });
                 }
             } else if (toggle === 'builtinDownloader' && isChecked) {
                 const otherToggle = document.getElementById('toggle-download');
@@ -181,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateBuiltinDownloaderOpenBtn(isChecked);
             }
 
-            if (['premium', 'ambient', 'cinematic', 'download', 'autoResume', 'screenshot', 'watchparty', 'miniplayer', 'returnDislike', 'sponsorblock'].includes(toggle)) {
+            if (['premium', 'ambient', 'cinematic', 'download', 'builtinDownloader', 'autoResume', 'screenshot', 'watchparty', 'miniplayer', 'returnDislike', 'sponsorblock'].includes(toggle)) {
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                     if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: `toggle${toggle}`, state: isChecked }).catch(() => {});
                 });
@@ -304,7 +307,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     // ─────────────────────────────────────────────────────────────────────────
-
 
 
     function checkFullscreenHint(isFullscreenEnabled) {
@@ -628,21 +630,25 @@ document.addEventListener('DOMContentLoaded', () => {
             videosEl.innerHTML = '<div class="recap-empty">No data yet — start watching!</div>';
         } else {
             videosEl.innerHTML = '';
+            const maxVCount = Math.max(...topVideos.map(v => v.watchCount || 1));
             topVideos.forEach((v, i) => {
                 const watchId = extractWatchID(v.videolink);
                 const thumb   = `https://img.youtube.com/vi/${watchId}/mqdefault.jpg`;
+                const count   = v.watchCount || 1;
+                const pct     = Math.max(10, Math.round((count / maxVCount) * 100));
                 const row     = document.createElement('a');
-                row.className = 'recap-row';
+                row.className = `recap-row${i < 3 ? ' rank-' + (i + 1) : ''}`;
                 row.href      = v.videolink;
                 row.target    = '_blank';
                 row.innerHTML = `
-                    <span class="recap-rank">#${i + 1}</span>
+                    <span class="recap-rank">${i < 3 ? ['🥇','🥈','🥉'][i] : '#' + (i + 1)}</span>
                     <img class="recap-thumb" src="${thumb}" alt="">
                     <div class="recap-info">
                         <div class="recap-title">${escapeHtml(v.title || 'Untitled')}</div>
                         <div class="recap-channel">${escapeHtml(v.channel || '')}</div>
+                        <div class="recap-bar-track"><div class="recap-bar-fill" style="width:${pct}%"></div></div>
                     </div>
-                    <span class="recap-count">${v.watchCount || 1}×</span>`;
+                    <span class="recap-count">${count}×</span>`;
                 videosEl.appendChild(row);
             });
         }
@@ -652,11 +658,18 @@ document.addEventListener('DOMContentLoaded', () => {
             channelsEl.innerHTML = '<div class="recap-empty">No channels found yet.</div>';
         } else {
             channelsEl.innerHTML = '';
+            const avatarPairs = [
+                ['#f43f5e','#f59e0b'], ['#7c7bff','#2dd9f0'], ['#22c55e','#0ea5e9'],
+                ['#f59e0b','#ec4899'], ['#8b5cf6','#22d3ee']
+            ];
             topChannels.forEach(([ch, stats], i) => {
                 const row = document.createElement('div');
-                row.className = 'recap-channel-row';
+                row.className = `recap-channel-row${i < 3 ? ' rank-' + (i + 1) : ''}`;
+                const initial = (ch.trim()[0] || '?');
+                const [av1, av2] = avatarPairs[i % avatarPairs.length];
                 row.innerHTML = `
-                    <span class="recap-rank">#${i + 1}</span>
+                    <span class="recap-rank">${i < 3 ? ['🥇','🥈','🥉'][i] : '#' + (i + 1)}</span>
+                    <div class="recap-avatar" style="--av-a:${av1};--av-b:${av2}">${escapeHtml(initial)}</div>
                     <div class="recap-info">
                         <div class="recap-title">${escapeHtml(ch)}</div>
                         <div class="recap-channel">${stats.count} video${stats.count !== 1 ? 's' : ''} watched</div>
@@ -669,6 +682,442 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('recap-back-btn').addEventListener('click', () => {
         recapPanel.classList.remove('visible');
+    });
+
+    // ── Toast helper ────────────────────────────────────────────────────────
+    let toastTimer = null;
+    function showToast(text) {
+        const toastEl     = document.getElementById('yt-pro-toast');
+        const toastTextEl = document.getElementById('yt-pro-toast-text');
+        if (!toastEl) return;
+        toastTextEl.textContent = text;
+        toastEl.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toastEl.classList.remove('show'), 3200);
+    }
+
+    // ── Recap → Downloadable PNG Card ───────────────────────────────────────
+    // Renders a shareable stats card (canvas → PNG) covering the user's
+    // watch history from the first recorded video up to "now".
+    function truncateText(ctx, text, maxWidth) {
+        if (ctx.measureText(text).width <= maxWidth) return text;
+        let out = text;
+        while (out.length > 1 && ctx.measureText(out + '…').width > maxWidth) {
+            out = out.slice(0, -1);
+        }
+        return out + '…';
+    }
+
+    function roundRectPath(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+    }
+
+    function formatCardDate(d) {
+        return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    // Loads an <img> for use inside the canvas. Uses crossOrigin so the
+    // canvas isn't tainted (YouTube's img.youtube.com CDN serves permissive
+    // CORS headers), and resolves with null on any failure so a single
+    // missing thumbnail never breaks the whole card.
+    function loadCanvasImage(src) {
+        return new Promise(resolve => {
+            if (!src) { resolve(null); return; }
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload  = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = src;
+        });
+    }
+
+    function drawThumb(ctx, img, x, y, w, h, r) {
+        roundRectPath(ctx, x, y, w, h, r);
+        ctx.save();
+        ctx.clip();
+        if (img) {
+            // Cover-fit crop
+            const scale = Math.max(w / img.width, h / img.height);
+            const dw = img.width * scale, dh = img.height * scale;
+            ctx.drawImage(img, x - (dw - w) / 2, y - (dh - h) / 2, dw, dh);
+        } else {
+            ctx.fillStyle = 'rgba(255,255,255,0.06)';
+            ctx.fillRect(x, y, w, h);
+        }
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+        ctx.lineWidth = 1;
+        roundRectPath(ctx, x, y, w, h, r);
+        ctx.stroke();
+    }
+
+    async function buildRecapCardBlob(range) {
+        const data     = await new Promise(r => chrome.storage.local.get('ytProVideos', r));
+        const allVideos = data.ytProVideos || [];
+
+        // Filter by the requested date range (if any). Videos without a
+        // usable timestamp are only kept when no range filter is active.
+        let videos = allVideos;
+        let startDate = null, endDate = new Date();
+        if (range && (range.from || range.to)) {
+            const fromMs = range.from ? range.from.getTime() : -Infinity;
+            const toMs   = range.to ? range.to.getTime() : Infinity;
+            videos = allVideos.filter(v => typeof v.timestamp === 'number' && v.timestamp >= fromMs && v.timestamp <= toMs);
+            startDate = range.from || null;
+            endDate   = range.to || new Date();
+        } else {
+            const timestamps = allVideos.map(v => v.timestamp).filter(t => typeof t === 'number' && t > 0);
+            startDate = timestamps.length ? new Date(Math.min(...timestamps)) : null;
+            endDate   = new Date();
+        }
+
+        const topVideos = [...videos]
+            .filter(v => v.title)
+            .sort((a, b) => (b.watchCount || 1) - (a.watchCount || 1))
+            .slice(0, 5);
+
+        const channelMap = {};
+        videos.forEach(v => {
+            const ch = (v.channel || '').trim();
+            if (!ch) return;
+            if (!channelMap[ch]) channelMap[ch] = { count: 0, watchCount: 0 };
+            channelMap[ch].count++;
+            channelMap[ch].watchCount += (v.watchCount || 1);
+        });
+        const topChannels = Object.entries(channelMap)
+            .sort((a, b) => b[1].watchCount - a[1].watchCount)
+            .slice(0, 5);
+
+        // Pre-load video thumbnails so they're ready before we draw the frame.
+        const thumbImgs = await Promise.all(topVideos.map(v => {
+            const watchId = extractWatchID(v.videolink);
+            return loadCanvasImage(watchId ? `https://img.youtube.com/vi/${watchId}/mqdefault.jpg` : null);
+        }));
+
+        // ── Layout pass: figure out how tall the card needs to be before we
+        // create the canvas, so the footer never overlaps the content list. ──
+        const ROW_H = 74, ROW_GAP = 14, ROW_STEP = ROW_H + ROW_GAP;
+        const SECTION_TITLE_H = 56;
+        let contentBottom = 430;
+        if (topVideos.length) contentBottom += SECTION_TITLE_H + topVideos.length * ROW_STEP + 16;
+        if (topChannels.length) contentBottom += SECTION_TITLE_H + topChannels.length * ROW_STEP;
+        if (!topVideos.length && !topChannels.length) contentBottom += 60;
+        const FOOTER_H = 140;
+        const W = 1080;
+        const H = Math.max(900, contentBottom + FOOTER_H);
+
+        // Load the extension logo (bundled asset — same-origin, won't taint the canvas).
+        const logoImg = await new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = chrome.runtime.getURL('imgs/icon128.png');
+        });
+
+        // ── Canvas setup ──────────────────────────────────────────────────
+        const canvas = document.createElement('canvas');
+        canvas.width = W; canvas.height = H;
+        const ctx = canvas.getContext('2d');
+
+        // Background
+        const bg = ctx.createLinearGradient(0, 0, W, H);
+        bg.addColorStop(0, '#0a0a12');
+        bg.addColorStop(1, '#111120');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, W, H);
+
+        const glow = (x, y, r, color) => {
+            const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+            g.addColorStop(0, color);
+            g.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, W, H);
+        };
+        glow(120, 40, 620, 'rgba(244,63,94,0.22)');
+        glow(W - 60, 60, 620, 'rgba(34,211,238,0.20)');
+        glow(W / 2, H, 700, 'rgba(245,158,11,0.10)');
+
+        ctx.textBaseline = 'alphabetic';
+
+        // Header — logo + wordmark
+        const logoSize = 56, logoX = 64, logoY = 50;
+        if (logoImg) {
+            roundRectPath(ctx, logoX, logoY, logoSize, logoSize, 14);
+            ctx.save();
+            ctx.clip();
+            ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
+            ctx.restore();
+        }
+        const headerTextX = logoImg ? logoX + logoSize + 18 : 64;
+
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.font = '600 24px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+        ctx.fillText('YOUTUBE PRO PLUS', headerTextX, logoY + 24);
+
+        const titleGrad = ctx.createLinearGradient(64, 0, 780, 0);
+        titleGrad.addColorStop(0, '#ffffff');
+        titleGrad.addColorStop(0.6, '#67e8f9');
+        titleGrad.addColorStop(1, '#fbbf24');
+        ctx.fillStyle = titleGrad;
+        ctx.font = '800 44px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+        ctx.fillText('My Recap', headerTextX, logoY + logoSize + 8);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.65)';
+        ctx.font = '500 28px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+        const rangeText = startDate
+            ? `${formatCardDate(startDate)}  →  ${formatCardDate(endDate)}`
+            : `As of ${formatCardDate(endDate)}`;
+        ctx.fillText(rangeText, 64, 224);
+
+        // Big total-videos stat pill
+        roundRectPath(ctx, 64, 256, W - 128, 120, 22);
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '800 56px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+        ctx.fillText(String(videos.length), 96, 336);
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.font = '600 24px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+        const totalLabel = `video${videos.length !== 1 ? 's' : ''} watched`;
+        ctx.font = '800 56px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+        const bigNumW = ctx.measureText(String(videos.length)).width;
+        ctx.font = '600 24px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+        ctx.fillText(totalLabel, 96 + bigNumW + 18, 330);
+
+        // ── Section renderer (shared by videos + channels) ─────────────────
+        const medalColors = [['#fde68a', '#f59e0b'], ['#e5e7eb', '#9ca3af'], ['#fdba74', '#b45309']];
+        let y = 430;
+
+        const sectionTitle = (label) => {
+            ctx.fillStyle = 'rgba(255,255,255,0.85)';
+            ctx.font = '700 30px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+            ctx.fillText(label, 64, y);
+            y += 24;
+            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+            ctx.beginPath(); ctx.moveTo(64, y); ctx.lineTo(W - 64, y); ctx.stroke();
+            y += 32;
+        };
+
+        const rowBg = (rowY, rowH) => {
+            roundRectPath(ctx, 64, rowY, W - 128, rowH, 14);
+            ctx.fillStyle = 'rgba(255,255,255,0.035)';
+            ctx.fill();
+        };
+
+        // Draws a solid rank badge for every position — top-3 get a
+        // gold/silver/bronze gradient, the rest a themed gradient — so the
+        // rank is always visible regardless of the system's emoji font.
+        const rankBadge = (cx, cy, i, colorA, colorB) => {
+            const [ga, gb] = i < 3 ? medalColors[i] : [colorA, colorB];
+            ctx.beginPath();
+            ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+            const g = ctx.createLinearGradient(cx - 20, cy - 20, cx + 20, cy + 20);
+            g.addColorStop(0, ga); g.addColorStop(1, gb);
+            ctx.fillStyle = g;
+            ctx.fill();
+            ctx.fillStyle = i < 3 ? '#1a1206' : '#ffffff';
+            ctx.font = '700 18px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('#' + (i + 1), cx, cy + 6);
+            ctx.textAlign = 'left';
+        };
+
+        // Top videos
+        if (topVideos.length) {
+            sectionTitle('Top Videos');
+            topVideos.forEach((v, i) => {
+                const rowH = 74, rowY = y;
+                rowBg(rowY, rowH);
+                rankBadge(104, rowY + rowH / 2, i, '#f43f5e', '#f59e0b');
+
+                const thumbW = 96, thumbH = 54, thumbX = 140, thumbY = rowY + (rowH - thumbH) / 2;
+                drawThumb(ctx, thumbImgs[i], thumbX, thumbY, thumbW, thumbH, 8);
+                const textX = thumbX + thumbW + 18;
+
+                ctx.fillStyle = '#f1f1f6';
+                ctx.font = '700 25px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+                ctx.fillText(truncateText(ctx, v.title || 'Untitled', 560), textX, rowY + 32);
+
+                ctx.fillStyle = 'rgba(255,255,255,0.55)';
+                ctx.font = '500 21px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+                ctx.fillText(truncateText(ctx, v.channel || '', 440), textX, rowY + 60);
+
+                ctx.fillStyle = '#67e8f9';
+                ctx.font = '700 24px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+                const countTxt = `${v.watchCount || 1}×`;
+                ctx.fillText(countTxt, W - 64 - 20 - ctx.measureText(countTxt).width, rowY + rowH / 2 + 8);
+
+                y += rowH + 14;
+            });
+            y += 16;
+        }
+
+        // Top channels
+        if (topChannels.length) {
+            sectionTitle('Top Channels');
+            const avatarPairs = [['#f43f5e','#f59e0b'], ['#7c7bff','#2dd9f0'], ['#22c55e','#0ea5e9'], ['#f59e0b','#ec4899'], ['#8b5cf6','#22d3ee']];
+            topChannels.forEach(([ch, stats], i) => {
+                const rowH = 74, rowY = y;
+                rowBg(rowY, rowH);
+                rankBadge(104, rowY + rowH / 2, i, '#7c7bff', '#2dd9f0');
+
+                const avR = 24, avCx = 140 + avR, avCy = rowY + rowH / 2;
+                const [av1, av2] = avatarPairs[i % avatarPairs.length];
+                ctx.beginPath();
+                ctx.arc(avCx, avCy, avR, 0, Math.PI * 2);
+                const avg = ctx.createLinearGradient(avCx - avR, avCy - avR, avCx + avR, avCy + avR);
+                avg.addColorStop(0, av1); avg.addColorStop(1, av2);
+                ctx.fillStyle = avg;
+                ctx.fill();
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '700 22px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText((ch.trim()[0] || '?').toUpperCase(), avCx, avCy + 8);
+                ctx.textAlign = 'left';
+                const textX = 140 + avR * 2 + 18;
+
+                ctx.fillStyle = '#f1f1f6';
+                ctx.font = '700 25px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+                ctx.fillText(truncateText(ctx, ch, 520), textX, rowY + 32);
+
+                ctx.fillStyle = 'rgba(255,255,255,0.55)';
+                ctx.font = '500 21px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+                ctx.fillText(`${stats.count} video${stats.count !== 1 ? 's' : ''} watched`, textX, rowY + 60);
+
+                ctx.fillStyle = '#67e8f9';
+                ctx.font = '700 24px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+                const countTxt = `${stats.watchCount}×`;
+                ctx.fillText(countTxt, W - 64 - 20 - ctx.measureText(countTxt).width, rowY + rowH / 2 + 8);
+
+                y += rowH + 14;
+            });
+        }
+
+        if (!topVideos.length && !topChannels.length) {
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.font = '500 26px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+            ctx.fillText('No watch data yet — start watching!', 64, y + 20);
+        }
+
+        // Footer
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.beginPath(); ctx.moveTo(64, H - 76); ctx.lineTo(W - 64, H - 76); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        ctx.font = '500 20px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+        ctx.fillText('Generated with YouTube Pro Plus', 64, H - 40);
+        const genTxt = formatCardDate(endDate);
+        ctx.fillText(genTxt, W - 64 - ctx.measureText(genTxt).width, H - 40);
+
+        return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    }
+
+    // Triggers the actual canvas → PNG build + file download, then toasts.
+    async function generateAndDownloadRecap(range, triggerBtn) {
+        const prevHTML = triggerBtn ? triggerBtn.innerHTML : null;
+        if (triggerBtn) { triggerBtn.disabled = true; triggerBtn.textContent = 'Generating…'; }
+        try {
+            const blob = await buildRecapCardBlob(range);
+            if (!blob) throw new Error('canvas produced no blob');
+            const url = URL.createObjectURL(blob);
+            const stamp = new Date().toISOString().slice(0, 10);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `youtube-recap-${stamp}.png`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 4000);
+            showToast('Recap downloaded ✓');
+            return true;
+        } catch (err) {
+            console.error('[YT-Pro] Recap PNG generation failed:', err);
+            showToast('Couldn\'t generate recap — try again');
+            return false;
+        } finally {
+            if (triggerBtn) { triggerBtn.disabled = false; triggerBtn.innerHTML = prevHTML; }
+        }
+    }
+
+    // ── Recap → Date Range Panel ────────────────────────────────────────────
+    const recapRangePanel   = document.getElementById('recap-range-panel');
+    const recapRangeFrom    = document.getElementById('recap-range-from');
+    const recapRangeTo      = document.getElementById('recap-range-to');
+    const recapRangeError   = document.getElementById('recap-range-error');
+    const recapRangeGenBtn  = document.getElementById('recap-range-generate-btn');
+    const recapRangePresets = document.getElementById('recap-range-presets');
+
+    function toDateInputValue(d) {
+        return d.toISOString().slice(0, 10);
+    }
+
+    function setActivePreset(days) {
+        recapRangePresets.querySelectorAll('.recap-range-preset').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.preset === String(days));
+        });
+    }
+
+    recapRangePresets.addEventListener('click', (e) => {
+        const btn = e.target.closest('.recap-range-preset');
+        if (!btn) return;
+        const preset = btn.dataset.preset;
+        const today = new Date();
+        if (preset === 'all') {
+            recapRangeFrom.value = '';
+            recapRangeTo.value = '';
+        } else {
+            const from = new Date(today);
+            from.setDate(from.getDate() - Number(preset));
+            recapRangeFrom.value = toDateInputValue(from);
+            recapRangeTo.value   = toDateInputValue(today);
+        }
+        recapRangeError.textContent = '';
+        setActivePreset(preset);
+    });
+
+    [recapRangeFrom, recapRangeTo].forEach(input => {
+        input.addEventListener('input', () => setActivePreset(null));
+    });
+
+    const recapDownloadBtn = document.getElementById('recap-download-btn');
+    if (recapDownloadBtn) {
+        recapDownloadBtn.addEventListener('click', () => {
+            recapRangeFrom.value = '';
+            recapRangeTo.value = '';
+            recapRangeError.textContent = '';
+            setActivePreset('all');
+            showSubPanel(recapRangePanel, recapPanel);
+        });
+    }
+
+    document.getElementById('recap-range-back-btn').addEventListener('click', () => {
+        recapRangePanel.classList.remove('visible');
+    });
+
+    recapRangeGenBtn.addEventListener('click', async () => {
+        const fromVal = recapRangeFrom.value;
+        const toVal   = recapRangeTo.value;
+
+        let from = fromVal ? new Date(fromVal + 'T00:00:00') : null;
+        let to   = toVal ? new Date(toVal + 'T23:59:59') : null;
+
+        if (from && to && from > to) {
+            recapRangeError.textContent = 'The "From" date must be before the "To" date.';
+            return;
+        }
+        recapRangeError.textContent = '';
+
+        const ok = await generateAndDownloadRecap({ from, to }, recapRangeGenBtn);
+        if (ok) recapRangePanel.classList.remove('visible');
     });
 
     // ── Resume Settings Sub-panel ───────────────────────────────────────────
@@ -840,7 +1289,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         sponsorblock: {
             title: 'SponsorBlock',
-            body:  'Automatically skips sponsor segments, intros, outros, self-promo, previews, and interaction reminders using the community-run SponsorBlock database (sponsor.ajay.app) — no separate extension needed. A small marker appears on the seek bar for each skipped section, and a toast shows what was skipped.'
+            body:  'Automatically skips sponsor segments, intros, outros, self-promo, previews, and interaction reminders using the community-run SponsorBlock database (sponsor.ajay.app) — no separate extension needed. A small marker appears on the seek bar for each skipped section, and a toast shows what was skipped. This is skip-only — it doesn\'t submit new segments.'
         },
         'builtin-downloader': {
             title: 'Built-in Downloader',

@@ -28,6 +28,81 @@ injectCSS('block-popups.css');
 // Always inject premium logo + ambient styles so they work independently of the theme toggle
 injectCSS('features.css');
 
+// ─── Third-party "ytdl" download UI blocker ──────────────────────────────────
+// The bundled download manager (content-scripts/youtube.js + youtube-main.js)
+// injects its own download button + "Download options" panel directly via
+// unconditional manifest content scripts — it isn't gated by our masterEnabled
+// or builtinDownloader toggles at all, and the rest of content.js used to skip
+// setup entirely when the extension was off, so nothing ever hid it. This
+// watcher runs independently of that early-exit and forcibly strips the
+// injected UI whenever either toggle turns it off, and keeps stripping it as
+// the third-party script keeps trying to re-inject it.
+const YTDL_UI_SELECTORS = [
+    '[data-ytdl-download-group]',
+    'tp-yt-iron-dropdown[data-ytdl-watch-dropdown]',
+    '[data-ytdl-panel-slot]',
+].join(', ');
+let ytdlBlockerObserver = null;
+let ytdlMasterEnabled = true;
+let ytdlBuiltinDownloaderEnabled = true;
+
+function removeYtdlDownloadUI() {
+    document.querySelectorAll(YTDL_UI_SELECTORS).forEach(el => {
+        // For dropdown panels, remove the whole tp-yt-iron-dropdown wrapper,
+        // not just the inner content slot.
+        const dropdown = el.closest('tp-yt-iron-dropdown');
+        (dropdown || el).remove();
+    });
+}
+
+function startYtdlDownloadBlocker() {
+    if (ytdlBlockerObserver) return;
+    removeYtdlDownloadUI();
+    ytdlBlockerObserver = new MutationObserver(removeYtdlDownloadUI);
+    ytdlBlockerObserver.observe(document.documentElement, { childList: true, subtree: true });
+}
+
+function stopYtdlDownloadBlocker() {
+    if (ytdlBlockerObserver) {
+        ytdlBlockerObserver.disconnect();
+        ytdlBlockerObserver = null;
+        // The third-party script only (re)creates its download button/panel
+        // in response to YouTube's SPA navigation events — it doesn't watch
+        // for the UI being removed. Since we just finished stripping it out
+        // (possibly seconds or minutes ago), nothing will bring it back until
+        // the user happens to navigate. Nudge it to re-inject right away by
+        // replaying the navigation-finished event it listens for.
+        document.dispatchEvent(new Event('yt-navigate-finish'));
+    }
+}
+
+function syncYtdlBlockerState() {
+    if (ytdlMasterEnabled === false || ytdlBuiltinDownloaderEnabled === false) {
+        startYtdlDownloadBlocker();
+    } else {
+        stopYtdlDownloadBlocker();
+    }
+}
+
+// Check both toggles immediately, independent of the rest of content.js's
+// setup (which intentionally no-ops entirely when the extension is off).
+if (isCtxValid()) {
+    chrome.storage.local.get(['masterEnabled', 'builtinDownloader'], (result) => {
+        ytdlMasterEnabled = result.masterEnabled !== false;
+        ytdlBuiltinDownloaderEnabled = result.builtinDownloader !== false;
+        syncYtdlBlockerState();
+    });
+    chrome.runtime.onMessage.addListener((request) => {
+        if (request?.action === 'masterToggleChanged') {
+            ytdlMasterEnabled = request.state !== false;
+            syncYtdlBlockerState();
+        } else if (request?.action === 'togglebuiltinDownloader') {
+            ytdlBuiltinDownloaderEnabled = request.state !== false;
+            syncYtdlBlockerState();
+        }
+    });
+}
+
 // ─── Shorts Auto-Scroller ─────────────────────────────────────────────────────
 let autoScrollInterval = null;
 
@@ -96,6 +171,10 @@ function initAutoScroll() {
 // ─── Smart Download Button Override ──────────────────────────────────────────
 let downloadInterceptActive = false;
 let downloadButtonObserver = null;
+// Tracks every element (button + its renderer wrapper) we've force-enabled,
+// so we can put it back the way we found it when the feature/extension is
+// turned off — otherwise the Download option stays clickable forever.
+const forcedDownloadEls = new Set();
 
 // Selectors that cover YouTube's download entry point in all its forms.
 // YouTube has moved this around over time — from a dedicated player-area
@@ -130,10 +209,23 @@ function isDownloadLabel(el) {
     return /(^|[^a-z])download([^a-z]|$)/.test(label);
 }
 
+// Snapshot an element's disabled-related state so it can be restored later.
+function snapshotEl(el) {
+    if (el.dataset.ytProSnapshotted === '1') return; // already have one
+    el.dataset.ytProSnapshotted = '1';
+    el.dataset.ytProHadDisabled = el.hasAttribute('disabled') ? '1' : '0';
+    el.dataset.ytProHadAriaDisabled = el.hasAttribute('aria-disabled') ? el.getAttribute('aria-disabled') : '';
+    el.dataset.ytProPrevOpacity = el.style.opacity || '';
+    el.dataset.ytProPrevPointerEvents = el.style.pointerEvents || '';
+    el.dataset.ytProPrevCursor = el.style.cursor || '';
+}
+
 // Force-enable a single button regardless of YouTube's disabled state
 function forceEnableDownloadButton(btn) {
     if (btn.dataset.ytProForced === '1') return; // already done
+    snapshotEl(btn);
     btn.dataset.ytProForced = '1';
+    forcedDownloadEls.add(btn);
 
     btn.removeAttribute('disabled');
     btn.removeAttribute('aria-disabled');
@@ -144,11 +236,36 @@ function forceEnableDownloadButton(btn) {
     // Also un-disable wrapper elements YouTube uses
     const renderer = btn.closest('ytd-download-button-renderer, yt-button-shape, .yt-button-shape-with-explainer, tp-yt-paper-item, ytd-menu-service-item-renderer');
     if (renderer) {
+        snapshotEl(renderer);
+        forcedDownloadEls.add(renderer);
         renderer.removeAttribute('disabled');
         renderer.removeAttribute('aria-disabled');
         renderer.style.pointerEvents = 'auto';
         renderer.style.opacity = '1';
     }
+}
+
+// Undo forceEnableDownloadButton() for every element we've touched, putting
+// YouTube's native disabled state back so the Download option actually
+// disappears/greys out again once the feature (or the whole extension) is
+// switched off — instead of silently staying clickable.
+function revertForcedDownloadButtons() {
+    forcedDownloadEls.forEach(el => {
+        if (!el.isConnected) return; // already removed from the DOM, nothing to undo
+        if (el.dataset.ytProHadDisabled === '1') el.setAttribute('disabled', '');
+        if (el.dataset.ytProHadAriaDisabled) el.setAttribute('aria-disabled', el.dataset.ytProHadAriaDisabled);
+        el.style.opacity = el.dataset.ytProPrevOpacity || '';
+        el.style.pointerEvents = el.dataset.ytProPrevPointerEvents || '';
+        el.style.cursor = el.dataset.ytProPrevCursor || '';
+        delete el.dataset.ytProForced;
+        delete el.dataset.ytProSnapshotted;
+        delete el.dataset.ytProHadDisabled;
+        delete el.dataset.ytProHadAriaDisabled;
+        delete el.dataset.ytProPrevOpacity;
+        delete el.dataset.ytProPrevPointerEvents;
+        delete el.dataset.ytProPrevCursor;
+    });
+    forcedDownloadEls.clear();
 }
 
 // Watch for download buttons being added or toggled into a disabled state
@@ -198,6 +315,7 @@ function removeDownloadIntercept() {
     downloadInterceptActive = false;
     document.removeEventListener('click', handleDownloadClick, true);
     stopDownloadButtonWatcher();
+    revertForcedDownloadButtons();
 }
 
 function handleDownloadClick(e) {

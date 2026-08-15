@@ -69,77 +69,8 @@
     let skipReady = false;
     let skipReadyTimer = null;
     let pendingSkip = null; // { end, category } — set while we wait for a seek to actually land
-    let submitBtnPollTimer = null;
-    let panelOpen = false;
-    let markedStart = null;
-    let markedEnd = null;
-    let selectedCategory = 'sponsor';
-    let userId = null;
 
     function cLog() { /* console.debug('[SponsorBlock]', ...arguments); */ }
-
-    // ── Local submission memory ─────────────────────────────────────────────
-    // sponsor.ajay.app caches GET /api/skipSegments responses for a few
-    // minutes server-side. That means right after you submit a segment, a
-    // fresh fetch (even with cache: 'no-store') can still come back without
-    // it — the submission landed fine, but the read is stale. To avoid it
-    // looking like the segment "disappeared" when you navigate away and
-    // back, we remember segments we've submitted (per videoID, in
-    // chrome.storage.local so it survives navigation) and keep merging them
-    // into whatever the server returns until either the server starts
-    // including them for real, or 30 minutes pass (by which point the
-    // server-side cache will definitely have refreshed).
-    const LOCAL_SUB_TTL_MS = 30 * 60 * 1000;
-
-    function getLocalSubs(vid) {
-        return new Promise((resolve) => {
-            try {
-                chrome.storage.local.get(['sbLocalSubs'], (r) => {
-                    if (chrome.runtime?.lastError) return resolve([]);
-                    resolve(((r.sbLocalSubs || {})[vid]) || []);
-                });
-            } catch (e) {
-                resolve([]);
-            }
-        });
-    }
-
-    function saveLocalSub(vid, sub) {
-        try {
-            chrome.storage.local.get(['sbLocalSubs'], (r) => {
-                if (chrome.runtime?.lastError) return;
-                const all = r.sbLocalSubs || {};
-                const now = Date.now();
-                // Prune expired entries across all videos while we're here.
-                Object.keys(all).forEach((k) => {
-                    all[k] = (all[k] || []).filter(s => now - s.submittedAt < LOCAL_SUB_TTL_MS);
-                    if (!all[k].length) delete all[k];
-                });
-                const list = all[vid] || [];
-                list.push(sub);
-                all[vid] = list;
-                chrome.storage.local.set({ sbLocalSubs: all });
-            });
-        } catch (e) { /* extension context invalidated — ignore */ }
-    }
-
-    // Merge locally-remembered submissions into a freshly-fetched segment
-    // list, skipping any that the server is already returning (matched by
-    // close start/end times) and dropping any that have expired.
-    function mergeLocalSubs(serverSegments, localSubs) {
-        const now = Date.now();
-        const fresh = localSubs.filter(s => now - s.submittedAt < LOCAL_SUB_TTL_MS);
-        const merged = serverSegments.slice();
-        fresh.forEach((sub) => {
-            const alreadyPresent = serverSegments.some(seg =>
-                seg.category === sub.category &&
-                Math.abs(seg.segment[0] - sub.segment[0]) < 1.5 &&
-                Math.abs(seg.segment[1] - sub.segment[1]) < 1.5
-            );
-            if (!alreadyPresent && enabledCategories[sub.category]) merged.push(Object.assign({}, sub, { isLocalOnly: true }));
-        });
-        return merged;
-    }
 
     function getVideoId() {
         const urlObject = new URL(window.location.href);
@@ -173,10 +104,7 @@
                     ? data.filter(s => s.actionType === 'skip' && Array.isArray(s.segment) && s.segment.length === 2)
                     : [];
             }
-            // Merge in anything we've submitted ourselves recently, in case
-            // the server's response is still a cached pre-submission read.
-            const localSubs = await getLocalSubs(videoId);
-            return localSubs.length ? mergeLocalSubs(serverSegments, localSubs) : serverSegments;
+            return serverSegments;
         } catch (e) {
             cLog('fetch failed', e);
             return [];
@@ -223,33 +151,6 @@
                 opacity: 0.75;
                 pointer-events: none;
             }
-            #yt-pro-sb-submit-btn { background:transparent;border:0;outline:none;cursor:pointer;padding:0;vertical-align:top; }
-            #yt-pro-sb-panel {
-                position: absolute;
-                right: 10px;
-                bottom: 50px;
-                z-index: 80;
-                width: 230px;
-                background: rgba(20,20,20,0.97);
-                border: 1px solid rgba(255,255,255,0.1);
-                border-radius: 10px;
-                padding: 12px;
-                font: 500 12px/1.3 "Roboto", Arial, sans-serif;
-                color: #fff;
-                box-shadow: 0 4px 18px rgba(0,0,0,0.5);
-            }
-            #yt-pro-sb-panel .sb-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; display:flex; align-items:center; justify-content:space-between; }
-            #yt-pro-sb-panel .sb-close { cursor:pointer; opacity:0.6; font-size:15px; line-height:1; }
-            #yt-pro-sb-panel .sb-close:hover { opacity:1; }
-            #yt-pro-sb-panel .sb-row { display:flex; gap:6px; margin-bottom:8px; }
-            #yt-pro-sb-panel button.sb-mark { flex:1; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.14); color:#fff; border-radius:6px; padding:6px 4px; cursor:pointer; font-size:11.5px; }
-            #yt-pro-sb-panel button.sb-mark:hover { background:rgba(255,255,255,0.16); }
-            #yt-pro-sb-panel button.sb-mark.marked { border-color: var(--accent, #6366f1); color: var(--accent, #8b8bf5); }
-            #yt-pro-sb-panel select.sb-cat-select { width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.14); color:#fff; border-radius:6px; padding:6px; margin-bottom:8px; font-size:11.5px; }
-            #yt-pro-sb-panel .sb-submit-btn { width:100%; background:#00d400; color:#0a0a0a; border:0; border-radius:6px; padding:7px 0; font-weight:700; cursor:pointer; font-size:12px; }
-            #yt-pro-sb-panel .sb-submit-btn:disabled { opacity:0.4; cursor:not-allowed; }
-            #yt-pro-sb-panel .sb-submit-btn:not(:disabled):hover { background:#1fe61f; }
-            #yt-pro-sb-panel .sb-status { margin-top:6px; font-size:11px; opacity:0.75; min-height: 14px; }
         `;
         document.head.appendChild(style);
     }
@@ -279,11 +180,15 @@
     }
 
     function getProgressBarEl() {
-        // The actual thin visible bar YouTube draws the played/buffered fill in.
-        // Falls back through a couple of known selectors since YouTube has
-        // changed this markup before.
-        return document.querySelector('.ytp-progress-bar-container') ||
-               document.querySelector('.ytp-progress-bar');
+        // '.ytp-progress-bar' is the actual thin visible line YouTube draws the
+        // played/buffered fill in. '.ytp-progress-bar-container' is its *outer*
+        // wrapper — a taller, invisible hit-area used for the hover-expand
+        // effect. Measuring the container instead of the real bar was the bug:
+        // our marker track ended up sized/positioned against that padded
+        // rect, so the colored segments landed just above/below the visible
+        // line instead of on it — they were there, just not visibly on the bar.
+        return document.querySelector('.ytp-progress-bar') ||
+               document.querySelector('.ytp-progress-bar-container');
     }
 
     function renderMarkers() {
@@ -419,7 +324,6 @@
         segments = [];
         lastSkipEndTime = -1;
         removeMarkers();
-        closeSubmitPanel();
         segments = await fetchSegments(vid);
         cLog(`Loaded ${segments.length} segment(s) for`, vid);
         renderMarkers();
@@ -444,170 +348,6 @@
         }, 500);
     }
 
-    function getUserId(cb) {
-        if (userId) return cb(userId);
-        try {
-            chrome.storage.local.get(['sponsorblockUserID'], (r) => {
-                if (r.sponsorblockUserID) {
-                    userId = r.sponsorblockUserID;
-                } else {
-                    userId = (crypto.randomUUID ? crypto.randomUUID() : 'ytpp-' + Math.random().toString(36).slice(2) + Date.now().toString(36));
-                    chrome.storage.local.set({ sponsorblockUserID: userId });
-                }
-                cb(userId);
-            });
-        } catch (e) {
-            userId = userId || ('ytpp-' + Math.random().toString(36).slice(2));
-            cb(userId);
-        }
-    }
-
-    function fmtTime(t) {
-        if (t == null) return '—';
-        const m = Math.floor(t / 60);
-        const s = Math.floor(t % 60);
-        return `${m}:${s.toString().padStart(2, '0')}`;
-    }
-
-    function createSubmitButton() {
-        const button = document.createElement('button');
-        button.classList.add('ytp-button');
-        button.id = 'yt-pro-sb-submit-btn';
-        button.title = 'Submit a SponsorBlock segment';
-        button.setAttribute('aria-label', 'Submit a SponsorBlock segment');
-        button.innerHTML =
-            '<svg viewBox="0 0 24 24" width="22" height="22" style="display:block;margin:auto;" xmlns="http://www.w3.org/2000/svg">' +
-            '<path d="M12 2.2 L19 4.6 V11.2 C19 16.4 15.8 19.9 12 21.8 C8.2 19.9 5 16.4 5 11.2 V4.6 Z" fill="#e01e2b"/>' +
-            '<path d="M12 3.5 L17.7 5.5 V11.1 C17.7 15.5 15.1 18.5 12 20.3 C8.9 18.5 6.3 15.5 6.3 11.1 V5.5 Z" fill="#fff"/>' +
-            '<path d="M10.2 8.5 L15.1 11.4 L10.2 14.3 Z" fill="#e01e2b"/>' +
-            '<circle cx="17.6" cy="17.6" r="4.2" fill="#f5a623" stroke="#8a5a06" stroke-width="0.6"/>' +
-            '<text x="17.6" y="19.4" font-size="5.4" font-weight="700" font-family="Arial, sans-serif" text-anchor="middle" fill="#8a5a06">$</text>' +
-            '</svg>';
-        button.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            panelOpen ? closeSubmitPanel() : openSubmitPanel();
-        });
-        return button;
-    }
-
-    function injectSubmitButton() {
-        if (!active || document.getElementById('yt-pro-sb-submit-btn')) return;
-        const rightControls = document.querySelector('div.ytp-right-controls');
-        if (!rightControls) return;
-        rightControls.prepend(createSubmitButton());
-    }
-
-    function removeSubmitButton() {
-        document.getElementById('yt-pro-sb-submit-btn')?.remove();
-        closeSubmitPanel();
-    }
-
-    function closeSubmitPanel() {
-        panelOpen = false;
-        document.getElementById('yt-pro-sb-panel')?.remove();
-    }
-
-    function refreshPanelUI(panel) {
-        panel.querySelector('#sb-mark-start').classList.toggle('marked', markedStart !== null);
-        panel.querySelector('#sb-mark-start').textContent = markedStart !== null ? `Start: ${fmtTime(markedStart)}` : 'Mark Start';
-        panel.querySelector('#sb-mark-end').classList.toggle('marked', markedEnd !== null);
-        panel.querySelector('#sb-mark-end').textContent = markedEnd !== null ? `End: ${fmtTime(markedEnd)}` : 'Mark End';
-        const canSubmit = markedStart !== null && markedEnd !== null && markedEnd > markedStart;
-        panel.querySelector('.sb-submit-btn').disabled = !canSubmit;
-    }
-
-    function openSubmitPanel() {
-        if (!video) return;
-        closeSubmitPanel();
-        panelOpen = true;
-        markedStart = null;
-        markedEnd = null;
-
-        const player = document.querySelector('.html5-video-player');
-        if (!player) return;
-
-        const panel = document.createElement('div');
-        panel.id = 'yt-pro-sb-panel';
-        panel.innerHTML = `
-            <div class="sb-title"><span style="display:flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" xmlns="http://www.w3.org/2000/svg"><path d="M12 2.2 L19 4.6 V11.2 C19 16.4 15.8 19.9 12 21.8 C8.2 19.9 5 16.4 5 11.2 V4.6 Z" fill="#e01e2b"/><path d="M12 3.5 L17.7 5.5 V11.1 C17.7 15.5 15.1 18.5 12 20.3 C8.9 18.5 6.3 15.5 6.3 11.1 V5.5 Z" fill="#fff"/><path d="M10.2 8.5 L15.1 11.4 L10.2 14.3 Z" fill="#e01e2b"/><circle cx="17.6" cy="17.6" r="4.2" fill="#f5a623" stroke="#8a5a06" stroke-width="0.6"/><text x="17.6" y="19.4" font-size="5.4" font-weight="700" font-family="Arial, sans-serif" text-anchor="middle" fill="#8a5a06">$</text></svg>Submit a Segment</span><span class="sb-close" id="sb-close-btn">&times;</span></div>
-            <div class="sb-row">
-                <button class="sb-mark" id="sb-mark-start">Mark Start</button>
-                <button class="sb-mark" id="sb-mark-end">Mark End</button>
-            </div>
-            <select class="sb-cat-select" id="sb-cat-select">
-                ${Object.keys(CATEGORY_LABELS).filter(c => c !== 'poi_highlight').map(c => `<option value="${c}">${CATEGORY_LABELS[c]}</option>`).join('')}
-            </select>
-            <button class="sb-submit-btn" id="sb-submit-btn" disabled>Submit to SponsorBlock</button>
-            <div class="sb-status" id="sb-status"></div>
-        `;
-        player.appendChild(panel);
-
-        panel.querySelector('#sb-cat-select').value = selectedCategory;
-        panel.querySelector('#sb-close-btn').addEventListener('click', closeSubmitPanel);
-        panel.querySelector('#sb-cat-select').addEventListener('change', (e) => { selectedCategory = e.target.value; });
-        panel.querySelector('#sb-mark-start').addEventListener('click', () => {
-            markedStart = video.currentTime;
-            refreshPanelUI(panel);
-        });
-        panel.querySelector('#sb-mark-end').addEventListener('click', () => {
-            markedEnd = video.currentTime;
-            refreshPanelUI(panel);
-        });
-        panel.querySelector('#sb-submit-btn').addEventListener('click', () => submitSegment(panel));
-
-        refreshPanelUI(panel);
-    }
-
-    function submitSegment(panel) {
-        const status = panel.querySelector('#sb-status');
-        const submitBtn = panel.querySelector('#sb-submit-btn');
-        if (markedStart === null || markedEnd === null || markedEnd <= markedStart) return;
-        if (!currentVideoId) { status.textContent = 'No video detected.'; return; }
-
-        submitBtn.disabled = true;
-        status.textContent = 'Submitting…';
-
-        getUserId((uid) => {
-            const params = new URLSearchParams({
-                videoID: currentVideoId,
-                startTime: markedStart.toFixed(3),
-                endTime: markedEnd.toFixed(3),
-                category: selectedCategory,
-                userID: uid,
-                actionType: 'skip',
-            });
-            fetch(`${API_BASE}/skipSegments?${params.toString()}`, { method: 'POST' })
-                .then(async (resp) => {
-                    if (resp.ok) {
-                        status.textContent = 'Submitted! Thanks for contributing.';
-                        // Shown in its real category color right away — this is
-                        // the current session's optimistic add, not a
-                        // cross-session merge, so there's no ambiguity yet.
-                        const newSeg = { segment: [markedStart, markedEnd], category: selectedCategory, actionType: 'skip', UUID: 'local-' + Date.now(), submittedAt: Date.now() };
-                        // Optimistically show it right away without waiting on cache
-                        segments = segments.concat([newSeg]);
-                        renderMarkers();
-                        // Remember it so it keeps showing on revisit even if the
-                        // server's read-cache hasn't picked it up yet (see
-                        // fetchSegments / mergeLocalSubs above).
-                        saveLocalSub(currentVideoId, newSeg);
-                        setTimeout(closeSubmitPanel, 1800);
-                    } else {
-                        const text = await resp.text().catch(() => '');
-                        status.textContent = resp.status === 409
-                            ? 'That segment already exists.'
-                            : (text || `Failed (${resp.status})`);
-                        submitBtn.disabled = false;
-                    }
-                })
-                .catch(() => {
-                    status.textContent = 'Network error — try again.';
-                    submitBtn.disabled = false;
-                });
-        });
-    }
-
     window._ytProSponsorBlock = {
         init(categories) {
             if (categories) enabledCategories = Object.assign({}, DEFAULT_CATEGORY_STATE, categories);
@@ -619,10 +359,6 @@
             if (v) attachVideo(v);
             onVideoChange();
             pollLoop();
-            injectSubmitButton();
-            if (!submitBtnPollTimer) {
-                submitBtnPollTimer = setInterval(() => { if (active) injectSubmitButton(); }, 1500);
-            }
         },
         setCategories(categories) {
             enabledCategories = Object.assign({}, DEFAULT_CATEGORY_STATE, categories);
@@ -631,11 +367,9 @@
         teardown() {
             active = false;
             if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-            if (submitBtnPollTimer) { clearInterval(submitBtnPollTimer); submitBtnPollTimer = null; }
             clearTimeout(toastTimeout);
             detachVideo();
             removeMarkers();
-            removeSubmitButton();
             document.getElementById('yt-pro-sb-toast')?.remove();
             document.getElementById('yt-pro-sb-style')?.remove();
             segments = [];

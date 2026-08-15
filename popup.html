@@ -1,1023 +1,966 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>YouTube Pro+</title>
-    <style>
-        :root {
-            --bg: #07070d;
-            --surface: rgba(13, 13, 22, 0.94);
-            --border: rgba(255,255,255,0.065);
-            --border-hover: rgba(255,255,255,0.13);
-            --accent: #6366f1;
-            --accent-dim: rgba(99,102,241,0.14);
-            --accent-glow: 0 0 16px rgba(99,102,241,0.42);
-            --cyan: #22d3ee;
-            --cyan-dim: rgba(34,211,238,0.12);
-            --cyan-glow: 0 0 14px rgba(34,211,238,0.35);
-            --warning: #f59e0b;
-            --warn-dim: rgba(245,158,11,0.12);
-            --success: #10b981;
-            --text: #e4e4ef;
-            --text-sub: rgba(228,228,239,0.42);
-            --text-muted: rgba(228,228,239,0.22);
-        }
-        * { box-sizing: border-box; }
-        html {
-            width: 320px; overflow: visible;
-        }
-        body {
-            width: 320px; margin: 0; padding: 0 0 12px;
-            font-family: -apple-system, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
-            background: var(--bg); color: var(--text);
-            overflow-x: hidden; overflow-y: visible;
-            scrollbar-width: none;
-            /* Overlay panels below (#resume-panel, #report-panel) use
-               position: absolute so they anchor to this box exactly — with
-               body left as the default static position, "fixed" elements
-               would anchor to the popup's initial viewport measurement
-               instead of body's actual (auto-growing) rendered size, and
-               end up appended after the real content instead of overlaying
-               it. This matches the pattern #recap-panel/#resume-settings-panel
-               already use correctly (anchored to #resume-panel). */
-            position: relative;
-        }
-        html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; }
-        body.disabled-mode .settings-wrapper,
-        body.disabled-mode .btn,
-        body.disabled-mode .hint-box {
-            opacity: 0.35; pointer-events: none; filter: grayscale(100%); transition: all 0.4s ease;
-        }
-        .glass-container {
-            background: radial-gradient(ellipse at -8% 0%, rgba(99,102,241,0.20) 0%, rgba(99,102,241,0.06) 40%, transparent 65%), var(--surface); backdrop-filter: blur(28px);
-            -webkit-backdrop-filter: blur(28px); border: 1px solid var(--border);
-            border-radius: 16px; padding: 10px 12px; margin: 4px;
-            box-shadow: 0 20px 48px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06);
-            animation: containerFadeIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-        }
-        .header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
-        }
-        .title-group { display: flex; align-items: center; gap: 9px; }
-        .ext-logo { width: 22px; height: 22px; border-radius: 7px; box-shadow: var(--accent-glow); transition: transform 0.3s ease; }
-        .header:hover .ext-logo { transform: scale(1.06); }
-        .wordmark {
-            margin: 0; font-size: 14px; font-weight: 800; letter-spacing: -0.2px;
-            background: linear-gradient(125deg, #fff 25%, #a5b4fc 75%);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            background-clip: text; line-height: 1;
-        }
-        .power-btn {
-            background: rgba(255,255,255,0.04); border: 1px solid var(--border);
-            color: var(--text-sub); border-radius: 50%; width: 30px; height: 30px;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
-        }
-        .power-btn:hover { background: rgba(255,255,255,0.09); color: var(--text); }
-        .power-btn.active { color: var(--success); border-color: rgba(16,185,129,0.38); background: rgba(16,185,129,0.07); animation: pulseGlow 2.5s infinite alternate ease-in-out; }
-        .power-btn.active svg { filter: drop-shadow(0 0 3px #10b981); }
-        .setting {
-            display: flex; flex-direction: column; padding: 4px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.03);
-            opacity: 0; transform: translateY(7px);
-            animation: slideUpFade 0.35s ease-out forwards;
-        }
-        .setting-row { display: flex; justify-content: space-between; align-items: center; transition: transform 0.18s cubic-bezier(0.4,0,0.2,1); }
-        .setting:nth-child(1) { animation-delay: 0.04s; }
-        .setting:nth-child(2) { animation-delay: 0.08s; }
-        .setting:nth-child(3) { animation-delay: 0.12s; }
-        .setting:nth-child(4) { animation-delay: 0.16s; }
-        .setting:nth-child(5) { animation-delay: 0.20s; }
-        .setting:nth-child(6) { animation-delay: 0.24s; }
-        .setting:nth-child(7) { animation-delay: 0.28s; }
-        .setting:nth-child(8) { animation-delay: 0.32s; }
-        .setting:nth-child(9) { animation-delay: 0.36s; border-bottom: none; }
-        .setting-row:hover { transform: translateX(2px); }
-        .setting-row:hover .icon-box { background: rgba(255,255,255,0.08); transform: scale(1.18) rotate(-8deg); }
-        .label-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .icon-box {
-            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 7px; width: 24px; height: 24px;
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1); flex-shrink: 0; transform-origin: center;
-        }
-        .label { font-size: 12.5px; font-weight: 500; color: var(--text); letter-spacing: -0.1px; }
-        .setting-sub { font-size: 10px; font-weight: 400; color: var(--text-sub); letter-spacing: 0.1px; width: 100%; margin-left: 32px; margin-top: -3px; }
-        .info-btn {
-            display: inline-flex; align-items: center; justify-content: center;
-            width: 15px; height: 15px; border-radius: 50%;
-            background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14);
-            color: var(--text-sub); cursor: help; margin-left: 4px; flex-shrink: 0;
-            transition: background 0.2s, border-color 0.2s;
-        }
-        .info-btn svg { width: 9px; height: 9px; }
-        .info-btn:hover { background: rgba(255,255,255,0.14); border-color: rgba(245,158,11,0.5); color: var(--warning); }
-        .info-btn--gold { background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.28); color: rgba(245,158,11,0.7); }
-        .info-btn--gold:hover { background: rgba(245,158,11,0.2); border-color: rgba(245,158,11,0.6); color: var(--warning); }
-        #info-tooltip-box {
-            visibility: hidden; opacity: 0;
-            position: fixed; left: 8px; right: 8px; bottom: 8px;
-            background: rgba(10,10,18,0.97); backdrop-filter: blur(22px);
-            -webkit-backdrop-filter: blur(22px); border: 1px solid rgba(245,158,11,0.28);
-            border-radius: 11px; padding: 10px 12px; color: rgba(255,255,255,0.82);
-            font-size: 10.5px; line-height: 1.6; box-shadow: 0 -4px 28px rgba(0,0,0,0.75);
-            z-index: 99999; pointer-events: none; transition: opacity 0.18s ease, visibility 0.18s ease;
-        }
-        #info-tooltip-box strong { color: var(--warning); display: flex; align-items: center; gap: 5px; margin-bottom: 4px; font-size: 11px; }
-        #info-tooltip-box strong svg { width: 11px; height: 11px; flex-shrink: 0; }
-        #info-tooltip-box span#info-tooltip-body { font-size: 10.5px; line-height: 1.6; color: rgba(255,255,255,0.75); }
-        #cinematic-disclaimer-overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.8);
-            z-index: 999999; display: none; align-items: center; justify-content: center;
-            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-            padding: 16px; box-sizing: border-box;
-        }
-        #cinematic-disclaimer-modal {
-            background: linear-gradient(160deg, #12111f, #0d0c1a); border: 1px solid rgba(245,158,11,0.22);
-            border-radius: 18px; padding: 22px 20px 18px; width: 100%; max-width: 288px;
-            text-align: center; box-shadow: 0 16px 52px rgba(0,0,0,0.75);
-            animation: cinemaModalIn 0.2s cubic-bezier(0.34,1.36,0.64,1) forwards;
-        }
-        @keyframes cinemaModalIn { from { transform: scale(0.88); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        .cinematic-modal-icon {
-            width: 48px; height: 48px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25);
-            border-radius: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;
-        }
-        .cinematic-modal-icon svg { width: 24px; height: 24px; }
-        .cinematic-modal-title { font-size: 13.5px; font-weight: 800; margin: 0 0 13px; background: linear-gradient(135deg, #fcd34d, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .cinematic-modal-body { font-size: 11.5px; color: rgba(255,255,255,0.62); line-height: 1.65; text-align: left; margin-bottom: 18px; }
-        .cinematic-modal-body p { margin: 0 0 9px; }
-        .cinematic-modal-body p:last-child { margin-bottom: 0; }
-        .cinematic-modal-body strong { color: rgba(255,255,255,0.9); }
-        .cinematic-modal-body em { color: rgba(253,186,116,0.95); font-style: normal; font-weight: 600; }
-        #cinematic-confirm-btn {
-            width: 100%; padding: 10px 16px; margin-bottom: 8px;
-            background: linear-gradient(135deg, #fcd34d, #f59e0b); border: none; border-radius: 10px;
-            color: #1a0800; font-size: 12.5px; font-weight: 800; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; gap: 7px;
-            box-shadow: 0 4px 18px rgba(245,158,11,0.35); transition: all 0.2s ease;
-        }
-        #cinematic-confirm-btn svg { width: 14px; height: 14px; }
-        #cinematic-confirm-btn:hover { transform: translateY(-1px); box-shadow: 0 7px 24px rgba(245,158,11,0.5); }
-        #cinematic-confirm-btn:active { transform: translateY(0); }
-        #cinematic-cancel-btn {
-            width: 100%; padding: 9px 16px; background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
-            color: rgba(255,255,255,0.42); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;
-        }
-        #cinematic-cancel-btn:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.25); }
-        /* Compact 3-column horizontal cine-controls — saves ~34px vs 3 vertical rows */
-        .cine-controls { display: none; flex-direction: row; justify-content: space-between; gap: 4px; padding: 5px 0 5px 0; border-top: 1px solid rgba(255,255,255,0.04); margin-top: 2px; }
-        .cine-controls.visible { display: flex; }
-        .sb-controls { display: none; flex-direction: column; gap: 0; padding: 4px 0 2px 0; border-top: 1px solid rgba(255,255,255,0.04); margin-top: 2px; }
-        .sb-controls.visible { display: flex; }
-        .sb-cat-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 2px; }
-        .sb-cat-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
-        .sb-cat-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 4px rgba(0,0,0,0.4); }
-        .sb-cat-name { font-size: 11.5px; color: rgba(255,255,255,0.82); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .sb-switch { position: relative; display: inline-block; width: 30px; height: 16px; flex-shrink: 0; }
-        .sb-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
-        .sb-slider { position: absolute; cursor: pointer; inset: 0; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; transition: background 0.25s, border-color 0.25s; }
-        .sb-slider::before { content: ""; position: absolute; width: 10px; height: 10px; left: 2px; top: 50%; transform: translateY(-50%); background: #888; border-radius: 50%; transition: transform 0.25s, background 0.25s; }
-        .sb-switch input:checked + .sb-slider::before { transform: translateY(-50%) translateX(14px); }
-        .sb-switch input:checked + .sb-slider { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.16); }
-        .cine-ctrl-row { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; flex: 1; }
-        .cine-divider { width: 1px; background: rgba(255,255,255,0.12); align-self: stretch; margin: 0 2px; flex-shrink: 0; }
-        .cine-ctrl-label { font-size: 8.5px; color: var(--text-sub); letter-spacing: 0.2px; line-height: 1; }
-        .cine-btn-group { display: flex; gap: 2px; }
-        .cine-btn { font-size: 8.5px; padding: 2px 5px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.4); cursor: pointer; transition: all 0.15s ease; line-height: 1.4; font-family: inherit; white-space: nowrap; }
-        .cine-btn:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.75); border-color: rgba(255,255,255,0.2); }
-        .cine-btn.active { background: rgba(245,158,11,0.14); border-color: rgba(245,158,11,0.46); color: #fbbf24; font-weight: 600; }
-        .switch { position: relative; display: inline-block; width: 38px; height: 20px; flex-shrink: 0; }
-        .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
-        .slider { position: absolute; cursor: pointer; inset: 0; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; transition: background 0.3s, border-color 0.3s; }
-        .switch:hover .slider { border-color: rgba(255,255,255,0.24); }
-        .slider::before { content: ""; position: absolute; width: 13px; height: 13px; left: 3px; top: 50%; transform: translateY(-50%); background: #888; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.5); transition: transform 0.32s cubic-bezier(0.68,-0.55,0.265,1.55), background 0.3s; }
-        input:checked + .slider { background: var(--accent-dim); border-color: var(--accent); }
-        input:checked + .slider::before { transform: translateY(-50%) translateX(18px); background: var(--accent); box-shadow: var(--accent-glow); }
-        #toggle-autoResume:checked + .slider { background: var(--cyan-dim); border-color: var(--cyan); }
-        #toggle-autoResume:checked + .slider::before { background: var(--cyan); box-shadow: var(--cyan-glow); }
-        .premium-warning { display: none; align-items: flex-start; gap: 6px; margin-top: 3px; padding: 5px 7px; background: var(--warn-dim); border: 1px solid rgba(245,158,11,0.24); border-radius: 8px; animation: slideDown 0.22s ease-out; }
-        .premium-warning .warn-icon { color: var(--warning); flex-shrink: 0; margin-top: 1px; display: flex; }
-        .premium-warning .warn-icon svg { width: 13px; height: 13px; }
-        .premium-warning .warn-text { font-size: 11px; line-height: 1.4; color: #fcd34d; }
-        .premium-warning .warn-text strong { color: var(--warning); font-weight: 700; }
-        .fullscreen-hint { display: none; align-items: flex-start; gap: 6px; margin-top: 3px; padding: 5px 7px; background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.22); border-radius: 8px; animation: slideDown 0.22s ease-out; }
-        .fullscreen-hint .warn-icon { color: var(--cyan); flex-shrink: 0; margin-top: 1px; display: flex; }
-        .fullscreen-hint .warn-icon svg { width: 13px; height: 13px; }
-        .fullscreen-hint .warn-text { font-size: 11px; line-height: 1.4; color: #a5f3fc; }
-        .fullscreen-hint .warn-text strong { color: var(--cyan); font-weight: 700; }
-        .btn { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; padding: 9px 12px; margin-top: 7px; background: linear-gradient(135deg, rgba(34,211,238,0.1), rgba(34,211,238,0.04)); border: 1px solid rgba(34,211,238,0.28); border-radius: 10px; color: #a5f3fc; font-size: 12.5px; font-weight: 600; cursor: pointer; outline: none; letter-spacing: -0.1px; box-shadow: inset 0 0 12px rgba(34,211,238,0.05); transition: all 0.22s ease; opacity: 0; animation: fadeIn 0.45s ease-out 0.5s forwards; }
-        .btn svg { width: 14px; height: 14px; flex-shrink: 0; }
-        .btn:hover { background: rgba(34,211,238,0.16); box-shadow: 0 4px 18px rgba(34,211,238,0.14); border-color: rgba(34,211,238,0.52); transform: translateY(-1px); }
-        .footer { margin-top: 7px; text-align: center; font-size: 10.5px; color: var(--text-sub); opacity: 0; animation: fadeIn 0.45s ease-out forwards; animation-delay: 0.58s; }
-        .github-btn { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 4px auto 0; padding: 4px 10px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: rgba(255,255,255,0.65); text-decoration: none; border-radius: 20px; font-size: 11.5px; font-weight: 600; width: fit-content; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); }
-        .github-btn svg { width: 13px; height: 13px; fill: currentColor; }
-        .github-btn:hover { background: rgba(255,255,255,0.1); transform: scale(1.04); color: #fff; border-color: var(--border-hover); }
-        #resume-panel { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); z-index: 9999; display: none; flex-direction: column; border-radius: 18px; overflow: hidden; animation: slideInRight 0.22s ease-out; }
-        #resume-panel.visible { display: flex; }
-        @keyframes slideInRight { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
-        .rp-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 8px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-        .rp-header h3 { margin: 0; font-size: 14px; font-weight: 700; color: var(--cyan); display: flex; align-items: center; gap: 7px; }
-        .rp-header h3 svg { width: 15px; height: 15px; flex-shrink: 0; }
-        .rp-header-right { display: flex; gap: 6px; align-items: center; }
-        .rp-icon-btn { background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--text-sub); width: 28px; height: 28px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-        .rp-icon-btn svg { width: 14px; height: 14px; }
-        .rp-icon-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); border-color: var(--border-hover); }
-        .rp-search { padding: 6px 14px 4px; flex-shrink: 0; }
-        .rp-search input { width: 100%; padding: 6px 10px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--text); border-radius: 20px; font-size: 12px; outline: none; transition: border-color 0.2s; }
-        .rp-search input:focus { border-color: rgba(99,102,241,0.4); }
-        .rp-search input::placeholder { color: var(--text-muted); }
-        .rp-list { flex: 1; overflow-y: auto; padding: 6px 14px 10px; scrollbar-width: thin; scrollbar-color: #222 transparent; }
-        .rp-list::-webkit-scrollbar { width: 4px; }
-        .rp-list::-webkit-scrollbar-thumb { background: #222; border-radius: 4px; }
-        .rp-empty { text-align: center; color: var(--text-muted); font-size: 13px; margin-top: 60px; line-height: 1.8; }
-        .rp-empty-icon { display: flex; justify-content: center; margin-bottom: 10px; }
-        .rp-empty-icon svg { width: 32px; height: 32px; opacity: 0.28; }
-        .rp-video-card { display: flex; gap: 8px; padding: 7px; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; margin-bottom: 7px; cursor: pointer; text-decoration: none; color: inherit; transition: all 0.18s; background: rgba(255,255,255,0.02); position: relative; }
-        .rp-video-card:hover { background: rgba(255,255,255,0.06); border-color: rgba(34,211,238,0.28); transform: translateX(2px); }
-        .rp-thumb { width: 100px; height: 56px; border-radius: 6px; object-fit: cover; flex-shrink: 0; background: #111; }
-        .rp-info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; }
-        .rp-title { font-size: 11.5px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--text); }
-        .rp-channel { font-size: 10.5px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .rp-time-row { display: flex; justify-content: space-between; align-items: center; }
-        .rp-time { font-size: 10.5px; color: var(--cyan); font-weight: 600; }
-        .rp-duration { font-size: 10.5px; color: var(--text-muted); }
-        .rp-complete-badge { font-size: 10px; font-weight: 700; color: var(--success); background: rgba(16,185,129,0.11); border: 1px solid rgba(16,185,129,0.32); padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
-        .rp-progress-wrap { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: rgba(255,255,255,0.05); border-radius: 0 0 10px 10px; overflow: hidden; }
-        .rp-progress-bar { height: 100%; background: var(--cyan); border-radius: 2px; }
-        .rp-right-col { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; flex-shrink: 0; gap: 4px; padding: 2px 0; }
-        .rp-watch-count { font-size: 10px; font-weight: 700; color: var(--cyan); background: rgba(34,211,238,0.09); border: 1px solid rgba(34,211,238,0.25); border-radius: 10px; padding: 1px 7px; white-space: nowrap; line-height: 16px; }
-        .rp-delete-btn { display: none; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.35); color: #f87171; border-radius: 6px; font-size: 10px; padding: 2px 6px; cursor: pointer; transition: all 0.2s; }
-        .rp-video-card:hover .rp-delete-btn { display: block; }
-        .rp-delete-btn:hover { background: rgba(239,68,68,0.4); color: #fff; }
-        .rp-date-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); padding: 8px 14px 4px; border-bottom: 1px solid rgba(255,255,255,0.04); margin-top: 2px; }
-        #recap-panel { display: none; flex-direction: column; position: absolute; inset: 0; background: #0a0a12; z-index: 30; border-radius: 12px; }
-        #recap-panel.visible { display: flex; }
-        .recap-header { display: flex; align-items: center; gap: 8px; padding: 12px 14px 8px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-        .recap-header h3 { margin: 0; font-size: 14px; font-weight: 700; color: var(--cyan); flex: 1; display: flex; align-items: center; gap: 7px; }
-        .recap-header h3 svg { width: 15px; height: 15px; }
-        .recap-total { font-size: 10px; color: var(--text-muted); padding: 4px 14px 6px; flex-shrink: 0; }
-        .recap-body { flex: 1; overflow-y: auto; padding: 0 0 8px; }
-        .recap-body::-webkit-scrollbar { width: 4px; }
-        .recap-body::-webkit-scrollbar-thumb { background: #222; border-radius: 4px; }
-        .recap-section-title { font-size: 10.5px; font-weight: 700; color: var(--text-sub); padding: 10px 14px 5px; text-transform: uppercase; letter-spacing: 0.7px; display: flex; align-items: center; gap: 6px; }
-        .recap-section-title svg { width: 12px; height: 12px; opacity: 0.7; }
-        .recap-row { display: flex; align-items: center; gap: 8px; padding: 6px 14px; text-decoration: none; color: inherit; transition: background 0.15s; }
-        .recap-row:hover { background: rgba(255,255,255,0.04); }
-        .recap-channel-row { display: flex; align-items: center; gap: 8px; padding: 6px 14px; }
-        .recap-rank { font-size: 11px; font-weight: 700; color: var(--cyan); width: 20px; flex-shrink: 0; }
-        .recap-thumb { width: 60px; height: 34px; border-radius: 4px; object-fit: cover; background: #111; flex-shrink: 0; }
-        .recap-info { flex: 1; min-width: 0; }
-        .recap-title { font-size: 11px; color: rgba(228,228,239,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .recap-channel { font-size: 10px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
-        .recap-count { font-size: 11px; font-weight: 700; color: var(--cyan); flex-shrink: 0; }
-        .recap-empty { font-size: 12px; color: var(--text-muted); text-align: center; padding: 16px; }
-        #resume-settings-panel { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); z-index: 10000; display: none; flex-direction: column; border-radius: 18px; overflow: hidden; animation: slideInRight 0.2s ease-out; }
-        #resume-settings-panel.visible { display: flex; }
-        .rsp-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px 8px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-        .rsp-header h3 { margin: 0; font-size: 14px; font-weight: 700; flex: 1; }
-        .rsp-back { background: none; border: none; color: var(--cyan); cursor: pointer; padding: 0 4px; line-height: 1; display: flex; align-items: center; justify-content: center; }
-        .rsp-back svg { width: 18px; height: 18px; }
-        .rsp-body { flex: 1; padding: 10px 14px; overflow-y: auto; }
-        .rsp-field { margin-bottom: 14px; }
-        .rsp-field label { display: block; font-size: 12px; color: var(--text-sub); margin-bottom: 5px; font-weight: 600; }
-        .rsp-field .rsp-row { display: flex; align-items: center; gap: 8px; }
-        .rsp-field input[type="number"] { width: 60px; background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 4px 8px; font-size: 13px; outline: none; -moz-appearance: textfield; text-align: center; }
-        .rsp-field input[type="number"]::-webkit-inner-spin-button, .rsp-field input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
-        .rsp-field .rsp-unit { font-size: 12px; color: var(--text-sub); }
-        .rsp-toggle-row { display: flex; align-items: center; justify-content: space-between; }
-        .rsp-toggle-label { font-size: 13px; font-weight: 600; }
-        .rsp-save { width: 100%; padding: 9px; margin-top: 4px; background: linear-gradient(135deg, rgba(34,211,238,0.18), rgba(34,211,238,0.08)); border: 1px solid rgba(34,211,238,0.35); color: var(--cyan); border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 13px; transition: all 0.2s; }
-        .rsp-save:hover { background: rgba(34,211,238,0.26); }
-        .rsp-saved-msg { text-align: center; font-size: 11px; color: var(--success); margin-top: 6px; opacity: 0; transition: opacity 0.3s; }
-        .rsp-saved-msg.show { opacity: 1; }
-        .rsp-backup-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.06); }
-        .rsp-backup-section label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-sub); margin-bottom: 8px; font-weight: 600; }
-        .rsp-backup-section label svg { width: 13px; height: 13px; }
-        .rsp-backup-section p { font-size: 11px; color: var(--text-muted); margin: 0 0 10px; line-height: 1.5; }
-        .rsp-backup-btns { display: flex; gap: 8px; }
-        .rsp-backup-btn { flex: 1; padding: 7px 6px; background: rgba(34,211,238,0.07); border: 1px solid rgba(34,211,238,0.26); border-radius: 8px; color: var(--cyan); font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px; }
-        .rsp-backup-btn svg { width: 12px; height: 12px; }
-        .rsp-backup-btn:hover { background: rgba(34,211,238,0.16); }
-        .rsp-restore-btn { flex: 1; padding: 7px 6px; background: rgba(245,158,11,0.07); border: 1px solid rgba(245,158,11,0.28); border-radius: 8px; color: var(--warning); font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px; }
-        .rsp-restore-btn svg { width: 12px; height: 12px; }
-        .rsp-restore-btn:hover { background: rgba(245,158,11,0.16); }
-        .rsp-backup-msg { text-align: center; font-size: 11px; color: var(--success); margin-top: 8px; opacity: 0; transition: opacity 0.3s; }
-        .rsp-backup-msg.show { opacity: 1; }
-        #welcome-screen { width: 320px; min-height: 380px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px 22px 24px; text-align: center; box-sizing: border-box; }
-        .welcome-star-emoji { width: 64px; height: 64px; background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(99,102,241,0.06)); border: 1px solid rgba(99,102,241,0.3); border-radius: 18px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; animation: starPop 0.55s cubic-bezier(0.34,1.56,0.64,1) forwards; }
-        .welcome-star-emoji svg { width: 32px; height: 32px; }
-        .welcome-title { font-size: 17px; font-weight: 800; margin: 0 0 8px; background: linear-gradient(135deg, #fcd34d, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .welcome-sub { font-size: 12px; color: var(--text-sub); line-height: 1.6; margin: 0 0 22px; }
-        .welcome-sub strong { color: rgba(255,255,255,0.85); }
-        #welcome-star-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 11px 16px; background: linear-gradient(135deg, #fcd34d, #f59e0b); border: none; border-radius: 12px; color: #1a0800; font-size: 14px; font-weight: 800; cursor: pointer; letter-spacing: -0.1px; text-decoration: none; box-shadow: 0 4px 20px rgba(245,158,11,0.38), inset 0 1px 0 rgba(255,255,255,0.22); transition: all 0.22s ease; }
-        #welcome-star-btn svg { width: 16px; height: 16px; }
-        #welcome-star-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(245,158,11,0.52); }
-        #welcome-star-btn:active { transform: translateY(0); }
-        #welcome-use-btn { display: none; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 9px 16px; margin-top: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 12px; color: var(--text-sub); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.22s ease; animation: fadeIn 0.4s ease-out forwards; }
-        #welcome-use-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); border-color: var(--border-hover); }
-        .welcome-divider { width: 40px; height: 1px; background: var(--border); margin: 18px auto 0; }
-        @keyframes starPop { from { transform: scale(0.3) rotate(-15deg); opacity: 0; } to { transform: scale(1) rotate(0deg); opacity: 1; } }
-        #welcome-coffee-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px 16px; margin-top: 10px; background: linear-gradient(135deg, #fde68a, #fbbf24); border: none; border-radius: 12px; color: #1a0a00; font-size: 13.5px; font-weight: 800; cursor: pointer; letter-spacing: -0.1px; text-decoration: none; box-shadow: 0 4px 18px rgba(251,191,36,0.3), inset 0 1px 0 rgba(255,255,255,0.25); transition: all 0.22s ease; }
-        #welcome-coffee-btn svg { width: 16px; height: 16px; }
-        #welcome-coffee-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 26px rgba(251,191,36,0.45); }
-        #welcome-coffee-btn:active { transform: translateY(0); }
-        .footer-btns { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 4px auto 0; width: fit-content; }
-        .coffee-btn { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 4px 10px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); color: #fcd34d; text-decoration: none; border-radius: 20px; font-size: 11.5px; font-weight: 600; width: fit-content; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); white-space: nowrap; }
-        .coffee-btn svg { width: 12px; height: 12px; }
-        .coffee-btn:hover { background: rgba(251,191,36,0.2); border-color: rgba(251,191,36,0.55); transform: scale(1.04); color: #fde68a; }
-        @keyframes containerFadeIn { from { opacity: 0; transform: scale(0.96) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-        @keyframes slideUpFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulseGlow { 0% { box-shadow: 0 0 4px rgba(16,185,129,0.1); } 100% { box-shadow: 0 0 12px rgba(16,185,129,0.38); } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        /* ── Update Banner ─────────────────────────────────────────────────────── */
-        #update-banner {
-            display: none; align-items: center; gap: 8px;
-            margin: 4px 4px 0; padding: 9px 10px 9px 12px;
-            background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(99,102,241,0.08));
-            border: 1px solid rgba(99,102,241,0.42); border-radius: 12px;
-            box-shadow: 0 0 18px rgba(99,102,241,0.18);
-            animation: updateBannerIn 0.38s cubic-bezier(0.34,1.36,0.64,1) forwards;
-            cursor: default;
-        }
-        #update-banner.visible { display: flex; }
-        .update-banner-icon {
-            width: 28px; height: 28px; flex-shrink: 0;
-            background: rgba(99,102,241,0.18); border: 1px solid rgba(99,102,241,0.36);
-            border-radius: 8px; display: flex; align-items: center; justify-content: center;
-        }
-        .update-banner-icon svg { width: 14px; height: 14px; }
-        .update-banner-text { flex: 1; min-width: 0; }
-        .update-banner-title {
-            font-size: 11.5px; font-weight: 700; color: #a5b4fc;
-            line-height: 1.2; margin-bottom: 2px;
-        }
-        .update-banner-sub { font-size: 10.5px; color: rgba(165,180,252,0.6); line-height: 1.3; }
-        .update-banner-sub strong { color: #a5b4fc; font-weight: 700; }
-        .update-banner-btn {
-            flex-shrink: 0; padding: 5px 10px;
-            background: rgba(99,102,241,0.22); border: 1px solid rgba(99,102,241,0.5);
-            border-radius: 8px; color: #a5b4fc; font-size: 11px; font-weight: 700;
-            cursor: pointer; transition: all 0.2s ease; font-family: inherit; white-space: nowrap;
-            display: inline-flex; align-items: center; gap: 5px;
-        }
-        .update-banner-btn svg { width: 12px; height: 12px; flex-shrink: 0; }
-        .update-banner-btn:hover {
-            background: rgba(99,102,241,0.38); box-shadow: 0 0 12px rgba(99,102,241,0.3);
-            transform: translateY(-1px);
-        }
-        .update-banner-dismiss {
-            flex-shrink: 0; width: 20px; height: 20px;
-            background: none; border: none; color: rgba(165,180,252,0.4);
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
-            border-radius: 4px; transition: color 0.2s, background 0.2s; padding: 0;
-        }
-        .update-banner-dismiss:hover { color: rgba(165,180,252,0.9); background: rgba(255,255,255,0.07); }
-        .update-banner-dismiss svg { width: 11px; height: 11px; }
-        @keyframes updateBannerIn {
-            from { opacity: 0; transform: translateY(-8px) scale(0.97); }
-            to   { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        /* ── Report Button ─────────────────────────────────────────────────────── */
-        .report-btn {
-            display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-            width: auto; margin: 6px auto 0; padding: 5px 14px;
-            background: linear-gradient(135deg, rgba(239,68,68,0.09), rgba(239,68,68,0.03));
-            border: 1px solid rgba(239,68,68,0.26); border-radius: 999px;
-            color: #fca5a5; font-size: 11.5px; font-weight: 600; cursor: pointer; outline: none;
-            letter-spacing: -0.1px; box-shadow: inset 0 0 12px rgba(239,68,68,0.04);
-            transition: all 0.22s ease; opacity: 0;
-            animation: fadeIn 0.45s ease-out 0.56s forwards; font-family: inherit;
-        }
-        .report-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
-        .report-btn:hover { background: rgba(239,68,68,0.15); box-shadow: 0 4px 18px rgba(239,68,68,0.13); border-color: rgba(239,68,68,0.50); transform: translateY(-1px); }
-        /* ── Check for Update Button ───────────────────────────────────────────── */
-        .update-check-btn {
-            display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-            width: auto; margin: 6px auto 0; padding: 5px 14px;
-            background: linear-gradient(135deg, rgba(99,102,241,0.09), rgba(99,102,241,0.03));
-            border: 1px solid rgba(99,102,241,0.26); border-radius: 999px;
-            color: #a5b4fc; font-size: 11.5px; font-weight: 600; cursor: pointer; outline: none;
-            letter-spacing: -0.1px; transition: all 0.22s ease; opacity: 0;
-            animation: fadeIn 0.45s ease-out 0.54s forwards; font-family: inherit;
-        }
-        .update-check-btn svg { width: 13px; height: 13px; flex-shrink: 0; transition: transform 0.6s linear; }
-        .update-check-btn:hover:not(:disabled) { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.50); transform: translateY(-1px); }
-        .update-check-btn:disabled { cursor: default; }
-        .update-check-btn.is-checking { opacity: 0.75; }
-        .update-check-btn.is-checking svg { animation: spinOnce 1s linear infinite; }
-        .update-check-btn.is-uptodate { color: #6ee7b7; border-color: rgba(16,185,129,0.38); background: rgba(16,185,129,0.07); }
-        .update-check-btn.is-found { color: #a5b4fc; border-color: rgba(99,102,241,0.52); background: rgba(99,102,241,0.15); }
-        .update-check-btn.is-error { color: #fcd34d; border-color: rgba(245,158,11,0.38); background: rgba(245,158,11,0.07); }
-        @keyframes spinOnce { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        /* ── Report Panel ──────────────────────────────────────────────────────── */
-        #report-panel { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); z-index: 9999; display: none; flex-direction: column; border-radius: 18px; overflow: hidden; }
-        #report-panel.visible { display: flex; }
-        .report-body { flex: 1; overflow-y: auto; padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 10px; scrollbar-width: thin; scrollbar-color: #222 transparent; }
-        .report-body::-webkit-scrollbar { width: 4px; }
-        .report-body::-webkit-scrollbar-thumb { background: #222; border-radius: 4px; }
-        .report-desc { font-size: 11.5px; color: var(--text-sub); line-height: 1.6; margin: 0; background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.16); border-radius: 8px; padding: 8px 10px; }
-        .report-field { display: flex; flex-direction: column; gap: 5px; }
-        .report-field label { font-size: 11.5px; font-weight: 600; color: var(--text-sub); }
-        .report-field input[type="text"] { padding: 8px 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); border-radius: 8px; font-size: 12px; outline: none; transition: border-color 0.2s; font-family: inherit; }
-        .report-field input[type="text"]:focus { border-color: rgba(239,68,68,0.38); }
-        .report-field input[type="text"]::placeholder { color: var(--text-muted); }
-        .report-field textarea { padding: 8px 10px; min-height: 80px; resize: vertical; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); border-radius: 8px; font-size: 12px; outline: none; transition: border-color 0.2s; font-family: inherit; line-height: 1.5; }
-        .report-field textarea:focus { border-color: rgba(239,68,68,0.38); }
-        .report-field textarea::placeholder { color: var(--text-muted); }
-        .report-upload-area { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 12px; border: 1.5px dashed rgba(255,255,255,0.12); border-radius: 8px; cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.02); position: relative; min-height: 58px; }
-        .report-upload-area:hover { border-color: rgba(239,68,68,0.38); background: rgba(239,68,68,0.04); }
-        .report-upload-area svg { width: 18px; height: 18px; opacity: 0.45; }
-        .report-upload-area span { font-size: 11px; color: var(--text-muted); }
-        .report-upload-area input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-        .report-preview-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-        .report-preview-item { position: relative; width: 60px; height: 60px; }
-        .report-preview-item img { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); display: block; }
-        .report-preview-remove { position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; background: #ef4444; border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 700; line-height: 1; padding: 0; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
-        .report-preview-remove:hover { background: #dc2626; }
-        #report-submit-btn { padding: 10px 16px; background: linear-gradient(135deg, rgba(239,68,68,0.18), rgba(239,68,68,0.08)); border: 1px solid rgba(239,68,68,0.38); border-radius: 10px; color: #fca5a5; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; width: 100%; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 2px; }
-        #report-submit-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
-        #report-submit-btn:hover:not(:disabled) { background: rgba(239,68,68,0.28); box-shadow: 0 4px 16px rgba(239,68,68,0.22); transform: translateY(-1px); }
-        #report-submit-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-        #report-status { font-size: 11.5px; text-align: center; min-height: 16px; line-height: 1.5; }
-        #report-status.success { color: #4ade80; }
-        #report-status.error { color: #f87171; }
+<meta charset="UTF-8">
+<title>YouTube Pro+</title>
+<style>
+:root{
+  --bg:#08080f; --bg-2:#0c0c17;
+  --surface:rgba(15,15,24,0.96); --surface-2:rgba(255,255,255,0.025);
+  --border:rgba(255,255,255,0.07); --border-hover:rgba(255,255,255,0.16);
+  --accent:#7c7bff; --accent-dim:rgba(124,123,255,0.14); --accent-glow:0 0 16px rgba(124,123,255,0.45);
+  --cyan:#2dd9f0; --cyan-dim:rgba(45,217,240,0.12); --cyan-glow:0 0 14px rgba(45,217,240,0.4);
+  --warning:#f5a524; --warn-dim:rgba(245,165,36,0.12);
+  --success:#12d992; --danger:#f2495c;
+  --text:#eeeef7; --text-sub:rgba(238,238,247,0.46); --text-muted:rgba(238,238,247,0.24);
+}
+*{box-sizing:border-box;}
+html{width:max-content;max-width:700px;min-width:420px;max-height:820px;overflow-x:hidden;overflow-y:auto;}
+body{
+  width:100%;min-width:420px;max-width:700px;margin:0;padding:10px;box-sizing:border-box;
+  font-family:-apple-system,'SF Pro Display','Segoe UI',system-ui,sans-serif;
+  background:
+    radial-gradient(1100px 420px at 10% -10%, rgba(124,123,255,0.16), transparent 55%),
+    radial-gradient(900px 400px at 100% 0%, rgba(45,217,240,0.10), transparent 50%),
+    var(--bg);
+  color:var(--text);overflow-x:hidden;overflow-y:auto;position:relative;max-height:820px;
+  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.18) transparent;
+}
+html::-webkit-scrollbar,body::-webkit-scrollbar{width:6px;}
+html::-webkit-scrollbar-thumb,body::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.18);border-radius:4px;}
+html::-webkit-scrollbar-track,body::-webkit-scrollbar-track{background:transparent;}
+body.disabled-mode .settings-grid,body.disabled-mode .footer{opacity:.35;pointer-events:none;filter:grayscale(100%);transition:all .4s ease;}
 
-        /* ══════════════════════════════════════════════════════════════════
-           LIQUID GLASS — iOS 26 style refraction layer
-           Ref: https://github.com/archisvaze/liquid-glass
-           Adds SVG feDisplacementMap-based refraction + specular edge highlight
-           on top of the existing backdrop-filter glass. Chromium-only backdrop
-           filter reference degrades gracefully to the original blur elsewhere.
-           ══════════════════════════════════════════════════════════════════ */
-        .glass-container,
-        #resume-panel, #recap-panel, #resume-settings-panel, #report-panel {
-            position: relative;
-            background: radial-gradient(ellipse at -8% 0%, rgba(99,102,241,0.20) 0%, rgba(99,102,241,0.06) 40%, transparent 65%), rgba(13,13,22,0.62) !important;
-            backdrop-filter: url(#liquid-glass-distortion) blur(20px) saturate(165%) !important;
-            -webkit-backdrop-filter: blur(20px) saturate(165%) !important;
-            isolation: isolate;
-        }
-        .glass-container::before,
-        #resume-panel::before, #recap-panel::before, #resume-settings-panel::before, #report-panel::before {
-            content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
-            background: linear-gradient(128deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.05) 28%, rgba(255,255,255,0.02) 55%, rgba(255,255,255,0.22) 78%, rgba(255,255,255,0.5) 100%);
-            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            -webkit-mask-composite: xor; mask-composite: exclude;
-            pointer-events: none; z-index: 2;
-        }
-        .glass-container::after,
-        #resume-panel::after, #recap-panel::after, #resume-settings-panel::after, #report-panel::after {
-            content: ""; position: absolute; left: 6%; right: 6%; top: 0; height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
-            pointer-events: none; z-index: 2;
-        }
+/* ── shell / header ─────────────────────────────────────────────── */
+.app-shell{position:relative;animation:shellIn .4s cubic-bezier(.2,.8,.2,1);}
+@keyframes shellIn{from{opacity:0;transform:translateY(6px) scale(.985);}to{opacity:1;transform:translateY(0) scale(1);}}
 
-        /* Full-screen overlay panels stack on top of other content (the main
-           settings view, or in the case of #recap-panel/#resume-settings-panel,
-           another one of our own panels). The shared liquid-glass rule above
-           makes them translucent + blurred, which is right for the small
-           floating main-view container but means these overlays let whatever
-           is behind them show through. Force them fully opaque instead —
-           same selectors, declared later, so this wins over the !important
-           background/backdrop-filter above. */
-        #resume-panel, #recap-panel, #resume-settings-panel, #report-panel {
-            background: #0a0a12 !important;
-            backdrop-filter: none !important;
-            -webkit-backdrop-filter: none !important;
-        }
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  background:linear-gradient(120deg, rgba(124,123,255,0.14), rgba(45,217,240,0.05) 60%, transparent);
+  border:1px solid var(--border);border-radius:16px;
+  padding:7px 12px;margin-bottom:7px;flex-wrap:wrap;gap:8px;width:100%;box-sizing:border-box;
+}
+.title-group{display:flex;align-items:center;gap:10px;}
+.ext-logo{width:30px;height:30px;border-radius:9px;box-shadow:var(--accent-glow);}
+.wordmark{margin:0;font-size:16px;font-weight:800;letter-spacing:-.3px;
+  background:linear-gradient(125deg,#fff 20%,#b7b6ff 80%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1;}
+#ext-version-label{font-size:9.5px;color:var(--text-muted);letter-spacing:.05em;font-weight:600;}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.pill-btn{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:10px;
+  font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid var(--border);
+  background:rgba(255,255,255,0.04);color:var(--text-sub);transition:all .2s ease;white-space:nowrap;font-family:inherit;
+}
+.pill-btn svg{width:13px;height:13px;flex-shrink:0;}
+.pill-btn:hover{background:rgba(255,255,255,0.09);color:var(--text);border-color:var(--border-hover);transform:translateY(-1px);}
+.pill-btn.cyan{color:#9be9f5;border-color:rgba(45,217,240,0.3);background:rgba(45,217,240,0.06);}
+.pill-btn.cyan:hover{background:rgba(45,217,240,0.15);border-color:rgba(45,217,240,0.5);}
+.pill-btn.danger{color:#fca5ac;border-color:rgba(242,73,92,0.28);background:rgba(242,73,92,0.05);}
+.pill-btn.danger:hover{background:rgba(242,73,92,0.14);border-color:rgba(242,73,92,0.48);}
+.pill-btn.indigo{color:#b7b6ff;border-color:rgba(124,123,255,0.35);background:rgba(124,123,255,0.10);}
+.pill-btn.indigo:hover{background:rgba(124,123,255,0.2);}
+.update-check-btn svg{transition:transform .6s linear;}
+.update-check-btn.is-checking svg{animation:spinOnce 1s linear infinite;}
+.update-check-btn.is-uptodate{color:#6ee7b7;border-color:rgba(18,217,146,.4);background:rgba(18,217,146,.08);}
+.update-check-btn.is-found{color:#b7b6ff;border-color:rgba(124,123,255,.5);background:rgba(124,123,255,.16);}
+.update-check-btn.is-error{color:#fcd34d;border-color:rgba(245,165,36,.4);background:rgba(245,165,36,.08);}
+@keyframes spinOnce{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
 
-        /* Liquid-glass buttons & interactive chips */
-        .btn, .power-btn, .icon-box, .info-btn, .github-btn, .coffee-btn,
-        .cine-btn, .rp-icon-btn, .rsp-save, .rsp-backup-btn, .rsp-restore-btn,
-        #report-submit-btn, #welcome-star-btn, #welcome-use-btn, #welcome-coffee-btn,
-        #cinematic-confirm-btn, #cinematic-cancel-btn, .update-banner-btn, .rsp-back {
-            position: relative;
-            backdrop-filter: url(#liquid-glass-distortion-sm) blur(6px) saturate(160%) !important;
-            -webkit-backdrop-filter: blur(6px) saturate(160%) !important;
-            isolation: isolate;
-            overflow: hidden;
-        }
-        .btn::before, .power-btn::before, .icon-box::before, .info-btn::before,
-        .github-btn::before, .coffee-btn::before, .cine-btn::before, .rp-icon-btn::before,
-        .rsp-save::before, .rsp-backup-btn::before, .rsp-restore-btn::before,
-        #report-submit-btn::before, #welcome-star-btn::before, #welcome-use-btn::before,
-        #welcome-coffee-btn::before, #cinematic-confirm-btn::before, #cinematic-cancel-btn::before,
-        .update-banner-btn::before {
-            content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
-            background: linear-gradient(135deg, rgba(255,255,255,0.5), rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.28));
-            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            -webkit-mask-composite: xor; mask-composite: exclude;
-            pointer-events: none; z-index: 1; opacity: 0.85; transition: opacity 0.25s ease;
-        }
-        .btn:hover::before, .power-btn:hover::before, .icon-box:hover::before, .info-btn:hover::before,
-        .github-btn:hover::before, .coffee-btn:hover::before, .cine-btn:hover::before, .rp-icon-btn:hover::before,
-        .rsp-save:hover::before, .rsp-backup-btn:hover::before, .rsp-restore-btn:hover::before,
-        #report-submit-btn:hover::before, #welcome-star-btn:hover::before, #welcome-use-btn:hover::before,
-        #welcome-coffee-btn:hover::before, #cinematic-confirm-btn:hover::before, #cinematic-cancel-btn:hover::before,
-        .update-banner-btn:hover::before {
-            opacity: 1;
-        }
-        .btn > *, .power-btn > *, .icon-box > *, .info-btn > *, .github-btn > *, .coffee-btn > *,
-        .cine-btn, .rp-icon-btn > *, #report-submit-btn > *, #welcome-star-btn > *, #welcome-use-btn > *,
-        #welcome-coffee-btn > *, #cinematic-confirm-btn > *, #cinematic-cancel-btn > *, .update-banner-btn > * {
-            position: relative; z-index: 2;
-        }
-        .btn:active, .power-btn:active, .github-btn:active, .coffee-btn:active,
-        #report-submit-btn:active, #welcome-star-btn:active, #cinematic-confirm-btn:active {
-            transform: scale(0.97) !important;
-        }
-    </style>
+.power-btn{
+  background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text-sub);
+  border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .25s cubic-bezier(.4,0,.2,1);flex-shrink:0;
+}
+.power-btn:hover{background:rgba(255,255,255,0.1);color:var(--text);}
+.power-btn.active{color:var(--success);border-color:rgba(18,217,146,.42);background:rgba(18,217,146,.08);animation:pulseGlow 2.5s infinite alternate ease-in-out;}
+.power-btn.active svg{filter:drop-shadow(0 0 3px var(--success));}
+@keyframes pulseGlow{0%{box-shadow:0 0 4px rgba(18,217,146,.1);}100%{box-shadow:0 0 12px rgba(18,217,146,.4);}}
+
+/* ── update banner ──────────────────────────────────────────────── */
+#update-banner{display:none;align-items:center;gap:10px;padding:9px 12px;margin-bottom:10px;
+  background:linear-gradient(120deg, rgba(124,123,255,0.2), rgba(124,123,255,0.06));
+  border:1px solid rgba(124,123,255,0.42);border-radius:12px;box-shadow:0 0 18px rgba(124,123,255,0.16);
+  animation:updateBannerIn .38s cubic-bezier(.34,1.36,.64,1) forwards;}
+#update-banner.visible{display:flex;}
+.update-banner-icon{width:28px;height:28px;flex-shrink:0;background:rgba(124,123,255,.18);border:1px solid rgba(124,123,255,.36);border-radius:8px;display:flex;align-items:center;justify-content:center;}
+.update-banner-icon svg{width:14px;height:14px;}
+.update-banner-text{flex:1;min-width:0;}
+.update-banner-title{font-size:11.5px;font-weight:700;color:#b7b6ff;line-height:1.2;margin-bottom:2px;}
+.update-banner-sub{font-size:10.5px;color:rgba(183,182,255,.62);}
+.update-banner-sub strong{color:#b7b6ff;font-weight:700;}
+.update-banner-btn{flex-shrink:0;padding:6px 11px;background:rgba(124,123,255,.22);border:1px solid rgba(124,123,255,.5);border-radius:8px;color:#b7b6ff;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s ease;font-family:inherit;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;}
+.update-banner-btn svg{width:12px;height:12px;}
+.update-banner-btn:hover{background:rgba(124,123,255,.38);box-shadow:0 0 12px rgba(124,123,255,.3);transform:translateY(-1px);}
+.update-banner-dismiss{flex-shrink:0;width:22px;height:22px;background:none;border:none;color:rgba(183,182,255,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:5px;transition:.2s;padding:0;}
+.update-banner-dismiss:hover{color:rgba(183,182,255,.9);background:rgba(255,255,255,.07);}
+.update-banner-dismiss svg{width:11px;height:11px;}
+@keyframes updateBannerIn{from{opacity:0;transform:translateY(-8px) scale(.97);}to{opacity:1;transform:translateY(0) scale(1);}}
+
+/* ── settings grid ──────────────────────────────────────────────── */
+.settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%;}
+.section{
+  background:var(--surface-2);border:1px solid var(--border);border-radius:12px;
+  padding:8px 8px 4px;display:flex;flex-direction:column;gap:0;
+  opacity:0;transform:translateY(8px);animation:secIn .35s ease-out forwards;
+}
+.settings-grid .section:nth-child(1){animation-delay:.03s;}
+.settings-grid .section:nth-child(2){animation-delay:.07s;}
+.settings-grid .section:nth-child(3){animation-delay:.11s;}
+.settings-grid .section:nth-child(4){animation-delay:.15s;}
+@keyframes secIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.section-title{
+  display:flex;align-items:center;gap:6px;font-size:9.5px;font-weight:800;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--text-sub);padding:1px 2px 4px;
+}
+.section-title .dot{width:6px;height:6px;border-radius:50%;box-shadow:0 0 6px currentColor;}
+.section.appearance .section-title{color:#c3c2ff;}
+.section.appearance .dot{background:var(--accent);color:var(--accent);}
+.section.playback .section-title{color:#9be9f5;}
+.section.playback .dot{background:var(--cyan);color:var(--cyan);}
+.section.content .section-title{color:#f6c98a;}
+.section.content .dot{background:var(--warning);color:var(--warning);}
+.section.extras .section-title{color:#9ff0cf;}
+.section.extras .dot{background:var(--success);color:var(--success);}
+
+.setting{padding:3px 2px;border-bottom:1px solid rgba(255,255,255,0.045);}
+.setting:last-child{border-bottom:none;}
+.setting-row{display:flex;justify-content:space-between;align-items:center;gap:6px;transition:transform .15s ease;}
+.setting-row:hover .icon-box{background:rgba(255,255,255,0.09);transform:scale(1.14) rotate(-6deg);}
+.label-group{display:flex;align-items:center;gap:7px;min-width:0;flex:1;}
+.icon-box{background:rgba(255,255,255,0.045);border:1px solid rgba(255,255,255,0.07);border-radius:6px;width:19px;height:19px;display:flex;align-items:center;justify-content:center;transition:all .25s cubic-bezier(.34,1.56,.64,1);flex-shrink:0;}
+.label{font-size:10.5px;font-weight:600;color:var(--text);letter-spacing:-.1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.info-btn{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);color:var(--text-sub);cursor:help;flex-shrink:0;transition:background .2s,border-color .2s;}
+.info-btn svg{width:8px;height:8px;}
+.info-btn:hover{background:rgba(255,255,255,0.14);border-color:rgba(245,165,36,.5);color:var(--warning);}
+.info-btn--gold{background:rgba(245,165,36,.1);border-color:rgba(245,165,36,.28);color:rgba(245,165,36,.7);}
+.info-btn--gold:hover{background:rgba(245,165,36,.2);border-color:rgba(245,165,36,.6);color:var(--warning);}
+
+#info-tooltip-box{visibility:hidden;opacity:0;position:fixed;left:14px;right:14px;bottom:14px;background:rgba(10,10,18,.98);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid rgba(245,165,36,.3);border-radius:12px;padding:11px 14px;color:rgba(255,255,255,.85);font-size:11px;line-height:1.6;box-shadow:0 -4px 28px rgba(0,0,0,.75);z-index:99999;pointer-events:none;transition:opacity .18s ease,visibility .18s ease;}
+#info-tooltip-box strong{color:var(--warning);display:flex;align-items:center;gap:5px;margin-bottom:4px;font-size:11.5px;}
+#info-tooltip-box strong svg{width:11px;height:11px;flex-shrink:0;}
+
+.switch{position:relative;display:inline-block;width:32px;height:17px;flex-shrink:0;}
+.switch input{opacity:0;width:0;height:0;position:absolute;}
+.slider{position:absolute;cursor:pointer;inset:0;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:20px;transition:background .3s,border-color .3s;}
+.switch:hover .slider{border-color:rgba(255,255,255,0.24);}
+.slider::before{content:"";position:absolute;width:10px;height:10px;left:3px;top:50%;transform:translateY(-50%);background:#888;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.5);transition:transform .32s cubic-bezier(.68,-.55,.265,1.55),background .3s;}
+input:checked + .slider{background:var(--accent-dim);border-color:var(--accent);}
+input:checked + .slider::before{transform:translateY(-50%) translateX(15px);background:var(--accent);box-shadow:var(--accent-glow);}
+#toggle-autoResume:checked + .slider{background:var(--cyan-dim);border-color:var(--cyan);}
+#toggle-autoResume:checked + .slider::before{background:var(--cyan);box-shadow:var(--cyan-glow);}
+
+.fullscreen-hint{display:none;align-items:flex-start;gap:6px;margin-top:5px;padding:6px 8px;background:rgba(45,217,240,0.08);border:1px solid rgba(45,217,240,0.22);border-radius:8px;animation:slideDown .22s ease-out;}
+.fullscreen-hint .warn-icon{color:var(--cyan);flex-shrink:0;margin-top:1px;display:flex;}
+.fullscreen-hint .warn-icon svg{width:13px;height:13px;}
+.fullscreen-hint .warn-text{font-size:10.5px;line-height:1.4;color:#a5f3fc;}
+.fullscreen-hint .warn-text strong{color:var(--cyan);font-weight:700;}
+@keyframes slideDown{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+
+/* cinematic sub controls */
+.cine-controls{display:none;flex-direction:column;gap:4px;padding:4px 2px 2px;border-top:1px solid rgba(255,255,255,0.05);margin-top:2px;}
+.cine-controls.visible{display:flex;}
+.cine-ctrl-row{display:flex;align-items:center;justify-content:space-between;gap:6px;}
+.cine-ctrl-label{font-size:9.5px;color:var(--text-sub);letter-spacing:.2px;flex-shrink:0;width:26px;}
+.cine-btn-group{display:flex;gap:3px;flex:1;}
+.cine-btn{flex:1;text-align:center;font-size:9px;padding:3px 4px;border-radius:5px;border:1px solid rgba(255,255,255,0.09);background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.42);cursor:pointer;transition:all .15s ease;font-family:inherit;white-space:nowrap;}
+.cine-btn:hover{background:rgba(255,255,255,0.09);color:rgba(255,255,255,0.78);border-color:rgba(255,255,255,0.2);}
+.cine-btn.active{background:rgba(245,165,36,.16);border-color:rgba(245,165,36,.5);color:#fbbf24;font-weight:700;}
+
+/* sponsorblock category controls */
+.sb-controls{display:none;grid-template-columns:1fr 1fr;gap:0 10px;padding:3px 0 1px;border-top:1px solid rgba(255,255,255,0.05);margin-top:2px;}
+.sb-controls.visible{display:grid;}
+.sb-cat-row{display:flex;align-items:center;justify-content:space-between;padding:2px 1px;}
+.sb-cat-left{display:flex;align-items:center;gap:7px;min-width:0;}
+.sb-cat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 4px rgba(0,0,0,.4);}
+.sb-cat-name{font-size:10.5px;color:rgba(255,255,255,.82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-switch{position:relative;display:inline-block;width:28px;height:15px;flex-shrink:0;}
+.sb-switch input{opacity:0;width:0;height:0;position:absolute;}
+.sb-slider{position:absolute;cursor:pointer;inset:0;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:16px;transition:background .25s,border-color .25s;}
+.sb-slider::before{content:"";position:absolute;width:9px;height:9px;left:2px;top:50%;transform:translateY(-50%);background:#888;border-radius:50%;transition:transform .25s,background .25s;}
+.sb-switch input:checked + .sb-slider::before{transform:translateY(-50%) translateX(13px);}
+.sb-switch input:checked + .sb-slider{border-color:rgba(255,255,255,0.3);background:rgba(255,255,255,0.16);}
+
+/* premium/other inline warnings kept minimal */
+.premium-warning{display:none;align-items:flex-start;gap:6px;margin-top:5px;padding:6px 8px;background:var(--warn-dim);border:1px solid rgba(245,165,36,.24);border-radius:8px;animation:slideDown .22s ease-out;}
+.premium-warning .warn-icon{color:var(--warning);flex-shrink:0;margin-top:1px;display:flex;}
+.premium-warning .warn-icon svg{width:13px;height:13px;}
+.premium-warning .warn-text{font-size:10.5px;line-height:1.4;color:#fcd34d;}
+.premium-warning .warn-text strong{color:var(--warning);font-weight:700;}
+
+/* ── footer ──────────────────────────────────────────────────────── */
+.footer{margin-top:6px;text-align:center;font-size:9.5px;color:var(--text-sub);}
+.footer-btns{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:4px;}
+.github-btn{display:flex;align-items:center;justify-content:center;gap:5px;padding:4px 10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:rgba(255,255,255,0.68);text-decoration:none;border-radius:20px;font-size:10.5px;font-weight:600;transition:all .25s cubic-bezier(.4,0,.2,1);}
+.github-btn svg{width:13px;height:13px;fill:currentColor;}
+.github-btn:hover{background:rgba(255,255,255,0.1);transform:scale(1.04);color:#fff;border-color:var(--border-hover);}
+.coffee-btn{display:flex;align-items:center;justify-content:center;gap:4px;padding:4px 10px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);color:#fcd34d;text-decoration:none;border-radius:20px;font-size:10.5px;font-weight:600;transition:all .25s cubic-bezier(.4,0,.2,1);white-space:nowrap;}
+.coffee-btn svg{width:12px;height:12px;}
+.coffee-btn:hover{background:rgba(251,191,36,0.2);border-color:rgba(251,191,36,0.55);transform:scale(1.04);color:#fde68a;}
+
+/* ── full-screen overlay panels (History / Recap / Settings / Report) ──── */
+#resume-panel{position:absolute;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:9999;display:none;flex-direction:column;border-radius:16px;overflow:hidden;animation:slideInRight .22s ease-out;border:1px solid var(--border);}
+#resume-panel.visible{display:flex;}
+@keyframes slideInRight{from{opacity:0;transform:translateX(18px);}to{opacity:1;transform:translateX(0);}}
+.rp-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.rp-header h3{margin:0;font-size:15px;font-weight:700;color:var(--cyan);display:flex;align-items:center;gap:7px;}
+.rp-header h3 svg{width:16px;height:16px;flex-shrink:0;}
+.rp-header-right{display:flex;gap:6px;align-items:center;}
+.rp-icon-btn{background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text-sub);width:30px;height:30px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.rp-icon-btn svg{width:14px;height:14px;}
+.rp-icon-btn:hover{background:rgba(255,255,255,0.1);color:var(--text);border-color:var(--border-hover);}
+.rp-search{padding:8px 16px 6px;flex-shrink:0;}
+.rp-search input{width:100%;padding:8px 12px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);border-radius:20px;font-size:12.5px;outline:none;transition:border-color .2s;font-family:inherit;}
+.rp-search input:focus{border-color:rgba(124,123,255,0.45);}
+.rp-search input::placeholder{color:var(--text-muted);}
+.rp-list{flex:1;overflow-y:auto;padding:6px 16px 14px;display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start;scrollbar-width:thin;scrollbar-color:#222 transparent;}
+.rp-list::-webkit-scrollbar{width:5px;}
+.rp-list::-webkit-scrollbar-thumb{background:#222;border-radius:4px;}
+.rp-date-header{grid-column:1 / -1;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);padding:8px 2px 2px;border-bottom:1px solid rgba(255,255,255,0.04);margin-top:2px;}
+.rp-empty{grid-column:1 / -1;text-align:center;color:var(--text-muted);font-size:13px;margin-top:60px;line-height:1.8;}
+.rp-empty-icon{display:flex;justify-content:center;margin-bottom:10px;}
+.rp-empty-icon svg{width:32px;height:32px;opacity:.28;}
+.rp-video-card{display:flex;gap:8px;padding:7px;border:1px solid rgba(255,255,255,0.06);border-radius:10px;cursor:pointer;text-decoration:none;color:inherit;transition:all .18s;background:rgba(255,255,255,0.02);position:relative;}
+.rp-video-card:hover{background:rgba(255,255,255,0.06);border-color:rgba(45,217,240,0.28);transform:translateX(2px);}
+.rp-thumb{width:96px;height:54px;border-radius:6px;object-fit:cover;flex-shrink:0;background:#111;}
+.rp-info{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between;}
+.rp-title{font-size:11.5px;font-weight:600;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--text);}
+.rp-channel{font-size:10.5px;color:var(--text-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rp-time-row{display:flex;justify-content:space-between;align-items:center;}
+.rp-time{font-size:10.5px;color:var(--cyan);font-weight:600;}
+.rp-duration{font-size:10.5px;color:var(--text-muted);}
+.rp-complete-badge{font-size:10px;font-weight:700;color:var(--success);background:rgba(18,217,146,.11);border:1px solid rgba(18,217,146,.32);padding:1px 6px;border-radius:3px;white-space:nowrap;}
+.rp-progress-wrap{position:absolute;bottom:0;left:0;right:0;height:2px;background:rgba(255,255,255,0.05);border-radius:0 0 10px 10px;overflow:hidden;}
+.rp-progress-bar{height:100%;background:var(--cyan);border-radius:2px;}
+.rp-right-col{display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;flex-shrink:0;gap:4px;padding:2px 0;}
+.rp-watch-count{font-size:10px;font-weight:700;color:var(--cyan);background:rgba(45,217,240,0.09);border:1px solid rgba(45,217,240,0.25);border-radius:10px;padding:1px 7px;white-space:nowrap;line-height:16px;}
+.rp-delete-btn{display:none;background:rgba(242,73,92,0.15);border:1px solid rgba(242,73,92,0.35);color:#f87171;border-radius:6px;font-size:10px;padding:2px 6px;cursor:pointer;transition:all .2s;}
+.rp-video-card:hover .rp-delete-btn{display:block;}
+.rp-delete-btn:hover{background:rgba(242,73,92,0.4);color:#fff;}
+
+#recap-panel{display:none;flex-direction:column;position:absolute;inset:0;background:#0a0a12;z-index:30;border-radius:14px;}
+#recap-panel.visible{display:flex;}
+.recap-header{
+  display:flex;align-items:center;gap:8px;padding:14px 16px 12px;flex-shrink:0;position:relative;
+  background:linear-gradient(120deg, rgba(244,63,94,0.16), rgba(245,158,11,0.10) 45%, rgba(34,211,238,0.12));
+  border-bottom:1px solid rgba(255,255,255,0.08);overflow:hidden;
+}
+.recap-header::before{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(420px 140px at 15% -30%, rgba(244,63,94,0.25), transparent 60%),
+             radial-gradient(420px 140px at 100% -10%, rgba(34,211,238,0.2), transparent 55%);
+  pointer-events:none;
+}
+.recap-header h3{margin:0;font-size:16px;font-weight:800;flex:1;display:flex;align-items:center;gap:8px;position:relative;z-index:1;
+  background:linear-gradient(120deg,#fff 10%,#67e8f9 60%,#fbbf24 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-.2px;}
+.recap-header h3 svg{width:18px;height:18px;flex-shrink:0;filter:drop-shadow(0 0 5px rgba(34,211,238,.5));}
+.recap-total{font-size:11px;font-weight:600;color:var(--text-sub);padding:9px 16px 4px;flex-shrink:0;letter-spacing:.02em;}
+.recap-body{flex:1;overflow-y:auto;padding:2px 0 14px;columns:2;column-gap:14px;}
+.recap-body::-webkit-scrollbar{width:5px;}
+.recap-body::-webkit-scrollbar-thumb{background:#222;border-radius:4px;}
+.recap-section-title{
+  font-size:10.5px;font-weight:800;color:var(--text-sub);padding:12px 16px 7px;text-transform:uppercase;
+  letter-spacing:.09em;display:flex;align-items:center;gap:6px;break-inside:avoid;
+}
+.recap-section-title svg{width:13px;height:13px;opacity:.85;}
+.recap-row{
+  display:flex;align-items:center;gap:9px;padding:8px 10px;margin:0 12px 7px;text-decoration:none;color:inherit;
+  transition:all .18s ease;break-inside:avoid;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);
+  border-radius:11px;position:relative;
+}
+.recap-row:hover{background:rgba(255,255,255,0.07);border-color:rgba(45,217,240,0.3);transform:translateX(2px);box-shadow:0 3px 14px rgba(0,0,0,.35);}
+.recap-channel-row{
+  display:flex;align-items:center;gap:9px;padding:8px 10px;margin:0 12px 7px;break-inside:avoid;
+  background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:11px;transition:all .18s ease;
+}
+.recap-channel-row:hover{background:rgba(255,255,255,0.07);border-color:rgba(124,123,255,0.3);}
+.recap-rank{
+  font-size:11px;font-weight:800;width:22px;height:22px;flex-shrink:0;border-radius:7px;
+  display:flex;align-items:center;justify-content:center;color:var(--text-sub);
+  background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);
+}
+.recap-row.rank-1 .recap-rank,.recap-channel-row.rank-1 .recap-rank{
+  color:#3a2200;background:linear-gradient(135deg,#fde68a,#f59e0b);border-color:rgba(245,158,11,.6);box-shadow:0 0 10px rgba(245,158,11,.45);
+}
+.recap-row.rank-2 .recap-rank,.recap-channel-row.rank-2 .recap-rank{
+  color:#20242c;background:linear-gradient(135deg,#e8eef5,#9fb0c3);border-color:rgba(180,195,210,.6);box-shadow:0 0 8px rgba(190,200,215,.35);
+}
+.recap-row.rank-3 .recap-rank,.recap-channel-row.rank-3 .recap-rank{
+  color:#3a1c05;background:linear-gradient(135deg,#f0b088,#c87a45);border-color:rgba(200,122,69,.6);box-shadow:0 0 8px rgba(200,122,69,.35);
+}
+.recap-thumb{width:60px;height:34px;border-radius:6px;object-fit:cover;background:#111;flex-shrink:0;border:1px solid rgba(255,255,255,0.08);}
+.recap-avatar{
+  width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;color:#fff;text-transform:uppercase;
+  background:linear-gradient(135deg,var(--av-a,#7c7bff),var(--av-b,#2dd9f0));box-shadow:0 0 8px rgba(0,0,0,.3);
+}
+.recap-info{flex:1;min-width:0;}
+.recap-title{font-size:11.5px;font-weight:600;color:rgba(238,238,247,.92);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.recap-channel{font-size:10px;color:var(--text-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+.recap-bar-track{height:3px;border-radius:2px;background:rgba(255,255,255,0.06);margin-top:5px;overflow:hidden;}
+.recap-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,#f43f5e,#f59e0b,#22d3ee);}
+.recap-count{
+  font-size:11px;font-weight:800;color:var(--cyan);flex-shrink:0;background:rgba(45,217,240,0.1);
+  border:1px solid rgba(45,217,240,0.28);border-radius:8px;padding:3px 7px;white-space:nowrap;
+}
+.recap-empty{grid-column:1/-1;font-size:12px;color:var(--text-muted);text-align:center;padding:24px 16px;}
+
+#recap-range-panel{display:none;flex-direction:column;position:absolute;inset:0;background:#0a0a12;z-index:40;border-radius:14px;}
+#recap-range-panel.visible{display:flex;}
+.recap-range-body{flex:1;padding:18px 16px;overflow-y:auto;}
+.recap-range-body p{font-size:11.5px;color:var(--text-sub);margin:0 0 16px;line-height:1.5;}
+.recap-range-field{margin-bottom:16px;}
+.recap-range-field label{display:block;font-size:12px;color:var(--text-sub);margin-bottom:6px;font-weight:600;}
+.recap-range-field input[type="date"]{width:100%;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;outline:none;box-sizing:border-box;font-family:inherit;color-scheme:dark;}
+.recap-range-presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;}
+.recap-range-preset{padding:5px 10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:20px;color:var(--text-sub);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit;}
+.recap-range-preset:hover,.recap-range-preset.active{background:rgba(45,217,240,0.14);border-color:rgba(45,217,240,0.35);color:var(--cyan);}
+.recap-range-error{font-size:11px;color:#f43f5e;margin:-8px 0 12px;min-height:14px;}
+.recap-range-generate{width:100%;padding:10px;background:linear-gradient(135deg, rgba(45,217,240,0.2), rgba(45,217,240,0.08));border:1px solid rgba(45,217,240,0.38);color:var(--cyan);border-radius:10px;cursor:pointer;font-weight:700;font-size:13px;transition:all .2s;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;}
+.recap-range-generate:hover{background:rgba(45,217,240,0.28);}
+.recap-range-generate:disabled{opacity:.55;cursor:default;}
+.recap-range-generate svg{width:14px;height:14px;}
+
+#yt-pro-toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%) translateY(20px);background:#111120;border:1px solid rgba(45,217,240,0.35);color:var(--text);font-size:12px;font-weight:600;padding:10px 16px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.45);display:flex;align-items:center;gap:8px;z-index:9999;opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease;}
+#yt-pro-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#yt-pro-toast svg{width:15px;height:15px;color:var(--success);flex-shrink:0;}
+
+#resume-settings-panel{position:absolute;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:10000;display:none;flex-direction:column;border-radius:16px;overflow:hidden;animation:slideInRight .2s ease-out;}
+#resume-settings-panel.visible{display:flex;}
+.rsp-header{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.rsp-header h3{margin:0;font-size:15px;font-weight:700;flex:1;}
+.rsp-back{background:none;border:none;color:var(--cyan);cursor:pointer;padding:0 4px;line-height:1;display:flex;align-items:center;justify-content:center;}
+.rsp-back svg{width:18px;height:18px;}
+.rsp-body{flex:1;padding:14px 16px;overflow-y:auto;columns:2;column-gap:20px;}
+.rsp-field{margin-bottom:14px;break-inside:avoid;}
+.rsp-field label{display:block;font-size:12px;color:var(--text-sub);margin-bottom:5px;font-weight:600;}
+.rsp-field .rsp-row{display:flex;align-items:center;gap:8px;}
+.rsp-field input[type="number"]{width:64px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:5px 8px;font-size:13px;outline:none;-moz-appearance:textfield;text-align:center;font-family:inherit;}
+.rsp-field input[type="number"]::-webkit-inner-spin-button,.rsp-field input[type="number"]::-webkit-outer-spin-button{-webkit-appearance:none;}
+.rsp-field .rsp-unit{font-size:12px;color:var(--text-sub);}
+.rsp-toggle-row{display:flex;align-items:center;justify-content:space-between;}
+.rsp-toggle-label{font-size:13px;font-weight:600;}
+.rsp-save{width:100%;padding:9px;margin-top:4px;background:linear-gradient(135deg, rgba(45,217,240,0.2), rgba(45,217,240,0.08));border:1px solid rgba(45,217,240,0.38);color:var(--cyan);border-radius:10px;cursor:pointer;font-weight:700;font-size:13px;transition:all .2s;font-family:inherit;}
+.rsp-save:hover{background:rgba(45,217,240,0.28);}
+.rsp-saved-msg{text-align:center;font-size:11px;color:var(--success);margin-top:6px;opacity:0;transition:opacity .3s;}
+.rsp-saved-msg.show{opacity:1;}
+.rsp-backup-section{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);break-inside:avoid;}
+.rsp-backup-section label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-sub);margin-bottom:8px;font-weight:600;}
+.rsp-backup-section label svg{width:13px;height:13px;}
+.rsp-backup-section p{font-size:11px;color:var(--text-muted);margin:0 0 10px;line-height:1.5;}
+.rsp-backup-btns{display:flex;gap:8px;}
+.rsp-backup-btn{flex:1;padding:7px 6px;background:rgba(45,217,240,0.08);border:1px solid rgba(45,217,240,0.28);border-radius:8px;color:var(--cyan);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;text-align:center;display:flex;align-items:center;justify-content:center;gap:5px;font-family:inherit;}
+.rsp-backup-btn svg{width:12px;height:12px;}
+.rsp-backup-btn:hover{background:rgba(45,217,240,0.18);}
+.rsp-restore-btn{flex:1;padding:7px 6px;background:rgba(245,165,36,0.08);border:1px solid rgba(245,165,36,0.3);border-radius:8px;color:var(--warning);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;text-align:center;display:flex;align-items:center;justify-content:center;gap:5px;font-family:inherit;}
+.rsp-restore-btn svg{width:12px;height:12px;}
+.rsp-restore-btn:hover{background:rgba(245,165,36,0.18);}
+.rsp-backup-msg{text-align:center;font-size:11px;color:var(--success);margin-top:8px;opacity:0;transition:opacity .3s;}
+.rsp-backup-msg.show{opacity:1;}
+
+#welcome-screen{width:100%;max-width:700px;min-width:420px;min-height:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center;box-sizing:border-box;}
+.welcome-star-emoji{width:70px;height:70px;background:linear-gradient(135deg, rgba(124,123,255,0.22), rgba(124,123,255,0.06));border:1px solid rgba(124,123,255,0.32);border-radius:20px;display:flex;align-items:center;justify-content:center;margin-bottom:18px;animation:starPop .55s cubic-bezier(.34,1.56,.64,1) forwards;}
+.welcome-star-emoji svg{width:36px;height:36px;}
+.welcome-title{font-size:20px;font-weight:800;margin:0 0 8px;background:linear-gradient(135deg,#fcd34d,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.welcome-sub{font-size:13px;color:var(--text-sub);line-height:1.6;margin:0 0 24px;max-width:420px;}
+.welcome-sub strong{color:rgba(255,255,255,0.88);}
+#welcome-star-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:280px;padding:12px 16px;background:linear-gradient(135deg,#fcd34d,#f59e0b);border:none;border-radius:12px;color:#1a0800;font-size:14px;font-weight:800;cursor:pointer;letter-spacing:-.1px;text-decoration:none;box-shadow:0 4px 20px rgba(245,158,11,.38), inset 0 1px 0 rgba(255,255,255,.22);transition:all .22s ease;}
+#welcome-star-btn svg{width:16px;height:16px;}
+#welcome-star-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(245,158,11,.52);}
+#welcome-use-btn{display:none;align-items:center;justify-content:center;gap:6px;width:280px;padding:9px 16px;margin-top:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:12px;color:var(--text-sub);font-size:13px;font-weight:600;cursor:pointer;transition:all .22s ease;animation:fadeIn .4s ease-out forwards;}
+#welcome-use-btn:hover{background:rgba(255,255,255,0.1);color:var(--text);border-color:var(--border-hover);}
+.welcome-divider{width:40px;height:1px;background:var(--border);margin:20px auto 0;}
+@keyframes starPop{from{transform:scale(.3) rotate(-15deg);opacity:0;}to{transform:scale(1) rotate(0deg);opacity:1;}}
+#welcome-coffee-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:280px;padding:10px 16px;margin-top:10px;background:linear-gradient(135deg,#fde68a,#fbbf24);border:none;border-radius:12px;color:#1a0a00;font-size:13.5px;font-weight:800;cursor:pointer;letter-spacing:-.1px;text-decoration:none;box-shadow:0 4px 18px rgba(251,191,36,.3), inset 0 1px 0 rgba(255,255,255,.25);transition:all .22s ease;}
+#welcome-coffee-btn svg{width:16px;height:16px;}
+#welcome-coffee-btn:hover{transform:translateY(-2px);box-shadow:0 8px 26px rgba(251,191,36,.45);}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+
+#cinematic-disclaimer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:999999;display:none;align-items:center;justify-content:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:16px;box-sizing:border-box;}
+#cinematic-disclaimer-modal{background:linear-gradient(160deg,#12111f,#0d0c1a);border:1px solid rgba(245,165,36,.24);border-radius:18px;padding:24px 22px 20px;width:100%;max-width:360px;text-align:center;box-shadow:0 16px 52px rgba(0,0,0,.75);animation:cinemaModalIn .2s cubic-bezier(.34,1.36,.64,1) forwards;}
+@keyframes cinemaModalIn{from{transform:scale(.88);opacity:0;}to{transform:scale(1);opacity:1;}}
+.cinematic-modal-icon{width:52px;height:52px;background:rgba(245,165,36,.1);border:1px solid rgba(245,165,36,.26);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;}
+.cinematic-modal-icon svg{width:26px;height:26px;}
+.cinematic-modal-title{font-size:14.5px;font-weight:800;margin:0 0 14px;background:linear-gradient(135deg,#fcd34d,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.cinematic-modal-body{font-size:12px;color:rgba(255,255,255,.64);line-height:1.65;text-align:left;margin-bottom:18px;}
+.cinematic-modal-body p{margin:0 0 9px;}
+.cinematic-modal-body p:last-child{margin-bottom:0;}
+.cinematic-modal-body strong{color:rgba(255,255,255,.9);}
+.cinematic-modal-body em{color:rgba(253,186,116,.95);font-style:normal;font-weight:600;}
+#cinematic-confirm-btn{width:100%;padding:11px 16px;margin-bottom:8px;background:linear-gradient(135deg,#fcd34d,#f59e0b);border:none;border-radius:10px;color:#1a0800;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 4px 18px rgba(245,158,11,.35);transition:all .2s ease;font-family:inherit;}
+#cinematic-confirm-btn svg{width:14px;height:14px;}
+#cinematic-confirm-btn:hover{transform:translateY(-1px);box-shadow:0 7px 24px rgba(245,158,11,.5);}
+#cinematic-cancel-btn{width:100%;padding:9px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:rgba(255,255,255,.46);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .2s ease;font-family:inherit;}
+#cinematic-cancel-btn:hover{background:rgba(255,255,255,0.09);color:rgba(255,255,255,.72);border-color:rgba(255,255,255,0.25);}
+
+#report-panel{position:absolute;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:9999;display:none;flex-direction:column;border-radius:16px;overflow:hidden;}
+#report-panel.visible{display:flex;}
+.report-body{flex:1;overflow-y:auto;padding:14px 18px 18px;display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;align-content:start;scrollbar-width:thin;scrollbar-color:#222 transparent;}
+.report-body::-webkit-scrollbar{width:5px;}
+.report-body::-webkit-scrollbar-thumb{background:#222;border-radius:4px;}
+.report-desc{grid-column:1 / -1;font-size:11.5px;color:var(--text-sub);line-height:1.6;margin:0;background:rgba(242,73,92,0.06);border:1px solid rgba(242,73,92,0.16);border-radius:8px;padding:9px 11px;}
+.report-field{display:flex;flex-direction:column;gap:5px;}
+.report-field.full{grid-column:1 / -1;}
+.report-field label{font-size:11.5px;font-weight:600;color:var(--text-sub);}
+.report-field input[type="text"]{padding:8px 10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text);border-radius:8px;font-size:12px;outline:none;transition:border-color .2s;font-family:inherit;}
+.report-field input[type="text"]:focus{border-color:rgba(242,73,92,.4);}
+.report-field input[type="text"]::placeholder{color:var(--text-muted);}
+.report-field textarea{padding:8px 10px;min-height:96px;resize:vertical;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text);border-radius:8px;font-size:12px;outline:none;transition:border-color .2s;font-family:inherit;line-height:1.5;}
+.report-field textarea:focus{border-color:rgba(242,73,92,.4);}
+.report-field textarea::placeholder{color:var(--text-muted);}
+.report-upload-area{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:14px;border:1.5px dashed rgba(255,255,255,0.12);border-radius:8px;cursor:pointer;transition:all .2s;background:rgba(255,255,255,0.02);position:relative;min-height:58px;}
+.report-upload-area:hover{border-color:rgba(242,73,92,.4);background:rgba(242,73,92,0.04);}
+.report-upload-area svg{width:18px;height:18px;opacity:.45;}
+.report-upload-area span{font-size:11px;color:var(--text-muted);}
+.report-upload-area input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.report-preview-grid{display:flex;flex-wrap:wrap;gap:6px;}
+.report-preview-item{position:relative;width:60px;height:60px;}
+.report-preview-item img{width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--border);display:block;}
+.report-preview-remove{position:absolute;top:-5px;right:-5px;width:16px;height:16px;background:var(--danger);border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;line-height:1;padding:0;box-shadow:0 1px 4px rgba(0,0,0,.5);}
+.report-preview-remove:hover{background:#d43a4c;}
+#report-submit-btn{grid-column:1 / -1;padding:11px 16px;background:linear-gradient(135deg, rgba(242,73,92,0.18), rgba(242,73,92,0.08));border:1px solid rgba(242,73,92,.4);border-radius:10px;color:#fca5ac;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;width:100%;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px;}
+#report-submit-btn svg{width:14px;height:14px;flex-shrink:0;}
+#report-submit-btn:hover:not(:disabled){background:rgba(242,73,92,.28);box-shadow:0 4px 16px rgba(242,73,92,.22);transform:translateY(-1px);}
+#report-submit-btn:disabled{opacity:.55;cursor:not-allowed;}
+#report-status{grid-column:1 / -1;font-size:11.5px;text-align:center;min-height:16px;line-height:1.5;}
+#report-status.success{color:#4ade80;}
+#report-status.error{color:#f87171;}
+
+/* ══ liquid glass refraction layer ══ */
+.section, #resume-panel, #recap-panel, #resume-settings-panel, #report-panel{
+  position:relative;isolation:isolate;
+}
+.section::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;
+  background:linear-gradient(128deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.04) 30%, rgba(255,255,255,0.02) 55%, rgba(255,255,255,0.18) 78%, rgba(255,255,255,0.4) 100%);
+  -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;z-index:2;
+}
+#resume-panel,#recap-panel,#resume-settings-panel,#report-panel{background:#0a0a12 !important;}
+
+.pill-btn,.power-btn,.icon-box,.info-btn,.github-btn,.coffee-btn,.cine-btn,.rp-icon-btn,
+.rsp-save,.rsp-backup-btn,.rsp-restore-btn,#report-submit-btn,#welcome-star-btn,#welcome-use-btn,
+#welcome-coffee-btn,#cinematic-confirm-btn,#cinematic-cancel-btn,.update-banner-btn,.rsp-back{
+  position:relative;overflow:hidden;
+}
+</style>
 </head>
 <body>
-    <svg width="0" height="0" style="position:absolute; overflow:hidden;" aria-hidden="true">
-        <defs>
-            <filter id="liquid-glass-distortion" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
-                <feTurbulence type="fractalNoise" baseFrequency="0.009 0.012" numOctaves="2" seed="9" result="noise"/>
-                <feGaussianBlur in="noise" stdDeviation="2.2" result="softNoise"/>
-                <feDisplacementMap in="SourceGraphic" in2="softNoise" scale="16" xChannelSelector="R" yChannelSelector="G"/>
-            </filter>
-            <filter id="liquid-glass-distortion-sm" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
-                <feTurbulence type="fractalNoise" baseFrequency="0.03 0.045" numOctaves="2" seed="4" result="noise2"/>
-                <feDisplacementMap in="SourceGraphic" in2="noise2" scale="5" xChannelSelector="R" yChannelSelector="G"/>
-            </filter>
-        </defs>
-    </svg>
-    <!-- ── Update Available Banner (shown when a newer version is on GitHub) ── -->
-    <div id="update-banner">
-        <div class="update-banner-icon">
-            <svg viewBox="0 0 16 16" fill="none" stroke="#a5b4fc" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M8 2 V9 M5 6.5 L8 9 L11 6.5"/>
-                <path d="M3 11 V13.5 H13 V11"/>
-            </svg>
+
+<div class="app-shell" id="main-view">
+
+  <!-- ── Update banner ─────────────────────────────────────────────── -->
+  <div id="update-banner">
+    <div class="update-banner-icon">
+      <svg viewBox="0 0 16 16" fill="none" stroke="#b7b6ff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 2 V9 M5 6.5 L8 9 L11 6.5"/><path d="M3 11 V13.5 H13 V11"/>
+      </svg>
+    </div>
+    <div class="update-banner-text">
+      <div class="update-banner-title">New Update Available!</div>
+      <div class="update-banner-sub">Version <strong id="update-banner-version"></strong> is ready on GitHub</div>
+    </div>
+    <button class="update-banner-btn" id="update-banner-btn">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 V10 M5 7.5 L8 10.5 L11 7.5"/><path d="M2 12.5 V14 H14 V12.5"/></svg>
+      Download
+    </button>
+    <button class="update-banner-dismiss" id="update-banner-dismiss" title="Dismiss">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
+    </button>
+  </div>
+
+  <!-- ── Top bar ────────────────────────────────────────────────────── -->
+  <div class="topbar">
+    <div class="title-group">
+      <img src="imgs/icon32.png" alt="Logo" class="ext-logo">
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <h3 class="wordmark">YouTube Pro+</h3>
+        <span id="ext-version-label"></span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button id="open-resume-history" class="pill-btn cyan">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><polyline points="8 5 8 8 10 10"/></svg>
+        History &amp; Resume
+      </button>
+      <button id="check-update-btn" class="pill-btn indigo update-check-btn">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M13.5 8 A5.5 5.5 0 1 1 10.5 3.2"/><polyline points="10.5 1.5 10.5 3.5 12.5 3.5"/>
+        </svg>
+        <span id="check-update-label">Check for Update</span>
+      </button>
+      <button id="open-report-panel" class="pill-btn danger">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 L14.5 13.5 H1.5 Z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg>
+        Report
+      </button>
+      <button id="master-toggle" class="power-btn active" title="Turn Extension On/Off">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Settings — 4 landscape columns ────────────────────────────── -->
+  <div class="settings-grid" id="settings-grid">
+
+    <!-- APPEARANCE -->
+    <div class="section appearance">
+      <div class="section-title"><span class="dot"></span>Appearance</div>
+
+      <div class="setting">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#8b5cf6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><circle cx="8" cy="8" r="5.5"/><circle cx="5" cy="6.5" r="0.8" fill="#8b5cf6" stroke="none"/><circle cx="8" cy="4.5" r="0.8" fill="#8b5cf6" stroke="none"/><circle cx="11" cy="6.5" r="0.8" fill="#8b5cf6" stroke="none"/><path d="M5.5 10.5 C5.5 9.1 6.6 8 8 8 C9.4 8 10.5 9.1 10.5 10.5 L5.5 10.5Z" fill="#8b5cf6" stroke="none"/></svg></div>
+            <span class="label">Liquid Glass Theme</span>
+            <span class="info-btn" id="info-btn" data-tip="theme"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+          </div>
+          <label class="switch"><input type="checkbox" id="toggle-theme"><span class="slider"></span></label>
         </div>
-        <div class="update-banner-text">
-            <div class="update-banner-title">New Update Available!</div>
-            <div class="update-banner-sub">Version <strong id="update-banner-version"></strong> is ready on GitHub</div>
+      </div>
+
+      <div class="setting">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M8 2 L9.8 6.2 L14.5 6.2 L10.8 9 L12.2 13.5 L8 10.8 L3.8 13.5 L5.2 9 L1.5 6.2 L6.2 6.2 Z"/></svg></div>
+            <span class="label">Premium Logo</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="toggle-premium"><span class="slider"></span></label>
         </div>
-        <button class="update-banner-btn" id="update-banner-btn">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 V10 M5 7.5 L8 10.5 L11 7.5"/><path d="M2 12.5 V14 H14 V12.5"/></svg>
-            Download
-        </button>
-        <button class="update-banner-dismiss" id="update-banner-dismiss" title="Dismiss">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-                <line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/>
-            </svg>
-        </button>
+      </div>
+
+      <div class="setting">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#6366f1" stroke-linecap="round" width="13" height="13"><rect x="4.5" y="4.5" width="7" height="7" rx="1.2" stroke-width="1.4"/><line x1="4.5" y1="4.5" x2="2.5" y2="2.5" stroke-width="1.3" opacity="0.9"/><line x1="11.5" y1="4.5" x2="13.5" y2="2.5" stroke-width="1.3" opacity="0.9"/><line x1="4.5" y1="11.5" x2="2.5" y2="13.5" stroke-width="1.3" opacity="0.9"/><line x1="11.5" y1="11.5" x2="13.5" y2="13.5" stroke-width="1.3" opacity="0.9"/><line x1="8" y1="4.5" x2="8" y2="2" stroke-width="1.2" opacity="0.6"/><line x1="8" y1="11.5" x2="8" y2="14" stroke-width="1.2" opacity="0.6"/><line x1="4.5" y1="8" x2="2" y2="8" stroke-width="1.2" opacity="0.6"/><line x1="11.5" y1="8" x2="14" y2="8" stroke-width="1.2" opacity="0.6"/></svg></div>
+            <span class="label">Super Ambient Mode</span>
+            <span class="info-btn" data-tip="ambient"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+          </div>
+          <label class="switch"><input type="checkbox" id="toggle-ambient"><span class="slider"></span></label>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#d97706" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><rect x="1.5" y="3.5" width="13" height="9" rx="1"/><line x1="1.5" y1="6" x2="3.5" y2="6"/><line x1="1.5" y1="8.5" x2="3.5" y2="8.5"/><line x1="1.5" y1="11" x2="3.5" y2="11"/><line x1="12.5" y1="6" x2="14.5" y2="6"/><line x1="12.5" y1="8.5" x2="14.5" y2="8.5"/><line x1="12.5" y1="11" x2="14.5" y2="11"/><line x1="5" y1="3.5" x2="5" y2="12.5"/><line x1="11" y1="3.5" x2="11" y2="12.5"/></svg></div>
+            <span class="label">Cinematic Mode</span>
+            <span class="info-btn info-btn--gold" data-tip="cinematic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+          </div>
+          <label class="switch"><input type="checkbox" id="toggle-cinematic"><span class="slider"></span></label>
+        </div>
+        <div class="cine-controls" id="cine-controls">
+          <div class="cine-ctrl-row"><span class="cine-ctrl-label">Blur</span><div class="cine-btn-group"><button class="cine-btn" data-ctrl="blur" data-val="low">Soft</button><button class="cine-btn" data-ctrl="blur" data-val="med">Std</button><button class="cine-btn" data-ctrl="blur" data-val="high">Strong</button></div></div>
+          <div class="cine-ctrl-row"><span class="cine-ctrl-label">Sat</span><div class="cine-btn-group"><button class="cine-btn" data-ctrl="sat" data-val="low">Low</button><button class="cine-btn" data-ctrl="sat" data-val="med">Std</button><button class="cine-btn" data-ctrl="sat" data-val="high">Vivid</button></div></div>
+          <div class="cine-ctrl-row"><span class="cine-ctrl-label">Dim</span><div class="cine-btn-group"><button class="cine-btn" data-ctrl="dim" data-val="low">Light</button><button class="cine-btn" data-ctrl="dim" data-val="med">Std</button><button class="cine-btn" data-ctrl="dim" data-val="high">Dark</button></div></div>
+        </div>
+      </div>
     </div>
 
-    <div class="glass-container" id="main-view">
-        <div class="header">
-            <div class="title-group">
-                <img src="imgs/icon32.png" alt="Logo" class="ext-logo">
-                <div style="display:flex;flex-direction:column;gap:2px;">
-                    <h3 class="wordmark">YouTube Pro+</h3>
-                    <span id="ext-version-label" style="font-size:9px;color:var(--text-muted);letter-spacing:0.04em;font-weight:500;line-height:1;"></span>
-                </div>
-            </div>
-            <button id="master-toggle" class="power-btn active" title="Turn Extension On/Off">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
-                    <line x1="12" y1="2" x2="12" y2="12"></line>
-                </svg>
-            </button>
-        </div>
+    <!-- PLAYBACK -->
+    <div class="section playback">
+      <div class="section-title"><span class="dot"></span>Playback</div>
 
-        <div class="settings-wrapper">
-            <div class="setting">
-                <div class="setting-row">
-                    <div class="label-group">
-                        <div class="icon-box">
-                            <svg viewBox="0 0 16 16" fill="none" stroke="#8b5cf6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="8" cy="8" r="5.5"/><circle cx="5" cy="6.5" r="0.8" fill="#8b5cf6" stroke="none"/><circle cx="8" cy="4.5" r="0.8" fill="#8b5cf6" stroke="none"/><circle cx="11" cy="6.5" r="0.8" fill="#8b5cf6" stroke="none"/><path d="M5.5 10.5 C5.5 9.1 6.6 8 8 8 C9.4 8 10.5 9.1 10.5 10.5 L5.5 10.5Z" fill="#8b5cf6" stroke="none"/></svg>
-                        </div>
-                        <span class="label">Liquid Glass Theme</span>
-                        <span class="info-btn" id="info-btn" data-tip="theme"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
-                    </div>
-                    <label class="switch"><input type="checkbox" id="toggle-theme"><span class="slider"></span></label>
-                </div>
-            </div>
-            <div class="setting">
-                <div class="setting-row">
-                    <div class="label-group">
-                        <div class="icon-box">
-                            <svg viewBox="0 0 16 16" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M8 2 L9.8 6.2 L14.5 6.2 L10.8 9 L12.2 13.5 L8 10.8 L3.8 13.5 L5.2 9 L1.5 6.2 L6.2 6.2 Z"/></svg>
-                        </div>
-                        <span class="label">Premium Logo</span>
-                    </div>
-                    <label class="switch"><input type="checkbox" id="toggle-premium"><span class="slider"></span></label>
-                </div>
-            </div>
-            <div class="setting">
-                <div class="setting-row">
-                    <div class="label-group">
-                        <div class="icon-box">
-                            <svg viewBox="0 0 16 16" fill="none" stroke="#6366f1" stroke-linecap="round" width="14" height="14"><rect x="4.5" y="4.5" width="7" height="7" rx="1.2" stroke-width="1.4"/><line x1="4.5" y1="4.5" x2="2.5" y2="2.5" stroke-width="1.3" opacity="0.9"/><line x1="11.5" y1="4.5" x2="13.5" y2="2.5" stroke-width="1.3" opacity="0.9"/><line x1="4.5" y1="11.5" x2="2.5" y2="13.5" stroke-width="1.3" opacity="0.9"/><line x1="11.5" y1="11.5" x2="13.5" y2="13.5" stroke-width="1.3" opacity="0.9"/><line x1="8" y1="4.5" x2="8" y2="2" stroke-width="1.2" opacity="0.6"/><line x1="8" y1="11.5" x2="8" y2="14" stroke-width="1.2" opacity="0.6"/><line x1="4.5" y1="8" x2="2" y2="8" stroke-width="1.2" opacity="0.6"/><line x1="11.5" y1="8" x2="14" y2="8" stroke-width="1.2" opacity="0.6"/></svg>
-                        </div>
-                        <span class="label">Super Ambient Mode</span>
-                        <span class="info-btn" data-tip="ambient"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
-                    </div>
-                    <label class="switch"><input type="checkbox" id="toggle-ambient"><span class="slider"></span></label>
-                </div>
-            </div>
-            <div class="setting">
-                <div class="setting-row">
-                    <div class="label-group">
-                        <div class="icon-box">
-                            <svg viewBox="0 0 16 16" fill="none" stroke="#d97706" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="1.5" y="3.5" width="13" height="9" rx="1"/><line x1="1.5" y1="6" x2="3.5" y2="6"/><line x1="1.5" y1="8.5" x2="3.5" y2="8.5"/><line x1="1.5" y1="11" x2="3.5" y2="11"/><line x1="12.5" y1="6" x2="14.5" y2="6"/><line x1="12.5" y1="8.5" x2="14.5" y2="8.5"/><line x1="12.5" y1="11" x2="14.5" y2="11"/><line x1="5" y1="3.5" x2="5" y2="12.5"/><line x1="11" y1="3.5" x2="11" y2="12.5"/></svg>
-                        </div>
-                        <span class="label">Cinematic Mode</span>
-                        <span class="info-btn info-btn--gold" data-tip="cinematic"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
-                    </div>
-                    <label class="switch"><input type="checkbox" id="toggle-cinematic"><span class="slider"></span></label>
-                </div>
-                <div class="cine-controls" id="cine-controls">
-                    <div class="cine-ctrl-row"><span class="cine-ctrl-label">Blur</span><div class="cine-btn-group"><button class="cine-btn" data-ctrl="blur" data-val="low">Soft</button><button class="cine-btn" data-ctrl="blur" data-val="med">Std</button><button class="cine-btn" data-ctrl="blur" data-val="high">Strong</button></div></div>
-                    <div class="cine-divider"></div><div class="cine-ctrl-row"><span class="cine-ctrl-label">Sat</span><div class="cine-btn-group"><button class="cine-btn" data-ctrl="sat" data-val="low">Low</button><button class="cine-btn" data-ctrl="sat" data-val="med">Std</button><button class="cine-btn" data-ctrl="sat" data-val="high">Vivid</button></div></div>
-                    <div class="cine-divider"></div><div class="cine-ctrl-row"><span class="cine-ctrl-label">Dim</span><div class="cine-btn-group"><button class="cine-btn" data-ctrl="dim" data-val="low">Light</button><button class="cine-btn" data-ctrl="dim" data-val="med">Std</button><button class="cine-btn" data-ctrl="dim" data-val="high">Dark</button></div></div>
-                </div>
-            </div>
-            <div class="setting">
-                <div class="setting-row">
-                    <div class="label-group">
-                        <div class="icon-box">
-                            <svg viewBox="0 0 16 16" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M2.5 11 A6 6 0 0 1 13.5 11"/><line x1="8" y1="11" x2="10.5" y2="6" stroke="#ef4444" stroke-width="1.5"/><circle cx="8" cy="11" r="1.2" fill="#ef4444" stroke="none"/><line x1="4" y1="11" x2="4.5" y2="9.5" stroke="#ef4444" stroke-width="1" opacity="0.5"/><line x1="12" y1="11" x2="11.5" y2="9.5" stroke="#ef4444" stroke-width="1" opacity="0.5"/><line x1="8" y1="5.5" x2="8" y2="6.5" stroke="#ef4444" stroke-width="1" opacity="0.5"/></svg>
-                        </div>
-                        <span class="label">10x Speed Booster</span>
-                    </div>
-                    <label class="switch"><input type="checkbox" id="toggle-speed"><span class="slider"></span></label>
-                </div>
-            </div>
-            <div class="setting" id="setting-audio">
-                <div class="setting-row">
-                    <div class="label-group">
-                        <div class="icon-box">
-                            <svg viewBox="0 0 16 16" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M2.5 5.5 H5 L8 2.5 V13.5 L5 10.5 H2.5 Z"/><path d="M10 5 C11.5 6 11.5 10 10 11"/><path d="M11.5 3.5 C13.5 5 13.5 11 11.5 12.5"/></svg>
-                        </div>
-                        <span class="label">Sound Booster</span>
-                    </div>
-                    <label class="switch"><input type="checkbox" id="toggle-audio"><span class="slider"></span></label>
-                </div>
-            </div>
-            <div class="setting">
-                <div class="setting-row">
-                    <div class="label-group">
-                        <div class="icon-box">
-                            <svg viewBox="0 0 16 16" fill="none" stroke="#ec4899" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="4.5" y="1.5" width="7" height="13" rx="1.5"/><path d="M6.5 5.5 L8 4 L9.5 5.5"/><path d="M6.5 10.5 L8 12 L9.5 10.5"/></svg>
-                        </div>
-                        <span class="label">Shorts Auto-Scroll</span>
-                    </div>
-                    <label class="switch"><input type="checkbox" id="toggle-autoscroll"><span class="slider"></span></label>
-                </div>
-            </div>
-            <div class="setting" id="setting-download">
-                <div class="setting-row">
-                    <div class="label-group">
-                        <div class="icon-box">
-                            <svg viewBox="0 0 16 16" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M8 2 V10"/><path d="M5 7.5 L8 10.5 L11 7.5"/><path d="M2 12.5 V14 H14 V12.5"/></svg>
-                        </div>
-                        <span class="label">Smart Download</span>
-                        <span class="info-btn info-btn--gold" data-tip="download"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
-                    </div>
-                    <label class="switch"><input type="checkbox" id="toggle-download"><span class="slider"></span></label>
-                </div>
-            </div>
-            <div class="setting" id="setting-builtin-downloader">
-                <div class="setting-row">
-                    <div class="label-group">
-                        <div class="icon-box">
-                            <svg viewBox="0 0 16 16" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M8 2 V10"/><path d="M5 7.5 L8 10.5 L11 7.5"/><path d="M2 12.5 V14 H14 V12.5"/></svg>
-                        </div>
-                        <span class="label">Built-in Downloader</span>
-                        <span class="info-btn" data-tip="builtin-downloader"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
-                    </div>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <button id="open-builtin-downloader" class="cine-btn" style="padding:4px 10px;font-size:10px;">Open</button>
-                        <label class="switch"><input type="checkbox" id="toggle-builtinDownloader"><span class="slider"></span></label>
-                    </div>
-                </div>
-            </div>
-            <div class="setting" id="setting-fullscreen">
-                <div class="setting-row">
-                    <div class="label-group">
-                        <div class="icon-box">
-                            <svg viewBox="0 0 16 16" fill="none" stroke="#14b8a6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M2 5 V2 H5"/><path d="M11 2 H14 V5"/><path d="M14 11 V14 H11"/><path d="M5 14 H2 V11"/></svg>
-                        </div>
-                        <span class="label">Auto Fullscreen on YouTube</span>
-                    </div>
-                    <label class="switch"><input type="checkbox" id="toggle-fullscreen"><span class="slider"></span></label>
-                </div>
-                <div class="fullscreen-hint" id="fullscreen-hint">
-                    <span class="warn-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
-                    <span class="warn-text">YouTube fullscreen — Press <strong>F11</strong> to exit.</span>
-                </div>
-            </div>
-            <div class="setting" id="setting-autoResume">
-                <div class="setting-row">
-                    <div class="label-group">
-                        <div class="icon-box">
-                            <svg viewBox="0 0 16 16" fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="8" cy="8" r="6.5"/><path d="M6 5.5 L11 8 L6 10.5 Z" fill="#22d3ee" stroke="none"/></svg>
-                        </div>
-                        <span class="label">Auto Resume</span>
-                    </div>
-                    <label class="switch"><input type="checkbox" id="toggle-autoResume"><span class="slider"></span></label>
-                </div>
-            </div>
-            <div class="setting" id="setting-screenshot">
-                <div class="setting-row">
-                    <div class="label-group">
-                        <div class="icon-box">
-                            <svg viewBox="0 0 16 16" fill="none" stroke="#00d2ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M5.5 3 L4.5 4.5 H2.5 A1.5 1.5 0 0 0 1 6 V12 A1.5 1.5 0 0 0 2.5 13.5 H13.5 A1.5 1.5 0 0 0 15 12 V6 A1.5 1.5 0 0 0 13.5 4.5 H11.5 L10.5 3 Z"/><circle cx="8" cy="9" r="2.3"/></svg>
-                        </div>
-                        <span class="label">Video Screenshot</span>
-                        <span class="info-btn" data-tip="screenshot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
-                    </div>
-                    <label class="switch"><input type="checkbox" id="toggle-screenshot"><span class="slider"></span></label>
-                </div>
-            </div>
-            <div class="setting" id="setting-returnDislike">
-                <div class="setting-row">
-                    <div class="label-group">
-                        <div class="icon-box">
-                            <svg viewBox="0 0 16 16" fill="none" stroke="#f43f5e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M8 3 C6 3 4.5 4.5 4.5 6.3 C4.5 8.5 6.5 10 8 12 C9.5 10 11.5 8.5 11.5 6.3 C11.5 4.5 10 3 8 3 Z" transform="rotate(180 8 8)"/></svg>
-                        </div>
-                        <span class="label">Return Youtube Dislike</span>
-                        <span class="info-btn" data-tip="returnDislike"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
-                    </div>
-                    <label class="switch"><input type="checkbox" id="toggle-returnDislike"><span class="slider"></span></label>
-                </div>
-            </div>
-            <div class="setting" id="setting-sponsorblock">
-                <div class="setting-row">
-                    <div class="label-group">
-                        <div class="icon-box">
-                            <svg viewBox="0 0 24 24" width="15" height="15" xmlns="http://www.w3.org/2000/svg"><path d="M12 2.2 L19 4.6 V11.2 C19 16.4 15.8 19.9 12 21.8 C8.2 19.9 5 16.4 5 11.2 V4.6 Z" fill="#e01e2b"/><path d="M12 3.5 L17.7 5.5 V11.1 C17.7 15.5 15.1 18.5 12 20.3 C8.9 18.5 6.3 15.5 6.3 11.1 V5.5 Z" fill="#fff"/><path d="M10.2 8.5 L15.1 11.4 L10.2 14.3 Z" fill="#e01e2b"/><circle cx="17.6" cy="17.6" r="4.2" fill="#f5a623" stroke="#8a5a06" stroke-width="0.6"/><text x="17.6" y="19.4" font-size="5.4" font-weight="700" font-family="Arial, sans-serif" text-anchor="middle" fill="#8a5a06">$</text></svg>
-                        </div>
-                        <span class="label">SponsorBlock</span>
-                        <span class="info-btn" data-tip="sponsorblock"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
-                    </div>
-                    <label class="switch"><input type="checkbox" id="toggle-sponsorblock"><span class="slider"></span></label>
-                </div>
-                <div class="sb-controls" id="sb-controls">
-                    <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#00d400"></span><span class="sb-cat-name">Sponsor</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-sponsor" data-cat="sponsor"><span class="sb-slider"></span></label></div>
-                    <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#ffff00"></span><span class="sb-cat-name">Self-Promotion</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-selfpromo" data-cat="selfpromo"><span class="sb-slider"></span></label></div>
-                    <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#cc3fff"></span><span class="sb-cat-name">Interaction Reminder</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-interaction" data-cat="interaction"><span class="sb-slider"></span></label></div>
-                    <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#00ffff"></span><span class="sb-cat-name">Intermission/Intro</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-intro" data-cat="intro"><span class="sb-slider"></span></label></div>
-                    <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#0202ed"></span><span class="sb-cat-name">Endcards/Credits</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-outro" data-cat="outro"><span class="sb-slider"></span></label></div>
-                    <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#008fd6"></span><span class="sb-cat-name">Preview/Recap</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-preview" data-cat="preview"><span class="sb-slider"></span></label></div>
-                    <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#7300FF"></span><span class="sb-cat-name">Filler Tangent</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-filler" data-cat="filler"><span class="sb-slider"></span></label></div>
-                    <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#ff9900"></span><span class="sb-cat-name">Non-Music Section</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-music_offtopic" data-cat="music_offtopic"><span class="sb-slider"></span></label></div>
-                </div>
-            </div>
-            <div class="setting" id="setting-miniplayer">
-                <div class="setting-row">
-                    <div class="label-group">
-                        <div class="icon-box">
-                            <svg viewBox="0 0 16 16" fill="none" stroke="#8b5cf6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="1.5" y="2.5" width="13" height="9" rx="1.2"/><rect x="8.5" y="7" width="5.5" height="4" rx="0.8" fill="#8b5cf6" stroke="none"/></svg>
-                        </div>
-                        <span class="label">Auto Mini Player</span>
-                        <span class="info-btn" data-tip="miniplayer"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
-                    </div>
-                    <label class="switch"><input type="checkbox" id="toggle-miniplayer"><span class="slider"></span></label>
-                </div>
-            </div>
-            <div class="setting" id="setting-watchparty">
-                <div class="setting-row">
-                    <div class="label-group">
-                        <div class="icon-box">
-                            <svg viewBox="0 0 16 16" fill="none" stroke="#ff6b9d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="4.5" cy="5" r="2"/><circle cx="11.5" cy="5" r="2"/><path d="M1.5 13 C1.5 10 3 8.5 4.5 8.5 C6 8.5 7.5 10 7.5 13"/><path d="M8.5 13 C8.5 10 10 8.5 11.5 8.5 C13 8.5 14.5 10 14.5 13"/></svg>
-                        </div>
-                        <span class="label">Watch Party</span>
-                        <span class="info-btn" data-tip="watchparty"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
-                    </div>
-                    <label class="switch"><input type="checkbox" id="toggle-watchparty"><span class="slider"></span></label>
-                </div>
-            </div>
+      <div class="setting">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M2.5 11 A6 6 0 0 1 13.5 11"/><line x1="8" y1="11" x2="10.5" y2="6" stroke="#ef4444" stroke-width="1.5"/><circle cx="8" cy="11" r="1.2" fill="#ef4444" stroke="none"/><line x1="4" y1="11" x2="4.5" y2="9.5" stroke="#ef4444" stroke-width="1" opacity="0.5"/><line x1="12" y1="11" x2="11.5" y2="9.5" stroke="#ef4444" stroke-width="1" opacity="0.5"/><line x1="8" y1="5.5" x2="8" y2="6.5" stroke="#ef4444" stroke-width="1" opacity="0.5"/></svg></div>
+            <span class="label">10x Speed Booster</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="toggle-speed"><span class="slider"></span></label>
         </div>
+      </div>
 
-        <button id="open-resume-history" class="btn">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><polyline points="8 5 8 8 10 10"/></svg>
-            Watch History &amp; Resume
+      <div class="setting" id="setting-audio">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M2.5 5.5 H5 L8 2.5 V13.5 L5 10.5 H2.5 Z"/><path d="M10 5 C11.5 6 11.5 10 10 11"/><path d="M11.5 3.5 C13.5 5 13.5 11 11.5 12.5"/></svg></div>
+            <span class="label">Sound Booster</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="toggle-audio"><span class="slider"></span></label>
+        </div>
+      </div>
+
+      <div class="setting" id="setting-fullscreen">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#14b8a6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M2 5 V2 H5"/><path d="M11 2 H14 V5"/><path d="M14 11 V14 H11"/><path d="M5 14 H2 V11"/></svg></div>
+            <span class="label">Auto Fullscreen</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="toggle-fullscreen"><span class="slider"></span></label>
+        </div>
+        <div class="fullscreen-hint" id="fullscreen-hint">
+          <span class="warn-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+          <span class="warn-text">YouTube fullscreen — Press <strong>F11</strong> to exit.</span>
+        </div>
+      </div>
+
+      <div class="setting" id="setting-autoResume">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><circle cx="8" cy="8" r="6.5"/><path d="M6 5.5 L11 8 L6 10.5 Z" fill="#22d3ee" stroke="none"/></svg></div>
+            <span class="label">Auto Resume</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="toggle-autoResume"><span class="slider"></span></label>
+        </div>
+      </div>
+
+      <div class="setting" id="setting-miniplayer">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#8b5cf6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><rect x="1.5" y="2.5" width="13" height="9" rx="1.2"/><rect x="8.5" y="7" width="5.5" height="4" rx="0.8" fill="#8b5cf6" stroke="none"/></svg></div>
+            <span class="label">Auto Mini Player</span>
+            <span class="info-btn" data-tip="miniplayer"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+          </div>
+          <label class="switch"><input type="checkbox" id="toggle-miniplayer"><span class="slider"></span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="section content">
+      <div class="section-title"><span class="dot"></span>Content</div>
+
+      <div class="setting">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#ec4899" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><rect x="4.5" y="1.5" width="7" height="13" rx="1.5"/><path d="M6.5 5.5 L8 4 L9.5 5.5"/><path d="M6.5 10.5 L8 12 L9.5 10.5"/></svg></div>
+            <span class="label">Shorts Auto-Scroll</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="toggle-autoscroll"><span class="slider"></span></label>
+        </div>
+      </div>
+
+      <div class="setting" id="setting-screenshot">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#00d2ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M5.5 3 L4.5 4.5 H2.5 A1.5 1.5 0 0 0 1 6 V12 A1.5 1.5 0 0 0 2.5 13.5 H13.5 A1.5 1.5 0 0 0 15 12 V6 A1.5 1.5 0 0 0 13.5 4.5 H11.5 L10.5 3 Z"/><circle cx="8" cy="9" r="2.3"/></svg></div>
+            <span class="label">Video Screenshot</span>
+            <span class="info-btn" data-tip="screenshot"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+          </div>
+          <label class="switch"><input type="checkbox" id="toggle-screenshot"><span class="slider"></span></label>
+        </div>
+      </div>
+
+      <div class="setting" id="setting-returnDislike">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#f43f5e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M8 3 C6 3 4.5 4.5 4.5 6.3 C4.5 8.5 6.5 10 8 12 C9.5 10 11.5 8.5 11.5 6.3 C11.5 4.5 10 3 8 3 Z" transform="rotate(180 8 8)"/></svg></div>
+            <span class="label">Return YT Dislike</span>
+            <span class="info-btn" data-tip="returnDislike"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+          </div>
+          <label class="switch"><input type="checkbox" id="toggle-returnDislike"><span class="slider"></span></label>
+        </div>
+      </div>
+
+      <div class="setting" id="setting-sponsorblock">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 24 24" width="14" height="14" xmlns="http://www.w3.org/2000/svg"><path d="M12 2.2 L19 4.6 V11.2 C19 16.4 15.8 19.9 12 21.8 C8.2 19.9 5 16.4 5 11.2 V4.6 Z" fill="#e01e2b"/><path d="M12 3.5 L17.7 5.5 V11.1 C17.7 15.5 15.1 18.5 12 20.3 C8.9 18.5 6.3 15.5 6.3 11.1 V5.5 Z" fill="#fff"/><path d="M10.2 8.5 L15.1 11.4 L10.2 14.3 Z" fill="#e01e2b"/><circle cx="17.6" cy="17.6" r="4.2" fill="#f5a623" stroke="#8a5a06" stroke-width="0.6"/><text x="17.6" y="19.4" font-size="5.4" font-weight="700" font-family="Arial, sans-serif" text-anchor="middle" fill="#8a5a06">$</text></svg></div>
+            <span class="label">SponsorBlock</span>
+            <span class="info-btn" data-tip="sponsorblock"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+          </div>
+          <label class="switch"><input type="checkbox" id="toggle-sponsorblock"><span class="slider"></span></label>
+        </div>
+        <div class="sb-controls" id="sb-controls">
+          <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#00d400"></span><span class="sb-cat-name">Sponsor</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-sponsor" data-cat="sponsor"><span class="sb-slider"></span></label></div>
+          <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#ffff00"></span><span class="sb-cat-name">Self-Promotion</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-selfpromo" data-cat="selfpromo"><span class="sb-slider"></span></label></div>
+          <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#cc3fff"></span><span class="sb-cat-name">Interaction Reminder</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-interaction" data-cat="interaction"><span class="sb-slider"></span></label></div>
+          <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#00ffff"></span><span class="sb-cat-name">Intermission/Intro</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-intro" data-cat="intro"><span class="sb-slider"></span></label></div>
+          <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#0202ed"></span><span class="sb-cat-name">Endcards/Credits</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-outro" data-cat="outro"><span class="sb-slider"></span></label></div>
+          <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#008fd6"></span><span class="sb-cat-name">Preview/Recap</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-preview" data-cat="preview"><span class="sb-slider"></span></label></div>
+          <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#7300FF"></span><span class="sb-cat-name">Filler Tangent</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-filler" data-cat="filler"><span class="sb-slider"></span></label></div>
+          <div class="sb-cat-row"><div class="sb-cat-left"><span class="sb-cat-dot" style="background:#ff9900"></span><span class="sb-cat-name">Non-Music Section</span></div><label class="sb-switch"><input type="checkbox" id="sb-cat-music_offtopic" data-cat="music_offtopic"><span class="sb-slider"></span></label></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DOWNLOADS & EXTRAS -->
+    <div class="section extras">
+      <div class="section-title"><span class="dot"></span>Downloads &amp; Extras</div>
+
+      <div class="setting" id="setting-download">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M8 2 V10"/><path d="M5 7.5 L8 10.5 L11 7.5"/><path d="M2 12.5 V14 H14 V12.5"/></svg></div>
+            <span class="label">Smart Download</span>
+            <span class="info-btn info-btn--gold" data-tip="download"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+          </div>
+          <label class="switch"><input type="checkbox" id="toggle-download"><span class="slider"></span></label>
+        </div>
+      </div>
+
+      <div class="setting" id="setting-builtin-downloader">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M8 2 V10"/><path d="M5 7.5 L8 10.5 L11 7.5"/><path d="M2 12.5 V14 H14 V12.5"/></svg></div>
+            <span class="label">Built-in Downloader</span>
+            <span class="info-btn" data-tip="builtin-downloader"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button id="open-builtin-downloader" class="cine-btn" style="padding:4px 8px;font-size:9.5px;flex:none;">Open</button>
+            <label class="switch"><input type="checkbox" id="toggle-builtinDownloader"><span class="slider"></span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting" id="setting-watchparty">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#ff6b9d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><circle cx="4.5" cy="5" r="2"/><circle cx="11.5" cy="5" r="2"/><path d="M1.5 13 C1.5 10 3 8.5 4.5 8.5 C6 8.5 7.5 10 7.5 13"/><path d="M8.5 13 C8.5 10 10 8.5 11.5 8.5 C13 8.5 14.5 10 14.5 13"/></svg></div>
+            <span class="label">Watch Party</span>
+            <span class="info-btn" data-tip="watchparty"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+          </div>
+          <label class="switch"><input type="checkbox" id="toggle-watchparty"><span class="slider"></span></label>
+        </div>
+      </div>
+
+      <div style="margin-top:auto;padding-top:8px;">
+        <div class="premium-warning" style="display:none;"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Footer ─────────────────────────────────────────────────────── -->
+  <div class="footer">
+    Made with <svg viewBox="0 0 14 14" fill="#f43f5e" stroke="none" width="11" height="11" style="vertical-align:-1px;display:inline-block"><path d="M7 12 C7 12 1 8 1 4.5 C1 2.5 2.5 1 4.5 1 C5.5 1 6.5 1.6 7 2.3 C7.5 1.6 8.5 1 9.5 1 C11.5 1 13 2.5 13 4.5 C13 8 7 12 7 12Z"/></svg> by Archimetrix
+    <div class="footer-btns">
+      <a href="https://github.com/Archimetrix/Youtube-Pro-Plus" target="_blank" class="github-btn">
+        <svg viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+        Star on GitHub
+      </a>
+      <a href="https://buymeacoffee.com/archimetrix" target="_blank" class="coffee-btn">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5 H12 L11 13 H3.5 Z"/><path d="M12 6.5 C13.5 6.5 14 7 14 8 C14 9 13.5 9.5 12 9.5"/><path d="M4.5 2.5 C4.5 1.5 5.5 1 5.5 2.5"/><path d="M7 2.5 C7 1.5 8 1 8 2.5"/></svg>
+        Buy Me a Coffee
+      </a>
+    </div>
+  </div>
+
+  <!-- ── Watch History overlay ─────────────────────────────────────── -->
+  <div id="resume-panel">
+    <div class="rp-header">
+      <h3>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><polyline points="8 5 8 8 10 10"/></svg>
+        Watch History
+      </h3>
+      <div class="rp-header-right">
+        <button class="rp-icon-btn" id="rp-recap-btn" title="My Recap">
+          <svg viewBox="0 0 16 16" fill="none" stroke-width="2" stroke-linecap="round"><line x1="4" y1="14" x2="4" y2="7" stroke="#f43f5e"/><line x1="8" y1="14" x2="8" y2="3" stroke="#f59e0b"/><line x1="12" y1="14" x2="12" y2="9" stroke="#22d3ee"/></svg>
         </button>
+        <button class="rp-icon-btn" id="rp-settings-btn" title="Resume Settings">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/><circle cx="5" cy="4" r="1.5" fill="var(--bg)" stroke="currentColor"/><circle cx="10" cy="8" r="1.5" fill="var(--bg)" stroke="currentColor"/><circle cx="6" cy="12" r="1.5" fill="var(--bg)" stroke="currentColor"/></svg>
+        </button>
+        <button class="rp-icon-btn" id="rp-close-btn" title="Back">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="rp-search">
+      <input type="text" id="rp-search-input" placeholder="Search videos or channels…">
+    </div>
+    <div class="rp-list" id="rp-list"></div>
 
-        <div style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;">
-          <button id="check-update-btn" class="update-check-btn">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M13.5 8 A5.5 5.5 0 1 1 10.5 3.2"/>
-                <polyline points="10.5 1.5 10.5 3.5 12.5 3.5"/>
-            </svg>
-            <span id="check-update-label">Check for Update</span>
+    <div id="resume-settings-panel">
+      <div class="rsp-header">
+        <button class="rsp-back" id="rsp-back-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 3 5 8 10 13"/></svg></button>
+        <h3>Resume Settings</h3>
+      </div>
+      <div class="rsp-body">
+        <div class="rsp-field">
+          <div class="rsp-toggle-row">
+            <span class="rsp-toggle-label">Auto Resume</span>
+            <label class="switch"><input type="checkbox" id="rsp-pause-toggle"><span class="slider"></span></label>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Toggle auto-resume on/off globally.</div>
+        </div>
+        <div class="rsp-field"><label>Only resume videos longer than</label><div class="rsp-row"><input type="number" id="rsp-min-length" min="1" max="999"><span class="rsp-unit">minutes</span></div></div>
+        <div class="rsp-field"><label>Only resume if I watched at least</label><div class="rsp-row"><input type="number" id="rsp-min-watch" min="1" max="999"><span class="rsp-unit">minutes</span></div></div>
+        <div class="rsp-field"><label>Mark as complete when within</label><div class="rsp-row"><input type="number" id="rsp-mark-played" min="1" max="999"><span class="rsp-unit">seconds from end</span></div></div>
+        <div class="rsp-field">
+          <label>Auto-remove videos after</label>
+          <div class="rsp-row">
+            <select id="rsp-delete-after" style="background:#111;color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;cursor:pointer;outline:none;flex:1;font-family:inherit;">
+              <option value="180">6 months</option>
+              <option value="365">1 year</option>
+              <option value="1095">3 years</option>
+              <option value="0">Never</option>
+            </select>
+          </div>
+        </div>
+        <button class="rsp-save" id="rsp-save-btn">Save Settings</button>
+        <div class="rsp-saved-msg" id="rsp-saved-msg">Settings saved</div>
+        <div class="rsp-backup-section">
+          <label>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="12" height="10" rx="1"/><path d="M2 7 H14"/><path d="M5 1.5 L5 4 M8 1.5 L8 4 M11 1.5 L11 4"/></svg>
+            Backup &amp; Restore
+          </label>
+          <p>Export your watch history and play counts to a file, then import it on any browser to keep your data.</p>
+          <div class="rsp-backup-btns">
+            <button class="rsp-backup-btn" id="rsp-backup-btn">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9 V2 M5.5 4.5 L8 2 L10.5 4.5"/><path d="M2 11 V14 H14 V11"/></svg>
+              Backup Data
+            </button>
+            <button class="rsp-restore-btn" id="rsp-restore-btn">
+              <svg viewBox="0 0 16 16" fill="currentColor" stroke="none"><rect x="6" y="1" width="4" height="6.5" rx="0.5"/><polygon points="3,6 8,12.5 13,6"/><rect x="2" y="13" width="12" height="3" rx="1.5"/></svg>
+              Restore Data
+            </button>
+          </div>
+          <div class="rsp-backup-msg" id="rsp-backup-msg"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="recap-panel">
+      <div class="recap-header">
+        <button class="rsp-back" id="recap-back-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 3 5 8 10 13"/></svg></button>
+        <h3>
+          <svg viewBox="0 0 16 16" fill="none" stroke-width="2" stroke-linecap="round"><line x1="4" y1="14" x2="4" y2="7" stroke="#f43f5e"/><line x1="8" y1="14" x2="8" y2="3" stroke="#f59e0b"/><line x1="12" y1="14" x2="12" y2="9" stroke="#22d3ee"/></svg>
+          My Recap
+        </h3>
+        <button class="rp-icon-btn" id="recap-download-btn" title="Download recap card as PNG"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5v9"/><polyline points="4.5 7 8 10.5 11.5 7"/><line x1="2" y1="13.5" x2="14" y2="13.5"/></svg></button>
+      </div>
+      <div class="recap-total" id="recap-total"></div>
+      <div class="recap-body">
+        <div class="recap-section-title">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3.5" width="13" height="9" rx="1"/><line x1="1.5" y1="6" x2="3.5" y2="6"/><line x1="12.5" y1="6" x2="14.5" y2="6"/><line x1="5" y1="3.5" x2="5" y2="12.5"/><line x1="11" y1="3.5" x2="11" y2="12.5"/></svg>
+          Top 5 Videos
+        </div>
+        <div id="recap-videos-list"></div>
+        <div class="recap-section-title" style="margin-top:6px;">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="9" rx="1"/><polyline points="2 7 5 5 8 7 11 5 14 7"/><line x1="2" y1="13.5" x2="14" y2="13.5"/></svg>
+          Top 5 Channels
+        </div>
+        <div id="recap-channels-list"></div>
+      </div>
+
+      <div id="recap-range-panel">
+        <div class="recap-header">
+          <button class="rsp-back" id="recap-range-back-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 3 5 8 10 13"/></svg></button>
+          <h3>Choose Date Range</h3>
+        </div>
+        <div class="recap-range-body">
+          <p>Pick the period you want your recap to cover. Only videos watched within this range will be included.</p>
+          <div class="recap-range-presets" id="recap-range-presets">
+            <button class="recap-range-preset" data-preset="7">Last 7 days</button>
+            <button class="recap-range-preset" data-preset="30">Last 30 days</button>
+            <button class="recap-range-preset" data-preset="365">Last year</button>
+            <button class="recap-range-preset" data-preset="all">All time</button>
+          </div>
+          <div class="recap-range-field">
+            <label for="recap-range-from">From</label>
+            <input type="date" id="recap-range-from">
+          </div>
+          <div class="recap-range-field">
+            <label for="recap-range-to">To</label>
+            <input type="date" id="recap-range-to">
+          </div>
+          <div class="recap-range-error" id="recap-range-error"></div>
+          <button class="recap-range-generate" id="recap-range-generate-btn">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.5v9"/><polyline points="4.5 7 8 10.5 11.5 7"/><line x1="2" y1="13.5" x2="14" y2="13.5"/></svg>
+            Generate &amp; Download
           </button>
-          <button id="open-report-panel" class="report-btn">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 L14.5 13.5 H1.5 Z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg>
-            Report an Issue
-          </button>
         </div>
-
-        <div class="footer">
-            Made with <svg viewBox="0 0 14 14" fill="#f43f5e" stroke="none" width="11" height="11" style="vertical-align:-1px;display:inline-block"><path d="M7 12 C7 12 1 8 1 4.5 C1 2.5 2.5 1 4.5 1 C5.5 1 6.5 1.6 7 2.3 C7.5 1.6 8.5 1 9.5 1 C11.5 1 13 2.5 13 4.5 C13 8 7 12 7 12Z"/></svg> by Archimetrix
-            <div class="footer-btns">
-                <a href="https://github.com/Archimetrix/Youtube-Pro-Plus" target="_blank" class="github-btn">
-                    <svg viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-                    Star on GitHub
-                </a>
-                <a href="https://buymeacoffee.com/archimetrix" target="_blank" class="coffee-btn">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5 H12 L11 13 H3.5 Z"/><path d="M12 6.5 C13.5 6.5 14 7 14 8 C14 9 13.5 9.5 12 9.5"/><path d="M4.5 2.5 C4.5 1.5 5.5 1 5.5 2.5"/><path d="M7 2.5 C7 1.5 8 1 8 2.5"/></svg>
-                    Buy Me a Coffee
-                </a>
-            </div>
-        </div>
+      </div>
     </div>
+  </div>
 
-    <div id="resume-panel">
-        <div class="rp-header">
-            <h3>
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><polyline points="8 5 8 8 10 10"/></svg>
-                Watch History
-            </h3>
-            <div class="rp-header-right">
-                <button class="rp-icon-btn" id="rp-recap-btn" title="My Recap">
-                    <svg viewBox="0 0 16 16" fill="none" stroke-width="2" stroke-linecap="round"><line x1="4" y1="14" x2="4" y2="7" stroke="#f43f5e"/><line x1="8" y1="14" x2="8" y2="3" stroke="#f59e0b"/><line x1="12" y1="14" x2="12" y2="9" stroke="#22d3ee"/></svg>
-                </button>
-                <button class="rp-icon-btn" id="rp-settings-btn" title="Resume Settings">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/><circle cx="5" cy="4" r="1.5" fill="var(--bg)" stroke="currentColor"/><circle cx="10" cy="8" r="1.5" fill="var(--bg)" stroke="currentColor"/><circle cx="6" cy="12" r="1.5" fill="var(--bg)" stroke="currentColor"/></svg>
-                </button>
-                <button class="rp-icon-btn" id="rp-close-btn" title="Back">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
-                </button>
-            </div>
-        </div>
-        <div class="rp-search">
-            <input type="text" id="rp-search-input" placeholder="Search videos or channels…">
-        </div>
-        <div class="rp-list" id="rp-list"></div>
+  <div id="yt-pro-toast">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.5"/><polyline points="5.5 8.2 7.2 9.9 10.5 6.2"/></svg>
+    <span id="yt-pro-toast-text">Recap downloaded</span>
+  </div>
 
-        <div id="resume-settings-panel">
-            <div class="rsp-header">
-                <button class="rsp-back" id="rsp-back-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 3 5 8 10 13"/></svg></button>
-                <h3>Resume Settings</h3>
-            </div>
-            <div class="rsp-body">
-                <div class="rsp-field">
-                    <div class="rsp-toggle-row">
-                        <span class="rsp-toggle-label">Auto Resume</span>
-                        <label class="switch"><input type="checkbox" id="rsp-pause-toggle"><span class="slider"></span></label>
-                    </div>
-                    <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Toggle auto-resume on/off globally.</div>
-                </div>
-                <div class="rsp-field"><label>Only resume videos longer than</label><div class="rsp-row"><input type="number" id="rsp-min-length" min="1" max="999"><span class="rsp-unit">minutes</span></div></div>
-                <div class="rsp-field"><label>Only resume if I watched at least</label><div class="rsp-row"><input type="number" id="rsp-min-watch" min="1" max="999"><span class="rsp-unit">minutes</span></div></div>
-                <div class="rsp-field"><label>Mark as complete when within</label><div class="rsp-row"><input type="number" id="rsp-mark-played" min="1" max="999"><span class="rsp-unit">seconds from end</span></div></div>
-                <div class="rsp-field">
-                    <label>Auto-remove videos after</label>
-                    <div class="rsp-row">
-                        <select id="rsp-delete-after" style="background:#111;color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;cursor:pointer;outline:none;flex:1;">
-                            <option value="180">6 months</option>
-                            <option value="365">1 year</option>
-                            <option value="1095">3 years</option>
-                            <option value="0">Never</option>
-                        </select>
-                    </div>
-                </div>
-                <button class="rsp-save" id="rsp-save-btn">Save Settings</button>
-                <div class="rsp-saved-msg" id="rsp-saved-msg">Settings saved</div>
-                <div class="rsp-backup-section">
-                    <label>
-                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="12" height="10" rx="1"/><path d="M2 7 H14"/><path d="M5 1.5 L5 4 M8 1.5 L8 4 M11 1.5 L11 4"/></svg>
-                        Backup &amp; Restore
-                    </label>
-                    <p>Export your watch history and play counts to a file, then import it on any browser to keep your data.</p>
-                    <div class="rsp-backup-btns">
-                        <button class="rsp-backup-btn" id="rsp-backup-btn">
-                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9 V2 M5.5 4.5 L8 2 L10.5 4.5"/><path d="M2 11 V14 H14 V11"/></svg>
-                            Backup Data
-                        </button>
-                        <button class="rsp-restore-btn" id="rsp-restore-btn">
-                            <svg viewBox="0 0 16 16" fill="currentColor" stroke="none"><rect x="6" y="1" width="4" height="6.5" rx="0.5"/><polygon points="3,6 8,12.5 13,6"/><rect x="2" y="13" width="12" height="3" rx="1.5"/></svg>
-                            Restore Data
-                        </button>
-                    </div>
-                    <div class="rsp-backup-msg" id="rsp-backup-msg"></div>
-                </div>
-            </div>
-        </div>
+  <div id="info-tooltip-box">
+    <strong id="info-tooltip-title">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 L14.5 13.5 H1.5 Z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg>
+      Note from the developer
+    </strong>
+    <span id="info-tooltip-body"></span>
+  </div>
 
-        <div id="recap-panel">
-            <div class="recap-header">
-                <button class="rsp-back" id="recap-back-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 3 5 8 10 13"/></svg></button>
-                <h3>
-                    <svg viewBox="0 0 16 16" fill="none" stroke-width="2" stroke-linecap="round"><line x1="4" y1="14" x2="4" y2="7" stroke="#f43f5e"/><line x1="8" y1="14" x2="8" y2="3" stroke="#f59e0b"/><line x1="12" y1="14" x2="12" y2="9" stroke="#22d3ee"/></svg>
-                    My Recap
-                </h3>
-            </div>
-            <div class="recap-total" id="recap-total"></div>
-            <div class="recap-body">
-                <div class="recap-section-title">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3.5" width="13" height="9" rx="1"/><line x1="1.5" y1="6" x2="3.5" y2="6"/><line x1="12.5" y1="6" x2="14.5" y2="6"/><line x1="5" y1="3.5" x2="5" y2="12.5"/><line x1="11" y1="3.5" x2="11" y2="12.5"/></svg>
-                    Top 5 Videos
-                </div>
-                <div id="recap-videos-list"></div>
-                <div class="recap-section-title" style="margin-top:6px;">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="9" rx="1"/><polyline points="2 7 5 5 8 7 11 5 14 7"/><line x1="2" y1="13.5" x2="14" y2="13.5"/></svg>
-                    Top 5 Channels
-                </div>
-                <div id="recap-channels-list"></div>
-            </div>
-        </div>
+  <!-- ── Report an Issue overlay ────────────────────────────────────── -->
+  <div id="report-panel">
+    <div class="rp-header">
+      <h3>
+        <svg viewBox="0 0 16 16" fill="none" stroke="#f87171" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 L14.5 13.5 H1.5 Z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="#f87171" stroke="none"/></svg>
+        Report an Issue
+      </h3>
+      <div class="rp-header-right">
+        <button class="rp-icon-btn" id="report-close-btn" title="Close">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
+        </button>
+      </div>
     </div>
-
-    <div id="info-tooltip-box">
-        <strong id="info-tooltip-title">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 L14.5 13.5 H1.5 Z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor" stroke="none"/></svg>
-            Note from the developer
-        </strong>
-        <span id="info-tooltip-body"></span>
-    </div>
-
-    <div id="welcome-screen" style="display:none;">
-        <div class="welcome-star-emoji">
-            <svg viewBox="0 0 32 32" fill="rgba(99,102,241,0.25)" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4 L19.5 12 L28 12.5 L22 18.5 L24 27 L16 22.5 L8 27 L10 18.5 L4 12.5 L12.5 12 Z"/></svg>
+    <div class="report-body">
+      <p class="report-desc">
+        Found a bug? Describe it below and attach screenshots if you have them — your report goes straight to our inbox. 🙏
+      </p>
+      <div class="report-field">
+        <label>Your Name <span style="font-size:10px;color:var(--text-muted);font-weight:400">(optional)</span></label>
+        <input type="text" id="report-name" placeholder="Anonymous">
+      </div>
+      <div class="report-field">
+        <label>Screenshots <span style="font-size:10px;color:var(--text-muted);font-weight:400">(optional, up to 3 — max 10 MB total)</span></label>
+        <div class="report-upload-area" id="report-upload-area">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="14" height="10" rx="1.5"/><circle cx="5.5" cy="7" r="1.2"/><path d="M1 11 L4.5 7.5 L7 10 L10 7 L15 11"/></svg>
+          <span>Click to attach images</span>
+          <input type="file" id="report-file-input" accept="image/*" multiple>
         </div>
-        <h2 class="welcome-title">One small favour?</h2>
-        <p class="welcome-sub"><strong>YouTube Pro+</strong> is completely free.<br>A GitHub star helps others discover it — it takes 2 seconds!</p>
-        <a id="welcome-star-btn" href="https://github.com/Archimetrix/Youtube-Pro-Plus" target="_blank">
-            <svg viewBox="0 0 16 16" fill="currentColor" stroke="none" width="16" height="16"><path d="M8 1 L10 6 L15.5 6 L11 9.5 L13 15 L8 11.5 L3 15 L5 9.5 L0.5 6 L6 6 Z"/></svg>
-            Star the Repo
-        </a>
-        <a id="welcome-coffee-btn" href="https://buymeacoffee.com/archimetrix" target="_blank">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5 H12 L11 13 H3.5 Z"/><path d="M12 6.5 C13.5 6.5 14 7 14 8 C14 9 13.5 9.5 12 9.5"/><path d="M4.5 2.5 C4.5 1.5 5.5 1 5.5 2.5"/><path d="M7 2.5 C7 1.5 8 1 8 2.5"/></svg>
-            Buy Me a Coffee
-        </a>
-        <button id="welcome-use-btn" style="display:none"></button>
-        <div class="welcome-divider"></div>
+        <div class="report-preview-grid" id="report-preview-grid"></div>
+      </div>
+      <div class="report-field full">
+        <label>Describe the issue <span style="color:#ef4444">*</span></label>
+        <textarea id="report-message" placeholder="What went wrong? What were you doing when it happened? Any details help a lot..."></textarea>
+      </div>
+      <button id="report-submit-btn">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="14" y1="2" x2="6" y2="10"/><path d="M14 2 L9 14 L6 10 L2 7 Z"/></svg>
+        Send Report
+      </button>
+      <div id="report-status"></div>
     </div>
+  </div>
 
-    <div id="cinematic-disclaimer-overlay">
-        <div id="cinematic-disclaimer-modal">
-            <div class="cinematic-modal-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="1.5"/><line x1="2" y1="9" x2="5" y2="9"/><line x1="2" y1="13" x2="5" y2="13"/><line x1="2" y1="17" x2="5" y2="17"/><line x1="19" y1="9" x2="22" y2="9"/><line x1="19" y1="13" x2="22" y2="13"/><line x1="19" y1="17" x2="22" y2="17"/><line x1="7" y1="5" x2="7" y2="19"/><line x1="17" y1="5" x2="17" y2="19"/></svg>
-            </div>
-            <h3 class="cinematic-modal-title">Cinematic Mode — Read Before Enabling</h3>
-            <div class="cinematic-modal-body">
-                <p>Cinematic Mode works in both <strong>Light &amp; Dark</strong> mode on YouTube.</p>
-                <p><strong>Using Dark Mode?</strong> You <em>must</em> turn off <em>Ambient Mode</em> from YouTube's player settings <strong>and</strong> from this extension panel — otherwise Cinematic Mode won't work as expected.</p>
-                <p>Please make sure you've read the above before turning this on.</p>
-            </div>
-            <button id="cinematic-confirm-btn">
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5 8.5 6 12 13.5 4"/></svg>
-                Got it — Turn on
-            </button>
-            <button id="cinematic-cancel-btn">Cancel</button>
-        </div>
+</div>
+
+<div id="welcome-screen" style="display:none;">
+  <div class="welcome-star-emoji">
+    <svg viewBox="0 0 32 32" fill="rgba(124,123,255,0.25)" stroke="#7c7bff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4 L19.5 12 L28 12.5 L22 18.5 L24 27 L16 22.5 L8 27 L10 18.5 L4 12.5 L12.5 12 Z"/></svg>
+  </div>
+  <h2 class="welcome-title">One small favour?</h2>
+  <p class="welcome-sub"><strong>YouTube Pro+</strong> is completely free.<br>A GitHub star helps others discover it — it takes 2 seconds!</p>
+  <a id="welcome-star-btn" href="https://github.com/Archimetrix/Youtube-Pro-Plus" target="_blank">
+    <svg viewBox="0 0 16 16" fill="currentColor" stroke="none" width="16" height="16"><path d="M8 1 L10 6 L15.5 6 L11 9.5 L13 15 L8 11.5 L3 15 L5 9.5 L0.5 6 L6 6 Z"/></svg>
+    Star the Repo
+  </a>
+  <a id="welcome-coffee-btn" href="https://buymeacoffee.com/archimetrix" target="_blank">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5 H12 L11 13 H3.5 Z"/><path d="M12 6.5 C13.5 6.5 14 7 14 8 C14 9 13.5 9.5 12 9.5"/><path d="M4.5 2.5 C4.5 1.5 5.5 1 5.5 2.5"/><path d="M7 2.5 C7 1.5 8 1 8 2.5"/></svg>
+    Buy Me a Coffee
+  </a>
+  <button id="welcome-use-btn" style="display:none"></button>
+  <div class="welcome-divider"></div>
+</div>
+
+<div id="cinematic-disclaimer-overlay">
+  <div id="cinematic-disclaimer-modal">
+    <div class="cinematic-modal-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="1.5"/><line x1="2" y1="9" x2="5" y2="9"/><line x1="2" y1="13" x2="5" y2="13"/><line x1="2" y1="17" x2="5" y2="17"/><line x1="19" y1="9" x2="22" y2="9"/><line x1="19" y1="13" x2="22" y2="13"/><line x1="19" y1="17" x2="22" y2="17"/><line x1="7" y1="5" x2="7" y2="19"/><line x1="17" y1="5" x2="17" y2="19"/></svg>
     </div>
-
-    <!-- ── Report an Issue Panel ─────────────────────────────────────────── -->
-    <div id="report-panel">
-        <div class="rp-header">
-            <h3>
-                <svg viewBox="0 0 16 16" fill="none" stroke="#f87171" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 L14.5 13.5 H1.5 Z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="#f87171" stroke="none"/></svg>
-                Report an Issue
-            </h3>
-            <div class="rp-header-right">
-                <button class="rp-icon-btn" id="report-close-btn" title="Close">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
-                </button>
-            </div>
-        </div>
-        <div class="report-body">
-            <p class="report-desc">
-                Found a bug? Describe it below and attach screenshots if you have them — your report goes straight to our inbox. 🙏
-            </p>
-            <div class="report-field">
-                <label>Your Name <span style="font-size:10px;color:var(--text-muted);font-weight:400">(optional)</span></label>
-                <input type="text" id="report-name" placeholder="Anonymous">
-            </div>
-            <div class="report-field">
-                <label>Describe the issue <span style="color:#ef4444">*</span></label>
-                <textarea id="report-message" placeholder="What went wrong? What were you doing when it happened? Any details help a lot..."></textarea>
-            </div>
-            <div class="report-field">
-                <label>Screenshots <span style="font-size:10px;color:var(--text-muted);font-weight:400">(optional, up to 3 — max 10 MB total)</span></label>
-                <div class="report-upload-area" id="report-upload-area">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="14" height="10" rx="1.5"/><circle cx="5.5" cy="7" r="1.2"/><path d="M1 11 L4.5 7.5 L7 10 L10 7 L15 11"/></svg>
-                    <span>Click to attach images</span>
-                    <input type="file" id="report-file-input" accept="image/*" multiple>
-                </div>
-                <div class="report-preview-grid" id="report-preview-grid"></div>
-            </div>
-            <button id="report-submit-btn">
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="14" y1="2" x2="6" y2="10"/><path d="M14 2 L9 14 L6 10 L2 7 Z"/></svg>
-                Send Report
-            </button>
-            <div id="report-status"></div>
-        </div>
+    <h3 class="cinematic-modal-title">Cinematic Mode — Read Before Enabling</h3>
+    <div class="cinematic-modal-body">
+      <p>Cinematic Mode works in both <strong>Light &amp; Dark</strong> mode on YouTube.</p>
+      <p><strong>Using Dark Mode?</strong> You <em>must</em> turn off <em>Ambient Mode</em> from YouTube's player settings <strong>and</strong> from this extension panel — otherwise Cinematic Mode won't work as expected.</p>
+      <p>Please make sure you've read the above before turning this on.</p>
     </div>
+    <button id="cinematic-confirm-btn">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5 8.5 6 12 13.5 4"/></svg>
+      Got it — Turn on
+    </button>
+    <button id="cinematic-cancel-btn">Cancel</button>
+  </div>
+</div>
 
-
-
-    <script src="browser-compat.js"></script>
-    <script src="popup.js"></script>
+<script src="browser-compat.js"></script>
+<script src="popup.js"></script>
 </body>
 </html>
