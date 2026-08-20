@@ -2,14 +2,14 @@
   <img src="imgs/logo.png" alt="YouTube Pro Plus Logo" width="150"/>
   <h1> YouTube Pro Plus</h1>
 
-  ![Version](https://img.shields.io/badge/version-6-blue.svg)
+  ![Version](https://img.shields.io/badge/version-6.1-blue.svg)
   ![Platform](https://img.shields.io/badge/platform-Firefox%20%7C%20Edge%20%7C%20Chromium-green.svg)
 </div>
 
 **YouTube Pro +** is an all-in-one, highly optimized extension designed to completely overhaul your YouTube experience. It makes your life so smooth with useful features and a stylish theme all into one centralized, lightweight extension with a beautiful **Liquid Glass** UI.
 
 <div align="center">
-  <img src="imgs/homepanel.png" alt="YouTube Pro Plus Interface" width="800"/>
+  <img src="imgs/homepanel.png" alt="YouTube Pro Plus Interface" width="300"/>
 </div>
 
 ---
@@ -54,7 +54,7 @@ Click the image below to watch the full showcase and installation guide:
 * **📸 Screenshot Videosframe :**  You can screenshot videos with alt+shift+s or there is a camera icon in player just click that .
 * **🎉 Watch Party :** Now you can watch vidios together with friends and family and also chat in youtube .
 * **👎 Return Youtube Dislike :** Now youtube dislikes are intregated , exactly shows dislikes .
-* **❌ Sponsorblock :** Sponsorblock is now built in no need to install seperate extension , you can submit new segments right from player extension button .
+* **❌ Sponsorblock :** Sponsorblock is now built in no need to install seperate extension .
 * **📺 Autominiplayer :** A miniplayer now shows whenever you scroll down .
 ---
 

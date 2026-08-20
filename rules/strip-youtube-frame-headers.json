@@ -27,7 +27,8 @@
       ]
     },
     "condition": {
-      "urlFilter": "*.googlevideo.com/videoplayback*"
+      "urlFilter": "*.googlevideo.com/videoplayback*",
+      "excludedInitiatorDomains": ["music.youtube.com"]
     }
   }
 ]
