@@ -44,9 +44,9 @@ Click the image below to watch the full showcase and installation guide:
 * **🎨 Liquid Glass Theme:** A gorgeous, system-wide glassmorphism redesign of YouTube. Features beautifully rounded corners, blurred dynamic backgrounds, and custom "Capsule" hover effects for Shorts.
 * **👑 Premium Logo Toggle:** Instantly replaces the standard YouTube logo with the clean YouTube Premium logo.
 * **🌌 Super Ambient Mode:** Enhances YouTube's native ambient mode with a wider, more vibrant glow around the video player.
-* **🌠 Cinematic Mode:** A custom cinematic mode it works with both light mode and dark mode .
+* **🌠 Cinematic Mode:** A custom cinematic mode it works with both light mode and dark mode  .
 * **⚡ 10x Speed Booster:** Bypasses YouTube's native 2x speed limit, allowing you to seamlessly increase playback speed up to 10x directly from the native player settings.
-* **🎛️ Sound Booster :Boost yt vidios sound as much you need .
+* **🎛️ Sound Booster :Boost yt vidios sound as much you need   .
 * **🔁 Shorts Auto-Scroller:** A robust background script that intelligently detects when a YouTube Short finishes and automatically scrolls to the next one—completely hands-free.
 * **📩Builtin Downloader :** A builtin downloader is now included in extension .
 * **⬇️ Smart Download:** A smart third-party download support added replacing the default download button (if you want to use the normal download then just turn off the setting in the extension).
