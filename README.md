@@ -9,7 +9,7 @@
 **YouTube Pro +** is an all-in-one, highly optimized extension designed to completely overhaul your YouTube experience. It makes your life so smooth with useful features and a stylish theme all into one centralized, lightweight extension with a beautiful **Liquid Glass** UI.
 
 <div align="center">
-  <img src="imgs/homepanel.png" alt="YouTube Pro Plus Interface" width="300"/>
+  <img src="imgs/homepanel.png" alt="YouTube Pro Plus Interface" width="800"/>
 </div>
 
 ---
