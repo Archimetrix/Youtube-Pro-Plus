@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Youtube Pro Plus",
-    "version": "6.2",
+    "version": "6.5",
     "description": "A Free powerful extension for youtube with more than 16 features to completely overhaul your youtube experience.",
     "background": {
         "service_worker": "background-sw.js"

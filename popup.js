@@ -1,63 +1,13 @@
-// ── Popup Star Gate ───────────────────────────────────────────────────────
-// The old welcome screen here was a soft, skippable prompt (a "No thanks"
-// button always worked after 5s). The real, enforced gate now lives in
-// gate.js / stargate.js: it blocks youtube.com itself until the user's
-// GitHub account is verified to have starred the repo. This popup simply
-// mirrors that same verified state so the popup doesn't show usable
-// controls to someone who hasn't passed the real gate, and offers the same
-// GitHub verification flow if they haven't.
+// ── Popup gate removed ────────────────────────────────────────────────────
+// The GitHub star-gate popup screen was removed. Verification (when
+// relevant) happens through the single full-page flow in gate.js /
+// stargate.js, so the popup just shows the main UI directly.
 (function () {
     const welcomeScreen = document.getElementById('welcome-screen');
     const mainView      = document.getElementById('main-view');
-    const starBtn       = document.getElementById('welcome-star-btn');
-    const useBtn        = document.getElementById('welcome-use-btn');
-    const REPO_URL = 'https://github.com/Archimetrix/Youtube-Pro-Plus';
 
-    function showMainUI() {
-        welcomeScreen.style.display = 'none';
-        mainView.style.display      = '';
-    }
-
-    function showGateScreen() {
-        mainView.style.display      = 'none';
-        welcomeScreen.style.display = 'flex';
-        if (useBtn) useBtn.style.display = 'none'; // no skip — this is the real gate
-        if (starBtn) {
-            starBtn.setAttribute('href', REPO_URL);
-            starBtn.textContent = 'Verify with GitHub';
-            starBtn.onclick = (e) => {
-                e.preventDefault();
-                chrome.runtime.sendMessage({ type: 'YTPP_STAR_GATE_START_AUTH' }, (res) => {
-                    if (!res?.ok) return;
-                    const { device_code, user_code, verification_uri } = res.device;
-                    window.open(verification_uri, '_blank');
-                    starBtn.textContent = `Enter code: ${user_code}`;
-                    const poll = () => {
-                        chrome.runtime.sendMessage(
-                            { type: 'YTPP_STAR_GATE_POLL_ONCE', device_code },
-                            (pollRes) => {
-                                if (pollRes?.status === 'success') {
-                                    if (pollRes.starred) showMainUI();
-                                    else starBtn.textContent = 'Star the repo, then reopen this popup';
-                                } else if (pollRes?.status === 'pending' || pollRes?.status === 'slow_down') {
-                                    setTimeout(poll, 5000);
-                                }
-                            }
-                        );
-                    };
-                    setTimeout(poll, 5000);
-                });
-            };
-        }
-    }
-
-    chrome.runtime.sendMessage({ type: 'YTPP_STAR_GATE_STATUS' }, (res) => {
-        if (res?.verified) {
-            showMainUI();
-        } else {
-            showGateScreen();
-        }
-    });
+    if (welcomeScreen) welcomeScreen.style.display = 'none';
+    if (mainView) mainView.style.display = '';
 })();
 
 document.addEventListener('DOMContentLoaded', () => {

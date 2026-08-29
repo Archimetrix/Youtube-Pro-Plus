@@ -67,15 +67,43 @@
   }
 
   function renderCode(user_code, verification_uri) {
-    render(`
+    const el = render(`
       <h2 style="margin:0;font-size:20px;">One more step</h2>
       <p style="opacity:.75;font-size:14px;">
         Open <a href="${verification_uri}" target="_blank" style="color:#7fd1ff;">${verification_uri}</a>
         and enter this code:
       </p>
-      <div style="font-size:28px;letter-spacing:5px;font-weight:700;background:#111;padding:12px 24px;border-radius:8px;">${user_code}</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-size:28px;letter-spacing:5px;font-weight:700;background:#111;padding:12px 24px;border-radius:8px;">${user_code}</div>
+        <button id="ytpp-gate-copy" title="Copy code" style="display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#fff;cursor:pointer;">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1"/><path d="M3 10.5V3.5C3 2.7 3.7 2 4.5 2H10"/></svg>
+        </button>
+      </div>
       <p style="opacity:.55;font-size:13px;">Waiting for you to confirm on GitHub…</p>
     `);
+    const copyBtn = el.querySelector('#ytpp-gate-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', () => {
+        const code = user_code.replace(/-/g, '');
+        const done = () => {
+          copyBtn.innerHTML = `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5 8.5 6 12 13.5 4"/></svg>`;
+          setTimeout(() => {
+            copyBtn.innerHTML = `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1"/><path d="M3 10.5V3.5C3 2.7 3.7 2 4.5 2H10"/></svg>`;
+          }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(code).then(done).catch(done);
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = code;
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); } catch (e) {}
+          document.body.removeChild(ta);
+          done();
+        }
+      });
+    }
   }
 
   function renderNotStarred() {

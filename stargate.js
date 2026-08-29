@@ -29,10 +29,16 @@ async function starGateSetState(state) {
 }
 
 async function starGateStartDeviceFlow() {
+  // Use form-urlencoded (a CORS "simple" content type) instead of
+  // application/json — a JSON body forces a preflight OPTIONS request,
+  // and github.com's login endpoints don't reliably answer preflights
+  // for extension origins in every browser (this was causing a
+  // "NetworkError when attempting to fetch resource" failure in
+  // Firefox). Sending Accept: application/json still gets us JSON back.
   const res = await fetch('https://github.com/login/device/code', {
     method: 'POST',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ client_id: STARGATE_GITHUB_CLIENT_ID }),
+    headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ client_id: STARGATE_GITHUB_CLIENT_ID }).toString(),
   });
   if (!res.ok) throw new Error(`GitHub device_code request failed (${res.status})`);
   const data = await res.json();
@@ -41,14 +47,15 @@ async function starGateStartDeviceFlow() {
 }
 
 async function starGatePollOnce(deviceCode) {
+  // Same form-urlencoded fix as starGateStartDeviceFlow() above.
   const res = await fetch('https://github.com/login/oauth/access_token', {
     method: 'POST',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+    headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
       client_id: STARGATE_GITHUB_CLIENT_ID,
       device_code: deviceCode,
       grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
-    }),
+    }).toString(),
   });
   const data = await res.json();
 
