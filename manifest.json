@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Youtube Pro Plus",
-    "version": "6.1",
+    "version": "6.2",
     "description": "A Free powerful extension for youtube with more than 16 features to completely overhaul your youtube experience.",
     "background": {
         "service_worker": "background-sw.js"
@@ -31,6 +31,7 @@
         "https://*.onrender.com/*",
         "https://*.youtube.com/*",
         "https://api.github.com/*",
+        "https://github.com/*",
         "https://catbox.moe/*",
         "https://files.catbox.moe/*",
         "https://raw.githubusercontent.com/*",
@@ -53,6 +54,16 @@
         }
     },
     "content_scripts": [
+        {
+            "matches": [
+                "*://www.youtube.com/*",
+                "*://youtube.com/*"
+            ],
+            "js": [
+                "gate.js"
+            ],
+            "run_at": "document_start"
+        },
         {
             "matches": [
                 "*://www.youtube.com/*",

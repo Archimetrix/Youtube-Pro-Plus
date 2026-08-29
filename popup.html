@@ -218,6 +218,16 @@ input:checked + .slider::before{transform:translateY(-50%) translateX(15px);back
 .coffee-btn svg{width:12px;height:12px;}
 .coffee-btn:hover{background:rgba(251,191,36,0.2);border-color:rgba(251,191,36,0.55);transform:scale(1.04);color:#fde68a;}
 
+/* ── cross-promo banner ─────────────────────────────────────────── */
+.promo-banner{display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 10px;background:linear-gradient(90deg,rgba(244,63,94,0.12),rgba(139,92,246,0.12));border:1px solid rgba(244,63,94,0.28);border-radius:10px;text-decoration:none;transition:all .25s cubic-bezier(.4,0,.2,1);}
+.promo-banner:hover{background:linear-gradient(90deg,rgba(244,63,94,0.2),rgba(139,92,246,0.2));border-color:rgba(244,63,94,0.5);transform:translateY(-1px);}
+.promo-banner .promo-icon{flex-shrink:0;width:16px;height:16px;color:#f43f5e;display:flex;align-items:center;justify-content:center;}
+.promo-banner .promo-icon svg{width:16px;height:16px;}
+.promo-banner .promo-text{flex:1;font-size:10.5px;font-weight:600;color:rgba(255,255,255,0.85);}
+.promo-banner .promo-text strong{color:#fda4af;}
+.promo-banner .promo-arrow{font-size:12px;color:rgba(255,255,255,0.5);transition:transform .25s;}
+.promo-banner:hover .promo-arrow{transform:translateX(2px);color:#fda4af;}
+
 /* ── full-screen overlay panels (History / Recap / Settings / Report) ──── */
 #resume-panel{position:absolute;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:9999;display:none;flex-direction:column;border-radius:16px;overflow:hidden;animation:slideInRight .22s ease-out;border:1px solid var(--border);}
 #resume-panel.visible{display:flex;}
@@ -745,6 +755,15 @@ input:checked + .slider::before{transform:translateY(-50%) translateX(15px);back
     </div>
 
   </div>
+
+  <!-- ── Cross-promo ────────────────────────────────────────────────── -->
+  <a href="https://github.com/Archimetrix/VIVIMUSIC_WEB" target="_blank" class="promo-banner">
+    <span class="promo-icon">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+    </span>
+    <span class="promo-text">Try our YTmusic extension — <strong>VIVIMUSIC-WEB</strong></span>
+    <span class="promo-arrow">→</span>
+  </a>
 
   <!-- ── Footer ─────────────────────────────────────────────────────── -->
   <div class="footer">

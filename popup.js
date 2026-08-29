@@ -1,45 +1,62 @@
-// ── First-Install Welcome Screen ─────────────────────────────────────────────
+// ── Popup Star Gate ───────────────────────────────────────────────────────
+// The old welcome screen here was a soft, skippable prompt (a "No thanks"
+// button always worked after 5s). The real, enforced gate now lives in
+// gate.js / stargate.js: it blocks youtube.com itself until the user's
+// GitHub account is verified to have starred the repo. This popup simply
+// mirrors that same verified state so the popup doesn't show usable
+// controls to someone who hasn't passed the real gate, and offers the same
+// GitHub verification flow if they haven't.
 (function () {
     const welcomeScreen = document.getElementById('welcome-screen');
     const mainView      = document.getElementById('main-view');
     const starBtn       = document.getElementById('welcome-star-btn');
     const useBtn        = document.getElementById('welcome-use-btn');
+    const REPO_URL = 'https://github.com/Archimetrix/Youtube-Pro-Plus';
 
     function showMainUI() {
         welcomeScreen.style.display = 'none';
         mainView.style.display      = '';
     }
 
-    chrome.storage.local.get(['hasSeenWelcome'], (result) => {
-        if (result.hasSeenWelcome) {
-            showMainUI();
-            return;
-        }
-        // First visit — show welcome screen, hide main UI
+    function showGateScreen() {
         mainView.style.display      = 'none';
         welcomeScreen.style.display = 'flex';
-
-        starBtn.addEventListener('click', () => {
-            chrome.storage.local.set({ hasSeenWelcome: true });
-        });
-
-        // Fix: coffee button also dismisses the welcome screen
-        const coffeeBtn = document.getElementById('welcome-coffee-btn');
-        if (coffeeBtn) {
-            coffeeBtn.addEventListener('click', () => {
-                chrome.storage.local.set({ hasSeenWelcome: true });
-            });
+        if (useBtn) useBtn.style.display = 'none'; // no skip — this is the real gate
+        if (starBtn) {
+            starBtn.setAttribute('href', REPO_URL);
+            starBtn.textContent = 'Verify with GitHub';
+            starBtn.onclick = (e) => {
+                e.preventDefault();
+                chrome.runtime.sendMessage({ type: 'YTPP_STAR_GATE_START_AUTH' }, (res) => {
+                    if (!res?.ok) return;
+                    const { device_code, user_code, verification_uri } = res.device;
+                    window.open(verification_uri, '_blank');
+                    starBtn.textContent = `Enter code: ${user_code}`;
+                    const poll = () => {
+                        chrome.runtime.sendMessage(
+                            { type: 'YTPP_STAR_GATE_POLL_ONCE', device_code },
+                            (pollRes) => {
+                                if (pollRes?.status === 'success') {
+                                    if (pollRes.starred) showMainUI();
+                                    else starBtn.textContent = 'Star the repo, then reopen this popup';
+                                } else if (pollRes?.status === 'pending' || pollRes?.status === 'slow_down') {
+                                    setTimeout(poll, 5000);
+                                }
+                            }
+                        );
+                    };
+                    setTimeout(poll, 5000);
+                });
+            };
         }
+    }
 
-        // Show Skip button after 5 seconds
-        setTimeout(() => {
-            useBtn.textContent = 'No thanks, take me to the extension';
-            useBtn.style.display = 'flex';
-            useBtn.addEventListener('click', () => {
-                chrome.storage.local.set({ hasSeenWelcome: true });
-                showMainUI();
-            });
-        }, 5000);
+    chrome.runtime.sendMessage({ type: 'YTPP_STAR_GATE_STATUS' }, (res) => {
+        if (res?.verified) {
+            showMainUI();
+        } else {
+            showGateScreen();
+        }
     });
 })();
 
