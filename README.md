@@ -2,7 +2,7 @@
   <img src="imgs/logo.png" alt="YouTube Pro Plus Logo" width="150"/>
   <h1> YouTube Pro Plus</h1>
 
-  ![Version](https://img.shields.io/badge/version-6.1-blue.svg)
+  ![Version](https://img.shields.io/badge/version-7.0-blue.svg)
   ![Platform](https://img.shields.io/badge/platform-Firefox%20%7C%20Edge%20%7C%20Chromium-green.svg)
 </div>
 
@@ -56,6 +56,7 @@ Click the image below to watch the full showcase and installation guide:
 * **👎 Return Youtube Dislike :** Now youtube dislikes are intregated , exactly shows dislikes .
 * **❌ Sponsorblock :** Sponsorblock is now built in no need to install seperate extension .
 * **📺 Autominiplayer :** A miniplayer now shows whenever you scroll down .
+* **📺 PIP mode :** Upon turning on this feature and 2 browser flags it will show as picture in picture its a very demanding feature .
 ---
 
 ## 🛠️ Local Installation (Chrome, Opera, Brave, Vivaldi etc.)
