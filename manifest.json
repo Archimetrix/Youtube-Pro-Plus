@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Youtube Pro Plus",
-    "version": "6.5",
+    "version": "7.0",
     "description": "A Free powerful extension for youtube with more than 16 features to completely overhaul your youtube experience.",
     "background": {
         "service_worker": "background-sw.js"
@@ -177,6 +177,26 @@
                 "content-scripts/visibility-spoof.js"
             ],
             "world": "MAIN"
+        },
+        {
+            "matches": [
+                "*://www.youtube.com/*",
+                "*://youtube.com/*"
+            ],
+            "js": [
+                "content-scripts/pip-mode.js"
+            ],
+            "run_at": "document_idle"
+        },
+        {
+            "matches": [
+                "*://www.youtube.com/*",
+                "*://youtube.com/*"
+            ],
+            "js": [
+                "content-scripts/title-sync.js"
+            ],
+            "run_at": "document_idle"
         }
     ],
     "web_accessible_resources": [

@@ -178,6 +178,36 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 });
 
 
+// ─── Tab Title Sync ────────────────────────────────────────────────────────────
+// Chrome throttles timers hard on backgrounded tabs, so YouTube's own tab-title
+// updates can get stuck on the previous song when a playlist/Mix autoplays the
+// next video while the tab isn't focused. This alarm runs in the extension
+// process (not the page), so it's unaffected by that throttling, and just
+// pings every open YouTube tab to re-check the real video title.
+// Works regardless of the PiP Mode setting — see content-scripts/title-sync.js.
+
+const TITLE_SYNC_ALARM_NAME = 'ytpp-title-sync';
+
+chrome.alarms.get(TITLE_SYNC_ALARM_NAME, (alarm) => {
+    if (!alarm) {
+        chrome.alarms.create(TITLE_SYNC_ALARM_NAME, {
+            delayInMinutes:  1,
+            periodInMinutes: 1 // Chrome's practical minimum for packed extensions
+        });
+    }
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name !== TITLE_SYNC_ALARM_NAME) return;
+    chrome.tabs.query({ url: ['*://www.youtube.com/*', '*://youtube.com/*'] }, (tabs) => {
+        for (const tab of tabs) {
+            chrome.tabs.sendMessage(tab.id, { action: 'ytpp-sync-title' }, () => {
+                void chrome.runtime.lastError; // no content script in this tab yet — ignore
+            });
+        }
+    });
+});
+
 // ─── Auto Update Checker ──────────────────────────────────────────────────────
 // Fetches the manifest.json from GitHub every 24 hours and compares versions.
 // If a newer version is found it shows a Chrome notification and stores a flag
@@ -277,4 +307,150 @@ chrome.runtime.onInstalled.addListener((details) => {
         // Small delay so the SW is fully awake before hitting the network
         setTimeout(checkForUpdate, 3000);
     }
+});
+
+// ─── Remote Announcement / Notification System ───────────────────────────────
+// Checks a simple JSON file hosted on GitHub for one-off announcements
+// (e.g. new feature callouts, important notices). Each announcement has a
+// unique "id" — once shown, that id is saved locally so it is NEVER shown
+// again, even across restarts, browser updates, or repeated checks.
+//
+// To publish a notification: edit annoucement.json in the storage-project-files
+// repo with a NEW "id" (any value different from last time) plus "message"
+// (required), and optional "title" / "url". Leave "id" blank, or leave the
+// file empty/invalid JSON, to show nothing.
+
+const ANNOUNCEMENT_URL         = 'https://raw.githubusercontent.com/Archimetrix/storage-project-files/main/annoucement.json';
+const ANNOUNCEMENT_ALARM_NAME  = 'ytpro-announcement-check';
+const ANNOUNCEMENT_CHECK_MIN   = 360; // re-check every 6 hours while the browser stays open
+const ANNOUNCEMENT_NOTIF_ID    = 'ytpro-announcement';
+
+async function checkForAnnouncement() {
+    try {
+        const res = await fetch(ANNOUNCEMENT_URL, { cache: 'no-store' });
+        if (!res.ok) return;
+
+        const text = (await res.text()).trim();
+        if (!text) return; // empty file — nothing to show
+
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch {
+            return; // malformed JSON — ignore silently
+        }
+
+        // Accept either a single announcement object OR an array of them,
+        // so multiple messages can be queued in one edit of the JSON file.
+        const items = Array.isArray(data) ? data : [data];
+
+        const { announcementHistory = [] } = await chrome.storage.local.get(['announcementHistory']);
+        const knownIds = new Set(announcementHistory.map(a => a.id));
+
+        // Build fresh records for any id we haven't stored before, oldest first,
+        // so the history stays in the order they were added to the file.
+        const newRecords = [];
+        for (const item of items) {
+            const id = item && item.id ? String(item.id).trim() : '';
+            if (!id || !item.message || knownIds.has(id)) continue;
+            const parsedTs = item.timestamp ? new Date(item.timestamp).getTime() : NaN;
+            newRecords.push({
+                id,
+                title:     item.title || 'YouTube Pro+',
+                message:   item.message,
+                url:       item.url || null,
+                timestamp: !isNaN(parsedTs) ? parsedTs : Date.now()
+            });
+            knownIds.add(id);
+        }
+
+        if (!newRecords.length) return; // nothing new — never repeat old ones
+
+        // Mark as shown FIRST so a crash/race right after this can't cause a repeat.
+        // Newest first in history. unreadAnnouncementIds tracks EVERY new item from
+        // this batch (not just the latest) so the inbox can highlight all of them,
+        // and the bell's red dot stays lit until the inbox is actually opened.
+        const newHistory = [...newRecords.reverse(), ...announcementHistory].slice(0, 20); // keep last 20
+        const latest = newRecords[0]; // after reverse(), index 0 is the most recently added
+
+        const { unreadAnnouncementIds = [] } = await chrome.storage.local.get(['unreadAnnouncementIds']);
+        const newUnreadIds = [...new Set([...newRecords.map(r => r.id), ...unreadAnnouncementIds])];
+
+        await chrome.storage.local.set({
+            announcementHistory:     newHistory,
+            unreadAnnouncementIds:   newUnreadIds
+        });
+
+        // The OS-level notification is just a heads-up ping — it's small and
+        // gets truncated by the OS, so the full, permanent text lives in the
+        // popup's Updates inbox (see popup.js) instead of relying on this bubble.
+        const pingMessage = newRecords.length === 1
+            ? 'New update — click the extension icon to read it.'
+            : `${newRecords.length} new updates — click the extension icon to read them.`;
+
+        const notifTitle = newRecords.length === 1 ? latest.title : 'YouTube Pro+';
+        try {
+            chrome.notifications.create(ANNOUNCEMENT_NOTIF_ID, {
+                type:     'basic',
+                iconUrl:  'imgs/icon128.png',
+                title:    notifTitle,
+                message:  pingMessage,
+                priority: 2,
+                requireInteraction: true
+            });
+        } catch (notifErr) {
+            try {
+                chrome.notifications.create(ANNOUNCEMENT_NOTIF_ID, {
+                    type:    'basic',
+                    iconUrl: 'imgs/icon128.png',
+                    title:   notifTitle,
+                    message: pingMessage
+                });
+            } catch (fallbackErr) {
+                console.warn('[YT Pro+] OS notification unsupported on this browser:', fallbackErr.message);
+            }
+        }
+
+        console.log(`[YT Pro+] ${newRecords.length} new announcement(s) shown`);
+    } catch (err) {
+        console.warn('[YT Pro+] Announcement check failed:', err.message);
+    }
+}
+
+// Clicking the small OS bubble opens the extension popup (where the FULL text
+// lives), rather than a link — so the person can actually read it. If the
+// browser can't programmatically open the popup, fall back to the URL (if any).
+chrome.notifications.onClicked.addListener(async (notifId) => {
+    if (notifId !== ANNOUNCEMENT_NOTIF_ID) return;
+    chrome.notifications.clear(notifId);
+    try {
+        await chrome.action.openPopup();
+    } catch (e) {
+        const { announcementHistory = [] } = await chrome.storage.local.get(['announcementHistory']);
+        const url = announcementHistory[0] && announcementHistory[0].url;
+        if (url) chrome.tabs.create({ url });
+    }
+});
+
+// Register the periodic alarm
+chrome.alarms.get(ANNOUNCEMENT_ALARM_NAME, (alarm) => {
+    if (!alarm) {
+        chrome.alarms.create(ANNOUNCEMENT_ALARM_NAME, {
+            delayInMinutes:  1,
+            periodInMinutes: ANNOUNCEMENT_CHECK_MIN
+        });
+    }
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === ANNOUNCEMENT_ALARM_NAME) checkForAnnouncement();
+});
+
+// Check on install/update and on every browser startup
+chrome.runtime.onInstalled.addListener(() => {
+    setTimeout(checkForAnnouncement, 4000);
+});
+
+chrome.runtime.onStartup.addListener(() => {
+    setTimeout(checkForAnnouncement, 4000);
 });

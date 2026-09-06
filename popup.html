@@ -110,6 +110,34 @@ body.disabled-mode .settings-grid,body.disabled-mode .footer{opacity:.35;pointer
 .update-banner-dismiss svg{width:11px;height:11px;}
 @keyframes updateBannerIn{from{opacity:0;transform:translateY(-8px) scale(.97);}to{opacity:1;transform:translateY(0) scale(1);}}
 
+/* ── bell icon (dot = unread) ─────────────────────────────────────────────── */
+#announcement-bell{position:relative;background:rgba(255,255,255,.05);border:1px solid var(--border);
+  cursor:pointer;padding:5px;margin-left:2px;color:rgba(183,182,255,.7);display:flex;align-items:center;
+  justify-content:center;border-radius:8px;transition:.2s;flex-shrink:0;}
+#announcement-bell:hover{color:rgba(183,182,255,1);background:rgba(124,123,255,.16);}
+#announcement-bell svg{width:14px;height:14px;}
+#announcement-bell-dot{position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;
+  background:#ff5470;box-shadow:0 0 6px rgba(255,84,112,.8);display:none;}
+#announcement-bell-dot.show{display:block;}
+
+/* ── full-page Updates inbox (same shell language as Watch History) ──────── */
+#updates-panel{position:absolute;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:9999;display:none;flex-direction:column;border-radius:16px;overflow:hidden;animation:slideInRight .22s ease-out;border:1px solid var(--border);}
+#updates-panel.visible{display:flex;}
+.upd-list{flex:1;overflow-y:auto;padding:10px 16px 14px;display:flex;flex-direction:column;gap:8px;scrollbar-width:thin;scrollbar-color:#222 transparent;}
+.upd-list::-webkit-scrollbar{width:5px;}
+.upd-list::-webkit-scrollbar-thumb{background:#222;border-radius:4px;}
+.upd-empty{text-align:center;color:var(--text-muted);font-size:13px;margin-top:60px;line-height:1.8;}
+.upd-empty-icon{display:flex;justify-content:center;margin-bottom:10px;}
+.upd-empty-icon svg{width:32px;height:32px;opacity:.28;}
+.upd-item{padding:12px 13px;border:1px solid rgba(255,255,255,0.08);border-radius:12px;background:rgba(255,255,255,0.035);backdrop-filter:blur(6px);}
+.upd-title-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
+.upd-title{font-size:12.5px;font-weight:700;color:#b7b6ff;}
+.upd-date{font-size:9.5px;color:var(--text-muted);white-space:nowrap;flex-shrink:0;}
+.upd-msg{font-size:11.5px;color:var(--text-sub);line-height:1.55;white-space:pre-line;word-wrap:break-word;}
+.upd-link{margin-top:8px;display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#8b8aff;text-decoration:none;}
+.upd-link:hover{text-decoration:underline;}
+.upd-item.unread{border-color:rgba(124,123,255,0.4);background:rgba(124,123,255,0.06);}
+
 /* ── settings grid ──────────────────────────────────────────────── */
 .settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%;}
 .section{
@@ -159,6 +187,7 @@ body.disabled-mode .settings-grid,body.disabled-mode .footer{opacity:.35;pointer
 #info-tooltip-box{visibility:hidden;opacity:0;position:fixed;left:14px;right:14px;bottom:14px;background:rgba(10,10,18,.98);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid rgba(245,165,36,.3);border-radius:12px;padding:11px 14px;color:rgba(255,255,255,.85);font-size:11px;line-height:1.6;box-shadow:0 -4px 28px rgba(0,0,0,.75);z-index:99999;pointer-events:none;transition:opacity .18s ease,visibility .18s ease;}
 #info-tooltip-box strong{color:var(--warning);display:flex;align-items:center;gap:5px;margin-bottom:4px;font-size:11.5px;}
 #info-tooltip-box strong svg{width:11px;height:11px;flex-shrink:0;}
+#info-tooltip-body{white-space:pre-line;}
 
 .switch{position:relative;display:inline-block;width:32px;height:17px;flex-shrink:0;}
 .switch input{opacity:0;width:0;height:0;position:absolute;}
@@ -423,6 +452,24 @@ input:checked + .slider::before{transform:translateY(-50%) translateX(15px);back
 #cinematic-cancel-btn{width:100%;padding:9px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:rgba(255,255,255,.46);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .2s ease;font-family:inherit;}
 #cinematic-cancel-btn:hover{background:rgba(255,255,255,0.09);color:rgba(255,255,255,.72);border-color:rgba(255,255,255,0.25);}
 
+#pip-disclaimer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:999999;display:none;align-items:center;justify-content:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:16px;box-sizing:border-box;}
+#pip-disclaimer-modal{background:linear-gradient(160deg,#12111f,#0d0c1a);border:1px solid rgba(245,165,36,.24);border-radius:18px;padding:24px 22px 20px;width:100%;max-width:360px;text-align:center;box-shadow:0 16px 52px rgba(0,0,0,.75);animation:cinemaModalIn .2s cubic-bezier(.34,1.36,.64,1) forwards;}
+.pip-modal-body{font-size:11.5px;color:rgba(255,255,255,.64);line-height:1.65;text-align:left;margin-bottom:18px;max-height:280px;overflow-y:auto;padding-right:6px;scrollbar-width:thin;scrollbar-color:#333 transparent;}
+.pip-modal-body::-webkit-scrollbar{width:5px;}
+.pip-modal-body::-webkit-scrollbar-thumb{background:#333;border-radius:4px;}
+.pip-modal-body p{margin:0 0 9px;}
+.pip-modal-body p:last-child{margin-bottom:0;}
+.pip-modal-body strong{color:rgba(255,255,255,.9);}
+.pip-modal-body em{color:rgba(253,186,116,.95);font-style:normal;font-weight:600;}
+.pip-modal-body ul{margin:0 0 9px;padding-left:18px;}
+.pip-modal-body li{margin-bottom:3px;}
+.pip-modal-body code{background:rgba(255,255,255,.08);border-radius:4px;padding:1px 5px;font-size:11px;color:#fcd34d;}
+#pip-confirm-btn{width:100%;padding:11px 16px;margin-bottom:8px;background:linear-gradient(135deg,#fcd34d,#f59e0b);border:none;border-radius:10px;color:#1a0800;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 4px 18px rgba(245,158,11,.35);transition:all .2s ease;font-family:inherit;}
+#pip-confirm-btn svg{width:14px;height:14px;}
+#pip-confirm-btn:hover{transform:translateY(-1px);box-shadow:0 7px 24px rgba(245,158,11,.5);}
+#pip-cancel-btn{width:100%;padding:9px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:rgba(255,255,255,.46);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .2s ease;font-family:inherit;}
+#pip-cancel-btn:hover{background:rgba(255,255,255,0.09);color:rgba(255,255,255,.72);border-color:rgba(255,255,255,0.25);}
+
 #report-panel{position:absolute;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:9999;display:none;flex-direction:column;border-radius:16px;overflow:hidden;}
 #report-panel.visible{display:flex;}
 .report-body{flex:1;overflow-y:auto;padding:14px 18px 18px;display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;align-content:start;scrollbar-width:thin;scrollbar-color:#222 transparent;}
@@ -474,7 +521,7 @@ input:checked + .slider::before{transform:translateY(-50%) translateX(15px);back
 
 .pill-btn,.power-btn,.icon-box,.info-btn,.github-btn,.coffee-btn,.cine-btn,.rp-icon-btn,
 .rsp-save,.rsp-backup-btn,.rsp-restore-btn,#report-submit-btn,#welcome-star-btn,#welcome-use-btn,
-#welcome-coffee-btn,#cinematic-confirm-btn,#cinematic-cancel-btn,.update-banner-btn,.rsp-back{
+#welcome-coffee-btn,#cinematic-confirm-btn,#cinematic-cancel-btn,#pip-confirm-btn,#pip-cancel-btn,.update-banner-btn,.rsp-back{
   position:relative;overflow:hidden;
 }
 </style>
@@ -511,6 +558,10 @@ input:checked + .slider::before{transform:translateY(-50%) translateX(15px);back
         <h3 class="wordmark">YouTube Pro+</h3>
         <span id="ext-version-label"></span>
       </div>
+      <button id="announcement-bell" title="Announcements">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span id="announcement-bell-dot"></span>
+      </button>
     </div>
     <div class="topbar-right">
       <button id="open-resume-history" class="pill-btn cyan">
@@ -649,6 +700,17 @@ input:checked + .slider::before{transform:translateY(-50%) translateX(15px);back
           <label class="switch"><input type="checkbox" id="toggle-miniplayer"><span class="slider"></span></label>
         </div>
       </div>
+
+      <div class="setting" id="setting-pipmode">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><rect x="1.5" y="2.5" width="13" height="11" rx="1.2"/><rect x="8.5" y="8.5" width="5" height="3.5" rx="0.7" fill="#22c55e" stroke="none"/></svg></div>
+            <span class="label">PiP Mode</span>
+            <span class="info-btn" data-tip="pipmode"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+          </div>
+          <label class="switch"><input type="checkbox" id="toggle-pipmode"><span class="slider"></span></label>
+        </div>
+      </div>
     </div>
 
     <!-- CONTENT -->
@@ -781,6 +843,21 @@ input:checked + .slider::before{transform:translateY(-50%) translateX(15px);back
   </div>
 
   <!-- ── Watch History overlay ─────────────────────────────────────── -->
+  <div id="updates-panel">
+    <div class="rp-header">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Updates
+      </h3>
+      <div class="rp-header-right">
+        <button class="rp-icon-btn" id="updates-close-btn" title="Back">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="upd-list" id="updates-list"></div>
+  </div>
+
   <div id="resume-panel">
     <div class="rp-header">
       <h3>
@@ -999,6 +1076,33 @@ input:checked + .slider::before{transform:translateY(-50%) translateX(15px);back
       Got it — Turn on
     </button>
     <button id="cinematic-cancel-btn">Cancel</button>
+  </div>
+</div>
+
+<div id="pip-disclaimer-overlay">
+  <div id="pip-disclaimer-modal">
+    <div class="cinematic-modal-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="15" height="12.5" rx="1.3"/><rect x="9.5" y="9.5" width="6" height="4.2" rx="0.8" fill="#f59e0b" stroke="none"/></svg>
+    </div>
+    <h3 class="cinematic-modal-title">PiP Mode — Read Before Enabling</h3>
+    <div class="pip-modal-body">
+      <p>Automatically floats the video in a small always-on-top window using the browser's native picture-in-picture, then closes it and resumes playback the instant you come back.</p>
+      <p>There are <strong>two separate triggers</strong>, and they behave differently:</p>
+      <p><strong>1) Switching tabs</strong> (or minimizing) — works out of the box, no flag needed.</p>
+      <p><strong>2) Switching to another app</strong> while the browser window stays open (just covered) — Chrome doesn't expose this to any webpage's JavaScript at all, so no extension can catch it without browser help. To enable it, turn on <em>both</em> of these flags and restart your browser:</p>
+      <ul>
+        <li><code>chrome://flags/#browser-initiated-automatic-picture-in-picture</code></li>
+        <li><code>chrome://flags/#auto-picture-in-picture-on-window-occluded</code></li>
+      </ul>
+      <p>Brave / Edge / Opera / Vivaldi: swap <code>chrome</code> for your browser's scheme, e.g. <code>brave://flags/...</code></p>
+      <p>Heads up: Google is still gradually rolling this pair out server-side, so even with both flags on it may not trigger yet on every install — that's a Chrome-side limitation, not something this extension controls.</p>
+      <p>Either way, PiP Mode still works without any flags — just click the PiP button on the player to pop it out manually anytime.</p>
+    </div>
+    <button id="pip-confirm-btn">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5 8.5 6 12 13.5 4"/></svg>
+      Got it — Turn on
+    </button>
+    <button id="pip-cancel-btn">Cancel</button>
   </div>
 </div>
 

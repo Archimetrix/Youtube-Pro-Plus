@@ -33,7 +33,72 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const toggles = ['theme', 'premium', 'ambient', 'cinematic', 'speed', 'audio', 'autoscroll', 'download', 'builtinDownloader', 'fullscreen', 'autoResume', 'screenshot', 'watchparty', 'miniplayer', 'returnDislike', 'sponsorblock'];
+    // ── Announcement bell + full-page Updates inbox (dot = unread) ────────────
+    // The OS notification is just a heads-up ping — the actual message text
+    // only ever lives here, in a dedicated full page (like Watch History),
+    // so nothing gets truncated and every past announcement stays readable.
+    (function initAnnouncements() {
+        const bell        = document.getElementById('announcement-bell');
+        const bellDot      = document.getElementById('announcement-bell-dot');
+        const updatesPanel = document.getElementById('updates-panel');
+        const updatesList  = document.getElementById('updates-list');
+        const closeBtn     = document.getElementById('updates-close-btn');
+        if (!bell || !updatesPanel) return;
+
+        function formatDate(ts) {
+            if (!ts) return '';
+            try {
+                return new Date(ts).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+            } catch { return ''; }
+        }
+
+        function escapeHtml(str) {
+            const d = document.createElement('div');
+            d.textContent = String(str);
+            return d.innerHTML;
+        }
+
+        function renderList(history, unreadIds) {
+            const unreadSet = new Set(unreadIds || []);
+            if (!history || !history.length) {
+                updatesList.innerHTML = `
+                    <div class="upd-empty">
+                        <div class="upd-empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+                        No updates yet
+                    </div>`;
+                return;
+            }
+            updatesList.innerHTML = history.map(a => `
+                <div class="upd-item${unreadSet.has(a.id) ? ' unread' : ''}">
+                    <div class="upd-title-row">
+                        <span class="upd-title">${escapeHtml(a.title || 'YouTube Pro+')}</span>
+                        <span class="upd-date">${formatDate(a.timestamp)}</span>
+                    </div>
+                    <div class="upd-msg">${escapeHtml(a.message || '')}</div>
+                    ${a.url ? `<a class="upd-link" href="${escapeHtml(a.url)}" target="_blank" rel="noopener">Open link →</a>` : ''}
+                </div>
+            `).join('');
+        }
+
+        chrome.storage.local.get(['unreadAnnouncementIds'], (r) => {
+            bellDot.classList.toggle('show', !!(r.unreadAnnouncementIds && r.unreadAnnouncementIds.length));
+        });
+
+        bell.addEventListener('click', () => {
+            chrome.storage.local.get(['announcementHistory', 'unreadAnnouncementIds'], (r) => {
+                renderList(r.announcementHistory, r.unreadAnnouncementIds);
+                showFullscreenPanel(updatesPanel);
+                bellDot.classList.remove('show');
+                chrome.storage.local.set({ unreadAnnouncementIds: [] });
+            });
+        });
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => updatesPanel.classList.remove('visible'));
+        }
+    })();
+
+    const toggles = ['theme', 'premium', 'ambient', 'cinematic', 'speed', 'audio', 'autoscroll', 'download', 'builtinDownloader', 'fullscreen', 'autoResume', 'screenshot', 'watchparty', 'miniplayer', 'pipmode', 'returnDislike', 'sponsorblock'];
     const masterToggleBtn = document.getElementById('master-toggle');
 
     // ── Load all settings ───────────────────────────────────────────────────
@@ -99,6 +164,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             // ────────────────────────────────────────────────────────────────
 
+            // ── PiP Mode disclaimer gate ─────────────────────────────────────
+            if (toggle === 'pipmode' && isChecked) {
+                e.target.checked = false; // revert visually until user confirms
+                showPipDisclaimer();
+                return;
+            }
+            // ────────────────────────────────────────────────────────────────
+
             if (toggle === 'sponsorblock') {
                 setSponsorBlockControlsVisible(isChecked);
             }
@@ -151,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateBuiltinDownloaderOpenBtn(isChecked);
             }
 
-            if (['premium', 'ambient', 'cinematic', 'download', 'builtinDownloader', 'autoResume', 'screenshot', 'watchparty', 'miniplayer', 'returnDislike', 'sponsorblock'].includes(toggle)) {
+            if (['premium', 'ambient', 'cinematic', 'download', 'builtinDownloader', 'autoResume', 'screenshot', 'watchparty', 'miniplayer', 'pipmode', 'returnDislike', 'sponsorblock'].includes(toggle)) {
                 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                     if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: `toggle${toggle}`, state: isChecked }).catch(() => {});
                 });
@@ -202,6 +275,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('cinematic-cancel-btn').addEventListener('click', () => {
         hideCinematicDisclaimer();
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // ── PiP Mode Disclaimer ───────────────────────────────────────────────────
+    function showPipDisclaimer() {
+        const overlay = document.getElementById('pip-disclaimer-overlay');
+        if (overlay) overlay.style.display = 'flex';
+    }
+
+    function hidePipDisclaimer() {
+        const overlay = document.getElementById('pip-disclaimer-overlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    document.getElementById('pip-confirm-btn').addEventListener('click', () => {
+        const pipToggle = document.getElementById('toggle-pipmode');
+        pipToggle.checked = true;
+        chrome.storage.local.set({ pipmode: true });
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs[0]) chrome.tabs.sendMessage(tabs[0].id, { action: 'togglepipmode', state: true }).catch(() => {});
+        });
+        hidePipDisclaimer();
+    });
+
+    document.getElementById('pip-cancel-btn').addEventListener('click', () => {
+        hidePipDisclaimer();
     });
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -1249,6 +1348,10 @@ document.addEventListener('DOMContentLoaded', () => {
         miniplayer: {
             title: 'Auto Mini Player',
             body:  'Automatically shrinks the video into a small floating window you can drag anywhere once you scroll past the player, then restores it to normal size when you scroll back up. Turn this off to disable the auto-shrink behavior.'
+        },
+        pipmode: {
+            title: 'PiP Mode — two different triggers',
+            body:  'Automatically floats the video in a small always-on-top window using the browser\'s native picture-in-picture, then closes it and resumes playback the instant you come back.\n\nThere are two separate triggers, and they need different flags:\n\n1) SWITCHING TABS (or minimizing) — already works out of the box, no flag needed. The extension detects this directly.\n\n2) SWITCHING TO ANOTHER APP while the browser window stays open (just covered) — Chrome doesn\'t expose this to any webpage\'s JavaScript at all, flag or no flag, code can\'t see it. Only the browser itself can catch it, via a second experimental flag on top of the first:\n\n• chrome://flags/#browser-initiated-automatic-picture-in-picture\n• chrome://flags/#auto-picture-in-picture-on-window-occluded\n\n(Brave/Edge/Opera/Vivaldi: swap "chrome" for your browser\'s scheme, e.g. brave://flags/...)\n\nEnable BOTH, restart, then try switching to another app with a video playing. Heads up: as of now this pair is still being gradually rolled out server-side by Google, so even with both enabled it may not trigger yet on every install — that\'s a Chrome-side limitation, not something this extension controls.\n\nEither way, PiP Mode still works without any flags — just click the PiP button on the player to pop it out manually anytime.'
         },
         returnDislike: {
             title: 'Return Youtube Dislike',
