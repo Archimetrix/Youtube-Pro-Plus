@@ -63,7 +63,7 @@ Click the image below to watch the full showcase and installation guide:
 
 For users on other Chromium browsers where the extension is not yet in the store, you can install the latest stable build locally in Developer Mode in just a few seconds:
 
-1.  **Download the Extension:** Click the **Download ZIP** button in the downloads section above and extract the folder to your computer.
+1.  **Download the Extension:** Click the **Download ZIP** button in the downloads section above or directly download stable version zip from releases then extract the folder to your computer.
 2.  **Open Extensions:** Open your browser and type `chrome://extensions/` (or `opera://extensions/` / `brave://extensions/`) in the URL bar.
 3.  **Enable Developer Mode:** Toggle the **"Developer mode"** switch in the top right corner of the page.
 4.  **Load the Extension:** Click the **"Load unpacked"** button in the top left and select the extracted `Youtube-Pro-Plus-main` folder.
