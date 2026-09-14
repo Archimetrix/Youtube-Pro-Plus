@@ -1,0 +1,34 @@
+/*
+ * block-popups.css — YouTube Pro +
+ * Blocks the "experiencing interruptions" toast that YouTube shows
+ * when an ad blocker is active. Always injected, independent of any toggle.
+ */
+
+/* ── The exact element found via uBlock element picker ── */
+.paper-toast-open.yt-notification-action-renderer.style-scope.toast-button,
+tp-yt-paper-toast,
+tp-yt-paper-toast.yt-notification-action-renderer {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* ── Adblock enforcement modal & backdrop ── */
+ytd-enforcement-message-view-model,
+.yt-playability-error-supported-renderers,
+ytd-upsell-dialog-renderer,
+ytd-paid-content-overlay-renderer,
+yt-upsell-dialog-renderer,
+.style-scope ytd-mealbar-promo-renderer {
+    display: none !important;
+}
+
+tp-yt-iron-overlay-backdrop,
+.ytd-popup-container tp-yt-iron-overlay-backdrop {
+    display: none !important;
+}
+
+/* ── Prevent the scroll-lock YouTube applies behind the enforcement wall ── */
+body[style*="overflow: hidden"] {
+    overflow: auto !important;
+}

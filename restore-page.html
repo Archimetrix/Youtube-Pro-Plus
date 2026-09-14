@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>YT Pro+ · Restore Backup</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 16px;
+      padding: 40px 48px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+    }
+    .logo { font-size: 40px; margin-bottom: 12px; }
+    h1 { font-size: 20px; font-weight: 600; color: #fff; margin-bottom: 8px; }
+    p  { font-size: 14px; color: #888; line-height: 1.6; margin-bottom: 28px; }
+    code { background: #2a2a2a; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+
+    #drop-zone {
+      border: 2px dashed #444;
+      border-radius: 12px;
+      padding: 36px 20px;
+      transition: border-color 0.2s, background 0.2s;
+      margin-bottom: 20px;
+    }
+    #drop-zone:hover, #drop-zone.drag-over {
+      border-color: #00d2ff;
+      background: rgba(0,210,255,0.05);
+    }
+    #drop-zone label {
+      display: block;
+      cursor: pointer;
+    }
+    .dz-icon { font-size: 32px; margin-bottom: 10px; }
+    .dz-text { font-size: 14px; color: #aaa; }
+    .dz-sub  { font-size: 12px; color: #555; margin-top: 6px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: rgba(0,210,255,0.12);
+      border: 1px solid rgba(0,210,255,0.3);
+      color: #00d2ff;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: rgba(0,210,255,0.22); }
+
+    .progress-bar {
+      height: 4px;
+      background: #222;
+      border-radius: 4px;
+      margin-top: 20px;
+      overflow: hidden;
+      display: none;
+    }
+    .progress-bar.show { display: block; }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00d2ff, #00ff88);
+      border-radius: 4px;
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+
+    #status { margin-top: 16px; font-size: 14px; min-height: 20px; }
+    #status.success { color: #00ff88; }
+    #status.error   { color: #ff4444; }
+    #status.info    { color: #aaa; }
+
+    .close-hint { font-size: 12px; color: #555; margin-top: 14px; display: none; }
+    .close-hint.show { display: block; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo"><svg viewBox="0 0 40 40" fill="none" stroke="#00d2ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="40" height="40"><rect x="6" y="14" width="28" height="22" rx="2"/><path d="M6 20 H34"/><path d="M13 8 L6 14"/><path d="M27 8 L34 14"/><path d="M13 8 H27"/><path d="M16 27 L20 31 L24 27"/><line x1="20" y1="22" x2="20" y2="31"/></svg></div>
+  <h1>Restore YT Pro+ Backup</h1>
+  <p>Select your <code>ytpro-backup-*.json</code> file to restore your watch history and play counts.</p>
+
+  <input type="file" id="file-input" accept=".json"
+    style="position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;">
+
+  <div id="drop-zone">
+    <label for="file-input">
+      <div class="dz-icon"><svg viewBox="0 0 32 32" fill="none" stroke="#888" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32"><path d="M4 10 C4 8.9 4.9 8 6 8 L13 8 L15 11 L26 11 C27.1 11 28 11.9 28 13 L28 24 C28 25.1 27.1 26 26 26 L6 26 C4.9 26 4 25.1 4 24 Z"/></svg></div>
+      <div class="dz-text">Click to choose file</div>
+      <div class="dz-sub">or drag &amp; drop your backup JSON here</div>
+    </label>
+  </div>
+
+  <label for="file-input" class="btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M2 5 C2 4.4 2.4 4 3 4 L6.5 4 L7.5 5.5 L13 5.5 C13.6 5.5 14 5.9 14 6.5 L14 12 C14 12.6 13.6 13 13 13 L3 13 C2.4 13 2 12.6 2 12 Z"/></svg> Browse for backup file</label>
+
+  <div class="progress-bar" id="progress-bar">
+    <div class="progress-fill" id="progress-fill"></div>
+  </div>
+  <div id="status"></div>
+  <div class="close-hint" id="close-hint">This tab will close automatically…</div>
+</div>
+
+<script src="browser-compat.js"></script>
+<script src="restore-page.js"></script>
+</body>
+</html>

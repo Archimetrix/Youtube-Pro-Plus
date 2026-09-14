@@ -1,0 +1,181 @@
+{
+  "manifest_version": 3,
+  "name": "Youtube Pro Plus",
+  "version": "7.1",
+  "description": "A Free powerful extension for youtube with more than 16 features to completely overhaul your youtube experience.",
+  "background": {
+    "service_worker": "background-sw.js"
+  },
+  "permissions": [
+    "activeTab",
+    "alarms",
+    "clipboardWrite",
+    "declarativeNetRequestWithHostAccess",
+    "notifications",
+    "storage",
+    "tabs",
+    "unlimitedStorage"
+  ],
+  "host_permissions": [
+    "*://formbold.com/*",
+    "*://ssvid.net/*",
+    "*://vidssave.com/*",
+    "*://www.ssvid.net/*",
+    "*://www.vidssave.com/*",
+    "*://www.youtube.com/*",
+    "*://youtube.com/*",
+    "https://*.onrender.com/*",
+    "https://*.youtube.com/*",
+    "https://api.github.com/*",
+    "https://github.com/*",
+    "https://catbox.moe/*",
+    "https://files.catbox.moe/*",
+    "https://raw.githubusercontent.com/*",
+    "https://returnyoutubedislikeapi.com/*",
+    "https://sponsor.ajay.app/*"
+  ],
+  "icons": {
+    "16": "imgs/icon16.png",
+    "32": "imgs/icon32.png",
+    "48": "imgs/icon48.png",
+    "128": "imgs/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "imgs/icon16.png",
+      "32": "imgs/icon32.png",
+      "48": "imgs/icon48.png",
+      "128": "imgs/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://youtube.com/*"
+      ],
+      "js": [
+        "gate.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://youtube.com/*"
+      ],
+      "js": [
+        "browser-compat.js",
+        "content.js"
+      ],
+      "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://youtube.com/*"
+      ],
+      "js": [
+        "browser-compat.js",
+        "sound-booster.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://ssvid.net/*",
+        "*://www.ssvid.net/*",
+        "*://vidssave.com/*",
+        "*://www.vidssave.com/*"
+      ],
+      "js": [
+        "browser-compat.js",
+        "inject-download.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://youtube.com/*"
+      ],
+      "js": [
+        "browser-compat.js",
+        "room-sync.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://youtube.com/*"
+      ],
+      "js": [
+        "return-youtube-dislike.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://youtube.com/*"
+      ],
+      "js": [
+        "sponsorblock.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://youtube.com/*"
+      ],
+      "js": [
+        "content-scripts/pip-mode.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://youtube.com/*"
+      ],
+      "js": [
+        "content-scripts/title-sync.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "features.css",
+        "theme.css",
+        "block-popups.css",
+        "inject-speed.js",
+        "imgs/playericon.svg",
+        "imgs/playericon_inactive.svg",
+        "imgs/redcircle.svg"
+      ],
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://youtube.com/*"
+      ]
+    }
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqya4gNGUIDnpfv6RTGmwgGNWB+rBZwkBXkJEdhPIEUINnVTbdie9fLblFrA9De5yes15nR80m7fi3wCko+qL0wjHjNgJLYYxlvpE6/Ea2DJdFqUeVKLjHMigLmH0E7pS3rmiTePQfrZwNoNMyoovuYdMM73Q4OhBCKe5ZRhI7CQsk9M0yJrsSQuPAK3krEIgBCQSicacK/ZW7guSUQVyH/Ez6SYJLGicUU+WuSiAJpdC/vHwbGVwvlMwPsep8S9WZ4Of1nCvfyWH5r6ZCUhrGOGnzkE9eM5Tkn537uMzithW62dESk05aRC//VjsTg0jy+Mo+7wdRFiGJxrOdo1b8QIDAQAB",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "minimum_chrome_version": "125.0",
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "strip-youtube-frame-headers",
+        "enabled": true,
+        "path": "rules/strip-youtube-frame-headers.json"
+      }
+    ]
+  }
+}
