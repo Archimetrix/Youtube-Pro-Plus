@@ -33,9 +33,9 @@
 ---
 
 ## 🎥 Watch it in Action
-Click the image below to watch the full showcase :
+Click the image below to watch the full showcase and installation guide:
 
-[![YouTube Pro Plus Showcase](https://i.postimg.cc/8k9GtkyF/Screenshot-2026-09-11-122852.png)](https://1drv.ms/v/c/15824cea270791bd/IQAmTbmZDG7cQLMCbPUhgeomAYik9jJKBg-lStPWIxqj4fM?e=ct10To)
+[![YouTube Pro Plus Showcase](https://i.postimg.cc/3NDsqcJv/photo-2026-05-03-18-50-19.jpg)](https://files.catbox.moe/5yas78.mp4)
 
 ---
 
@@ -48,7 +48,6 @@ Click the image below to watch the full showcase :
 * **⚡ 10x Speed Booster:** Bypasses YouTube's native 2x speed limit, allowing you to seamlessly increase playback speed up to 10x directly from the native player settings.
 * **🎛️ Sound Booster :Boost yt vidios sound as much you need   .
 * **🔁 Shorts Auto-Scroller:** A robust background script that intelligently detects when a YouTube Short finishes and automatically scrolls to the next one—completely hands-free.
-* **📩Builtin Downloader :** A builtin downloader is now included in extension .
 * **⬇️ Smart Download:** A smart third-party download support added replacing the default download button (if you want to use the normal download then just turn off the setting in the extension).
 * **⏯️ History and auto resume :** A smart system  storing all your watched vidios with date and duration of vidios watched. When you click on the video next time it will play feom where you left it last time and you can change which ever settings you like -- and also there is a recap intregation in it it will tell you your all time top 5 vidios and top 5 chanels .
 * **📸 Screenshot Videosframe :**  You can screenshot videos with alt+shift+s or there is a camera icon in player just click that .
@@ -63,16 +62,12 @@ Click the image below to watch the full showcase :
 
 For users on other Chromium browsers where the extension is not yet in the store, you can install the latest stable build locally in Developer Mode in just a few seconds:
 
-1.  **Download the Extension:** Click the **Download ZIP** button in the downloads section above or directly download stable version zip from releases then extract the folder to your computer.
+1.  **Download the Extension:** Click the **Download ZIP** button in the downloads section above and extract the folder to your computer.
 2.  **Open Extensions:** Open your browser and type `chrome://extensions/` (or `opera://extensions/` / `brave://extensions/`) in the URL bar.
 3.  **Enable Developer Mode:** Toggle the **"Developer mode"** switch in the top right corner of the page.
 4.  **Load the Extension:** Click the **"Load unpacked"** button in the top left and select the extracted `Youtube-Pro-Plus-main` folder.
 5.  *Important:* Make sure to disable any conflicting Tampermonkey scripts or Stylus themes! 
 6.  **Refresh YouTube** and enjoy!
-
-**Click the image below to watch the full showcase and installation guide: ⏬**
-
-[![Extension Installation Guide](https://i.postimg.cc/tC00y0XF/Screenshot-2026-09-13-195414.png)](https://youtu.be/HIBwMWksrTg)
 
 ---
 
