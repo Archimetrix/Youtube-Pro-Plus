@@ -4,6 +4,7 @@
 
   ![Version](https://img.shields.io/badge/version-7.1-blue.svg)
   ![Platform](https://img.shields.io/badge/platform-Firefox%20%7C%20Edge%20%7C%20Chromium-green.svg)
+[![Copyright](https://img.shields.io/badge/Copyright-%C2%A9%202026%20Archimetrix.%20All%20rights%20reserved-f39c12?style=flat-square)](LICENSE)
 </div>
 
 **YouTube Pro +** is an all-in-one, highly optimized extension designed to completely overhaul your YouTube experience. It makes your life so smooth with useful features and a stylish theme all into one centralized, lightweight extension with a beautiful **Liquid Glass** UI.
