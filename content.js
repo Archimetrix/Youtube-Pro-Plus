@@ -1634,18 +1634,24 @@ const ytProMP = {
     // dimensions, then to standard 16:9, whenever the measured ratio
     // isn't a sane finite number.
     getSafeAspectRatio() {
-        const w = this.outerContainer?.offsetWidth;
-        const h = this.outerContainer?.offsetHeight;
-        let ratio = w && h ? w / h : NaN;
+        // Prefer the video's OWN intrinsic ratio. The player container is
+        // always 16:9 with letterboxing around it, so for square/portrait
+        // album art (audio "song" tracks) a container-derived ratio makes
+        // the floating box the wrong shape and the art ends up cropped.
+        const vw = this.videoElement?.videoWidth;
+        const vh = this.videoElement?.videoHeight;
+        let ratio = vw && vh ? vw / vh : NaN;
 
         if (!isFinite(ratio) || ratio <= 0) {
-            const vw = this.videoElement?.videoWidth;
-            const vh = this.videoElement?.videoHeight;
-            ratio = vw && vh ? vw / vh : NaN;
+            const w = this.outerContainer?.offsetWidth;
+            const h = this.outerContainer?.offsetHeight;
+            ratio = w && h ? w / h : NaN;
         }
 
         if (!isFinite(ratio) || ratio <= 0) ratio = 16 / 9;
-        return ratio;
+        // Keep the floating box within sane bounds so an odd source can't
+        // produce a sliver or a full-height column.
+        return Math.min(Math.max(ratio, 0.6), 2.5);
     },
 
     isAudioOnlyTrack() {
@@ -1669,8 +1675,7 @@ const ytProMP = {
         this.originalIvStyle    = this.ivVideoContent?.getAttribute('style');
 
         const storedPlayerHeight = this.playerElement.offsetHeight;
-        this.originalPlayerWidth = this.playerElement.style.width;
-        this.originalPlayerBg    = this.playerElement.style.backgroundSize + '|' + this.playerElement.style.backgroundPosition;
+        this.originalPlayerBgImage = this.playerElement.style.backgroundImage;
         this.playerElement.style.height = `${storedPlayerHeight}px`;
 
         const floatingWidth  = window.innerWidth / 5;
@@ -1703,20 +1708,24 @@ const ytProMP = {
         if (this.videoElement) {
             this.videoElement.style.width = `${floatingWidth}px`;
             this.videoElement.style.height = `${floatingHeight}px`;
+            // contain, not the implicit fill: a static-image track whose
+            // art isn't 16:9 would otherwise be stretched or cropped.
+            this.videoElement.style.objectFit = 'contain';
+            this.videoElement.style.left = '0px';
+            this.videoElement.style.top = '0px';
         }
         if (this.ivVideoContent) {
             this.ivVideoContent.style.width = `${floatingWidth}px`;
             this.ivVideoContent.style.height = `${floatingHeight}px`;
         }
 
-        // Audio-only "song" tracks paint their album art as a CSS
-        // background-image directly on #movie_player (behind the blank
-        // video element), sized for the full player. Without forcing
-        // cover/center here, shrinking the container just crops a tiny
-        // corner of that background instead of scaling the art down.
-        this.playerElement.style.width = `${floatingWidth}px`;
-        this.playerElement.style.backgroundSize = 'cover';
-        this.playerElement.style.backgroundPosition = 'center';
+        // #player stays in the normal page flow as a height placeholder
+        // while the floating box is detached. For audio "song" tracks it
+        // carries the album art as a CSS background-image, so leaving it
+        // painted shows a cropped slab of artwork sitting in the article
+        // flow. Blank the placeholder's art and leave its width alone --
+        // narrowing it is what produced the half-cut image.
+        this.playerElement.style.backgroundImage = 'none';
 
         this.enableDragging();
     },
@@ -1730,10 +1739,7 @@ const ytProMP = {
 
         if (this.playerElement) {
             this.playerElement.style.height = '';
-            this.playerElement.style.width  = this.originalPlayerWidth || '';
-            const [bgSize, bgPos] = (this.originalPlayerBg || '|').split('|');
-            this.playerElement.style.backgroundSize = bgSize || '';
-            this.playerElement.style.backgroundPosition = bgPos || '';
+            this.playerElement.style.backgroundImage = this.originalPlayerBgImage || '';
         }
         if (this.innerContainer) this.innerContainer.setAttribute('style', this.originalInnerStyle || '');
         if (this.bottomChrome) this.bottomChrome.style.display = '';
@@ -1834,13 +1840,15 @@ const ytProMP = {
         if (this.videoElement) {
             this.videoElement.style.width = `${floatingWidth}px`;
             this.videoElement.style.height = `${floatingHeight}px`;
+            // contain, not the implicit fill: a static-image track whose
+            // art isn't 16:9 would otherwise be stretched or cropped.
+            this.videoElement.style.objectFit = 'contain';
+            this.videoElement.style.left = '0px';
+            this.videoElement.style.top = '0px';
         }
         if (this.ivVideoContent) {
             this.ivVideoContent.style.width = `${floatingWidth}px`;
             this.ivVideoContent.style.height = `${floatingHeight}px`;
-        }
-        if (this.playerElement) {
-            this.playerElement.style.width = `${floatingWidth}px`;
         }
     },
 

@@ -32,7 +32,22 @@
         return document.querySelector('.html5-video-player video') || document.querySelector('video');
     }
 
+    // Only pages that actually host a video have a title worth taking over.
+    // On any other page (home, subscriptions, search, channel...) there is
+    // no reliable on-page title element, and falling back to og:title used
+    // to grab stale/unrelated text -- e.g. a video ad's advertiser title
+    // (like a "Flipkart Big Billion Days" ad) that YouTube's SPA nav
+    // doesn't always refresh in that meta tag once you navigate away. The
+    // background alarm pings every YouTube tab on a timer regardless of
+    // page, so that stale value could stomp the correct native title even
+    // while sitting on the home feed. Gate on path + a real video/title
+    // element, and never fall back to og:title.
+    function isVideoPage() {
+        return /^\/(watch|shorts)(\/|$)/.test(location.pathname);
+    }
+
     function getRealTitle() {
+        if (!isVideoPage()) return null;
         const candidates = [
             document.querySelector('.ytp-title-link'),
             document.querySelector('ytd-watch-metadata h1 yt-formatted-string'),
@@ -42,12 +57,24 @@
             const text = el && el.textContent && el.textContent.trim();
             if (text) return text;
         }
-        const ogTitle = document.querySelector('meta[property="og:title"]');
-        if (ogTitle && ogTitle.content && ogTitle.content.trim()) return ogTitle.content.trim();
         return null;
     }
 
+    // While an ad plays it uses the SAME <video> element as the real
+    // content, so ad start/stop fires the exact loadstart/playing events
+    // we listen for -- and .ytp-title-link briefly shows the advertiser's
+    // title (e.g. "Flipkart Big Billion Days") instead of the video's.
+    // Without this guard that flashes into the tab title for a moment
+    // both when the ad starts and, via the same path, right before the
+    // real title reasserts itself when it ends.
+    function isAdShowing() {
+        return !!document.querySelector(
+            '.html5-video-player.ad-showing, .html5-video-player.ad-interrupting, .ytp-ad-player-overlay'
+        );
+    }
+
     function syncTitle() {
+        if (!isVideoPage() || isAdShowing()) return;
         const title = getRealTitle();
         if (!title) return;
         const expected = `${title} - YouTube`;
@@ -62,6 +89,10 @@
         syncTitle();
         [200, 600, 1200, 2500].forEach(delay => setTimeout(syncTitle, delay));
     }
+
+    // Once an ad ends, content playback fires its own loadstart/playing,
+    // which already calls syncTitleWithRetries -- so no separate ad-end
+    // watcher is needed beyond the isAdShowing() guard above.
 
     let lastVideo = null;
     function attachVideoListeners() {
