@@ -66,6 +66,12 @@
     let boundSeeked = null;
     let markerTrack = null;
     let controlsObserver = null;
+    let playerDomObserver = null;
+    let markerRenderRaf = 0;
+    let observedBar = null;
+    let markerResizeObserver = null;
+    let markerHost = null;
+    let markerSyncRaf = 0;
     let skipReady = false;
     let skipReadyTimer = null;
     let pendingSkip = null; // { end, category } — set while we wait for a seek to actually land
@@ -138,18 +144,28 @@
             #yt-pro-sb-toast.show { opacity: 1; transform: translateY(0); }
             #yt-pro-sb-toast .yt-pro-sb-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
             #yt-pro-sb-track {
-                position: absolute;
-                pointer-events: none;
-                z-index: 1000;
+                position: absolute !important;
+                inset: 0 !important;
+                box-sizing: border-box;
+                pointer-events: none !important;
+                z-index: 2147483000 !important;
                 opacity: 0;
+                visibility: hidden;
                 transition: opacity 0.15s ease;
+                overflow: visible !important;
+                border-radius: 2px;
             }
             .yt-pro-sb-marker {
-                position: absolute;
-                top: 0;
-                height: 100%;
-                opacity: 0.75;
-                pointer-events: none;
+                position: absolute !important;
+                top: 0 !important;
+                bottom: 0 !important;
+                height: 100% !important;
+                min-width: 2px;
+                opacity: 0.95;
+                pointer-events: none !important;
+                border-radius: 1px;
+                z-index: 2147483001 !important;
+                display: block !important;
             }
         `;
         document.head.appendChild(style);
@@ -173,83 +189,194 @@
     }
 
     function removeMarkers() {
-        markerTrack?.remove();
-        markerTrack = null;
+        if (markerSyncRaf) {
+            cancelAnimationFrame(markerSyncRaf);
+            markerSyncRaf = 0;
+        }
+        if (markerRenderRaf) {
+            cancelAnimationFrame(markerRenderRaf);
+            markerRenderRaf = 0;
+        }
+        markerResizeObserver?.disconnect();
+        markerResizeObserver = null;
         controlsObserver?.disconnect();
         controlsObserver = null;
+        playerDomObserver?.disconnect();
+        playerDomObserver = null;
+        observedBar = null;
+        markerHost = null;
+        markerTrack?.remove();
+        markerTrack = null;
     }
 
-    function getProgressBarEl() {
-        // '.ytp-progress-bar' is the actual thin visible line YouTube draws the
-        // played/buffered fill in. '.ytp-progress-bar-container' is its *outer*
-        // wrapper — a taller, invisible hit-area used for the hover-expand
-        // effect. Measuring the container instead of the real bar was the bug:
-        // our marker track ended up sized/positioned against that padded
-        // rect, so the colored segments landed just above/below the visible
-        // line instead of on it — they were there, just not visibly on the bar.
-        return document.querySelector('.ytp-progress-bar') ||
-               document.querySelector('.ytp-progress-bar-container');
+    function getPlayer() {
+        return document.querySelector('.html5-video-player');
+    }
+
+    function getProgressHost() {
+        const player = getPlayer();
+        if (!player) return null;
+
+        // YouTube can keep more than one progress-bar container alive while it
+        // moves between normal-player and miniplayer layouts. querySelector()
+        // is therefore unsafe: it can return the old/hidden container. Pick the
+        // currently visible, largest progress surface instead.
+        const candidates = [
+            ...player.querySelectorAll('.ytp-progress-bar-container'),
+            ...player.querySelectorAll('.ytp-progress-bar')
+        ];
+
+        let best = null;
+        let bestScore = -1;
+        for (const el of candidates) {
+            if (!el || !el.isConnected) continue;
+            const cs = getComputedStyle(el);
+            if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) continue;
+            const r = el.getBoundingClientRect();
+            if (r.width < 20 || r.height < 1) continue;
+
+            // Prefer the actual container, then the widest visible surface.
+            const containerBonus = el.classList.contains('ytp-progress-bar-container') ? 1e9 : 0;
+            const score = containerBonus + (r.width * Math.max(r.height, 1));
+            if (score > bestScore) {
+                best = el;
+                bestScore = score;
+            }
+        }
+
+        return best || player.querySelector('.ytp-progress-bar-container') ||
+               player.querySelector('.ytp-progress-bar') || null;
+    }
+
+    function getProgressBarEl(host) {
+        return host?.querySelector?.('.ytp-progress-bar') || host || null;
+    }
+
+    function scheduleMarkerGeometrySync(host) {
+        if (markerSyncRaf) return;
+        markerSyncRaf = requestAnimationFrame(() => {
+            markerSyncRaf = 0;
+            if (!markerTrack || !host || markerTrack.parentElement !== host) return;
+            // The track fills the current progress-bar container. No player-level
+            // coordinates are used, so moving between normal/miniplayer does not
+            // leave stale absolute coordinates behind.
+            markerTrack.style.left = '0';
+            markerTrack.style.top = '0';
+            markerTrack.style.width = '100%';
+            markerTrack.style.height = '100%';
+        });
+    }
+
+    function scheduleMarkerRender() {
+        if (!active || markerRenderRaf) return;
+        markerRenderRaf = requestAnimationFrame(() => {
+            markerRenderRaf = 0;
+            renderMarkers();
+        });
+    }
+
+    function installPlayerDomObserver(player) {
+        if (playerDomObserver) return;
+        // Observe the document rather than only the player. During normal ↔
+        // miniplayer transitions YouTube can reparent/replace the progress
+        // controls, and the relevant DOM mutation is not guaranteed to happen
+        // underneath the same player node that held our previous marker layer.
+        const root = document.body || document.documentElement;
+        if (!root) return;
+        playerDomObserver = new MutationObserver((mutations) => {
+            if (!active) return;
+            const relevant = mutations.some(m => {
+                if (m.type === 'attributes') {
+                    return m.target?.classList?.contains('html5-video-player') ||
+                           m.target?.classList?.contains('ytp-progress-bar-container') ||
+                           m.target?.classList?.contains('ytp-progress-bar');
+                }
+                if (m.target === markerTrack || m.target?.closest?.('#yt-pro-sb-track')) return false;
+                const nodes = [...m.addedNodes, ...m.removedNodes];
+                return nodes.some(n => {
+                    if (n.nodeType !== Node.ELEMENT_NODE) return false;
+                    return n.matches?.('.html5-video-player, .ytp-progress-bar-container, .ytp-progress-bar') ||
+                           !!n.querySelector?.('.html5-video-player, .ytp-progress-bar-container, .ytp-progress-bar');
+                });
+            });
+            if (relevant) scheduleMarkerRender();
+        });
+        playerDomObserver.observe(root, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['class', 'style']
+        });
+    }
+
+    function installMarkerLayer(host, player) {
+        if (markerTrack && markerTrack.isConnected && markerTrack.parentElement === host) return;
+
+        markerResizeObserver?.disconnect();
+        markerResizeObserver = null;
+        markerTrack?.remove();
+
+        markerTrack = document.createElement('div');
+        markerTrack.id = 'yt-pro-sb-track';
+        markerTrack.setAttribute('aria-hidden', 'true');
+        host.appendChild(markerTrack);
+        markerHost = host;
+        observedBar = getProgressBarEl(host);
+
+        const computedPosition = getComputedStyle(host).position;
+        if (computedPosition === 'static') host.style.position = 'relative';
+
+        markerResizeObserver = new ResizeObserver(() => scheduleMarkerGeometrySync(host));
+        markerResizeObserver.observe(host);
+        if (observedBar && observedBar !== host) markerResizeObserver.observe(observedBar);
+
+        controlsObserver?.disconnect();
+        controlsObserver = new MutationObserver(() => scheduleMarkerRender());
+        controlsObserver.observe(player, { attributes: true, attributeFilter: ['class'] });
+
+        scheduleMarkerGeometrySync(host);
     }
 
     function renderMarkers() {
         if (!active || !video || !video.duration || !isFinite(video.duration) || video.duration <= 0) return;
-        const player = document.querySelector('.html5-video-player');
-        const bar = getProgressBarEl();
-        if (!player || !bar) return;
 
-        const playerRect = player.getBoundingClientRect();
-        const barRect = bar.getBoundingClientRect();
-        if (barRect.width <= 0) return; // player not laid out yet (e.g. hidden tab)
+        const player = getPlayer();
+        const host = getProgressHost();
+        if (!player || !host) return;
 
-        if (!markerTrack || !markerTrack.isConnected) {
-            markerTrack = document.createElement('div');
-            markerTrack.id = 'yt-pro-sb-track';
-            player.appendChild(markerTrack);
-
-            // React instantly to controls show/hide instead of waiting for
-            // the next 500ms poll tick, so the overlay never lags visibly
-            // behind the real controls fading in/out.
-            controlsObserver?.disconnect();
-            controlsObserver = new MutationObserver(() => {
-                if (markerTrack) {
-                    markerTrack.style.opacity = player.classList.contains('ytp-autohide') ? '0' : '1';
-                }
-            });
-            controlsObserver.observe(player, { attributes: true, attributeFilter: ['class'] });
+        // Native PiP has its own browser surface; page-side markers must be
+        // hidden there and recreated against YouTube's current DOM on return.
+        if (document.pictureInPictureElement) {
+            if (markerTrack) markerTrack.style.visibility = 'hidden';
+            return;
         }
 
-        // Keep the overlay glued exactly on top of YouTube's real bar, even
-        // as it resizes (theater mode, fullscreen, hover-expand, etc).
-        markerTrack.style.left = (barRect.left - playerRect.left) + 'px';
-        markerTrack.style.top = (barRect.top - playerRect.top) + 'px';
-        markerTrack.style.width = barRect.width + 'px';
-        markerTrack.style.height = Math.max(barRect.height, 3) + 'px';
+        installPlayerDomObserver(player);
+        installMarkerLayer(host, player);
+        scheduleMarkerGeometrySync(host);
 
-        // Match YouTube's own behavior: the progress bar (and our overlay
-        // riding on top of it) is only meaningfully visible while the native
-        // controls are shown. Without this, the markers stayed pinned in
-        // place even while controls were hidden/faded, making them look like
-        // stray disconnected chips floating over the video.
-        const controlsHidden = player.classList.contains('ytp-autohide');
-        markerTrack.style.opacity = controlsHidden ? '0' : '1';
+        const hostRect = host.getBoundingClientRect();
+        const hostStyle = getComputedStyle(host);
+        const hostVisible = hostRect.width > 20 && hostRect.height > 0 &&
+            hostStyle.display !== 'none' && hostStyle.visibility !== 'hidden' &&
+            Number(hostStyle.opacity) > 0;
+        markerTrack.style.visibility = hostVisible ? 'visible' : 'hidden';
+        markerTrack.style.opacity = hostVisible ? '1' : '0';
 
         markerTrack.innerHTML = '';
         const duration = video.duration;
-        segments.forEach(seg => {
+        for (const seg of segments) {
             const [start, end] = seg.segment;
+            if (!isFinite(start) || !isFinite(end) || end <= start) continue;
             const left = Math.max(0, Math.min(100, (start / duration) * 100));
-            const width = Math.max(0.3, Math.min(100 - left, ((end - start) / duration) * 100));
+            const width = Math.max(0.35, Math.min(100 - left, ((end - start) / duration) * 100));
             const marker = document.createElement('div');
             marker.className = 'yt-pro-sb-marker';
-            marker.style.left = left + '%';
-            marker.style.width = width + '%';
-            // Locally-remembered segments that the server hasn't confirmed
-            // yet (still cached/stale) render white, so it's obvious at a
-            // glance which markers are "yours, unconfirmed" vs "confirmed
-            // by the server for everyone".
+            marker.style.left = `${left}%`;
+            marker.style.width = `${width}%`;
             marker.style.background = seg.isLocalOnly ? '#ffffff' : (CATEGORY_COLORS[seg.category] || '#00d400');
             markerTrack.appendChild(marker);
-        });
+        }
     }
 
     function onTimeUpdate() {
@@ -392,6 +519,25 @@
             }
         });
     }
+
+    document.addEventListener('leavepictureinpicture', () => {
+        setTimeout(() => {
+            if (!active) return;
+            markerTrack?.remove();
+            markerTrack = null;
+            markerHost = null;
+            observedBar = null;
+            scheduleMarkerRender();
+        }, 50);
+    });
+    document.addEventListener('enterpictureinpicture', () => {
+        if (markerTrack) markerTrack.style.visibility = 'hidden';
+    });
+    document.addEventListener('fullscreenchange', () => {
+        setTimeout(() => {
+            if (active) scheduleMarkerRender();
+        }, 50);
+    });
 
     function selfInit() {
         if (typeof chrome === 'undefined' || !chrome.storage?.local) return;

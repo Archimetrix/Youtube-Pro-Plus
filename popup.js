@@ -422,91 +422,36 @@ document.addEventListener('DOMContentLoaded', () => {
         return groups;
     }
 
-    // ── Virtual scroll constants ──────────────────────────────────────────
-    const VS_CARD_HEIGHT   = 78;  // card: 56px thumb + padding + margin
-    const VS_HEADER_HEIGHT = 30;  // date group header
-    const VS_BUFFER        = 6;   // extra items above/below viewport
-
-    let vsItems     = [];
-    let vsScrollRAF = null;
-
+    // Flatten the grouped history into the DOM order used by the 2-column grid.
+    // This helper intentionally contains no virtual-scroll/spacer math: CSS Grid
+    // is responsible for row placement and the scroll container owns its height.
     function buildFlatItems(filtered, useGroups) {
         const items = [];
         if (!useGroups) {
             filtered.forEach(v => items.push({ type: 'card', video: v }));
-        } else {
-            const groups = groupVideosByDate(filtered);
-            ['Today', 'Yesterday', 'This Week', 'This Month', 'Older'].forEach(groupName => {
-                if (!groups[groupName].length) return;
-                items.push({ type: 'header', label: groupName });
-                groups[groupName].forEach(v => items.push({ type: 'card', video: v }));
-            });
+            return items;
         }
+
+        const groups = groupVideosByDate(filtered);
+        ['Today', 'Yesterday', 'This Week', 'This Month', 'Older'].forEach(groupName => {
+            if (!groups[groupName].length) return;
+            items.push({ type: 'header', label: groupName });
+            groups[groupName].forEach(v => items.push({ type: 'card', video: v }));
+        });
         return items;
     }
 
-    function vsItemHeight(item) {
-        return item.type === 'header' ? VS_HEADER_HEIGHT : VS_CARD_HEIGHT;
-    }
-
-    function vsTotalHeight(items) {
-        return items.reduce((sum, item) => sum + vsItemHeight(item), 0);
-    }
-
-    function vsFirstVisibleIndex(items, scrollTop) {
-        let y = 0;
-        for (let i = 0; i < items.length; i++) {
-            const h = vsItemHeight(items[i]);
-            if (y + h > scrollTop) return i;
-            y += h;
-        }
-        return items.length - 1;
-    }
-
-    function vsOffsetOf(items, index) {
-        let y = 0;
-        for (let i = 0; i < index; i++) y += vsItemHeight(items[i]);
-        return y;
-    }
-
-    function renderVisibleItems() {
-        if (!vsItems.length) return;
-        const scrollTop  = rpList.scrollTop;
-        const viewHeight = rpList.clientHeight || 450;
-        const startIdx   = Math.max(0, vsFirstVisibleIndex(vsItems, scrollTop) - VS_BUFFER);
-        const endIdx     = Math.min(vsItems.length - 1, vsFirstVisibleIndex(vsItems, scrollTop + viewHeight) + VS_BUFFER);
-
-        const topPad    = vsOffsetOf(vsItems, startIdx);
-        const bottomPad = vsTotalHeight(vsItems) - vsOffsetOf(vsItems, endIdx + 1);
-
-        const spacerTop    = rpList.querySelector('.vs-spacer-top');
-        const spacerBottom = rpList.querySelector('.vs-spacer-bottom');
-
-        // Remove rendered items, keep spacers
-        Array.from(rpList.children).forEach(child => {
-            if (!child.classList.contains('vs-spacer-top') && !child.classList.contains('vs-spacer-bottom')) {
-                child.remove();
-            }
-        });
-
-        spacerTop.style.height    = topPad    + 'px';
-        spacerBottom.style.height = bottomPad + 'px';
-
-        const frag = document.createDocumentFragment();
-        for (let i = startIdx; i <= endIdx; i++) {
-            const item = vsItems[i];
-            if (item.type === 'header') {
-                const hdr = document.createElement('div');
-                hdr.className   = 'rp-date-header';
-                hdr.textContent = item.label;
-                frag.appendChild(hdr);
-            } else {
-                frag.appendChild(buildVideoCard(item.video));
-            }
-        }
-        spacerTop.after(frag);
-    }
-
+    // ── Watch history rendering ─────────────────────────────────────────────
+    // The previous implementation used item-by-item virtual scrolling while
+    // the list itself was a 2-column CSS grid. That combination was incorrect:
+    // the spacer heights were calculated as if every card occupied its own
+    // vertical row, while CSS grid places two cards on the same row. The
+    // resulting scrollHeight/offset math drifted as soon as the list became
+    // taller than the viewport, causing skipped rows and broken scrolling.
+    //
+    // History entries are lightweight DOM cards, so correctness is preferable
+    // here to fragile virtualization. The grid now owns all layout/scroll
+    // geometry and the browser can calculate scrollHeight normally.
     function renderVideoList(query) {
         const filtered = query
             ? allVideos.filter(v =>
@@ -520,18 +465,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="rp-empty-icon"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="16" r="13"/><path d="M10 16 H22"/><path d="M10 11 H22"/><path d="M10 21 H17"/></svg></span>
                     ${query ? 'No results found.' : 'No watch history yet.<br>Start watching a YouTube video to build your history!'}
                 </div>`;
-            vsItems = [];
             return;
         }
 
-        vsItems = buildFlatItems(filtered, !query);
-        rpList.innerHTML = '<div class="vs-spacer-top" style="height:0"></div><div class="vs-spacer-bottom" style="height:0"></div>';
-        renderVisibleItems();
+        const items = buildFlatItems(filtered, !query);
+        const frag = document.createDocumentFragment();
 
-        rpList.onscroll = () => {
-            if (vsScrollRAF) cancelAnimationFrame(vsScrollRAF);
-            vsScrollRAF = requestAnimationFrame(renderVisibleItems);
-        };
+        for (const item of items) {
+            if (item.type === 'header') {
+                const hdr = document.createElement('div');
+                hdr.className = 'rp-date-header';
+                hdr.textContent = item.label;
+                frag.appendChild(hdr);
+            } else {
+                frag.appendChild(buildVideoCard(item.video));
+            }
+        }
+
+        rpList.replaceChildren(frag);
+        // Let the browser recalculate the scroll geometry after a fresh render.
+        rpList.scrollTop = 0;
     }
 
     function buildVideoCard(video) {
@@ -576,9 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.stopPropagation();
             deleteVideo(watchId);
             allVideos = allVideos.filter(v => extractWatchID(v.videolink) !== watchId);
-            vsItems   = vsItems.filter(item => !(item.type === 'card' && extractWatchID(item.video.videolink) === watchId));
-            if (!allVideos.length) { renderVideoList(''); return; }
-            renderVisibleItems();
+            renderVideoList((rpSearchInput.value || '').trim().toLowerCase());
         });
 
         return card;
