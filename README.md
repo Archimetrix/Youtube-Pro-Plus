@@ -36,7 +36,7 @@
 ## 🎥 Watch it in Action
 Click the image below to watch the full showcase :
 
-[![YouTube Pro Plus Showcase](https://i.postimg.cc/8k9GtkyF/Screenshot-2026-09-11-122852.png)](https://1drv.ms/v/c/15824cea270791bd/IQAmTbmZDG7cQLMCbPUhgeomAYik9jJKBg-lStPWIxqj4fM?e=ct10To)
+[![YouTube Pro Plus Showcase](https://i.postimg.cc/8k9GtkyF/Screenshot-2026-09-11-122852.png)](https://files.catbox.moe/6uvx7j.mp4)
 
 ---
 
