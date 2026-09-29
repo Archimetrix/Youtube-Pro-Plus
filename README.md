@@ -30,9 +30,14 @@
 </p>
 
 > **Note:** Currently available officially on the Firefox and Microsoft Edge Add-ons stores. For Chrome, Opera, and other Chromium users, please use the **Download ZIP** button above and follow the quick **Local Installation** guide below.
-<a href="https://opentip.kaspersky.com/8380DEC0227208FE1F5358046FE11E1CF16C039599A996FFD997AB9A44645E46/results?tab=upload">
+<p float="left">
+  <a href="https://opentip.kaspersky.com/8380DEC0227208FE1F5358046FE11E1CF16C039599A996FFD997AB9A44645E46/results?tab=upload">
     <img src="https://files.catbox.moe/u19sqq.png" alt="Check Report" height="40">
-</a>
+  </a>
+  <a href="https://metadefender.com/results/file/bzI2MDkyOVQ2TU1Tb20wbnc3TkxfaUZFVFZ3_mdaas/overview">
+    <img src="https://files.catbox.moe/d6yvet.png" alt="Check Report" height="40">
+  </a>
+</p>
 
 ---
 
