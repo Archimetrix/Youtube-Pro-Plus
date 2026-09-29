@@ -30,6 +30,9 @@
 </p>
 
 > **Note:** Currently available officially on the Firefox and Microsoft Edge Add-ons stores. For Chrome, Opera, and other Chromium users, please use the **Download ZIP** button above and follow the quick **Local Installation** guide below.
+<a href="https://opentip.kaspersky.com/8380DEC0227208FE1F5358046FE11E1CF16C039599A996FFD997AB9A44645E46/results?tab=upload">
+    <img src="https://files.catbox.moe/u19sqq.png" alt="Check Report" height="40">
+</a>
 
 ---
 
@@ -67,8 +70,9 @@ For users on other Chromium browsers where the extension is not yet in the store
 2.  **Open Extensions:** Open your browser and type `chrome://extensions/` (or `opera://extensions/` / `brave://extensions/`) in the URL bar.
 3.  **Enable Developer Mode:** Toggle the **"Developer mode"** switch in the top right corner of the page.
 4.  **Load the Extension:** Click the **"Load unpacked"** button in the top left and select the extracted `Youtube-Pro-Plus-main` folder.
-5.  *Important:* Make sure to disable any conflicting Tampermonkey scripts or Stylus themes! 
-6.  **Refresh YouTube** and enjoy!
+5.  **Dont delete the folder:** Dont delete the folder after extension loaded cause the browser is operating the extension directly from that folder .
+6.  *Important:* Make sure to disable any conflicting Tampermonkey scripts or Stylus themes! 
+7.  **Refresh YouTube** and enjoy!
 
 **Click the image below to watch the full showcase and installation guide: ⏬**
 
