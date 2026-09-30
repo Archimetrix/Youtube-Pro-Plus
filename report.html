@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>YouTube Pro+ · Report an Issue</title>
+<style>
+  :root{
+    --bg:#08080f; --bg-2:#0c0c17;
+    --surface:rgba(15,15,24,0.96); --surface-2:rgba(255,255,255,0.045);
+    --border:rgba(255,255,255,0.10); --border-hover:rgba(255,255,255,0.22);
+    --danger:#f2495c;
+    --text:#eeeef7; --text-sub:rgba(238,238,247,0.46); --text-muted:rgba(238,238,247,0.24);
+    --glass-shadow:0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.2);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
+    background:radial-gradient(circle at 50% 0%, #1a0a0d 0%, var(--bg) 55%, var(--bg-2) 100%);
+    color:var(--text);
+    min-height:100vh;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:40px 20px;
+  }
+  .card{
+    width:100%;max-width:640px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:18px;
+    box-shadow:var(--glass-shadow);
+    overflow:hidden;
+  }
+  .card-header{
+    display:flex;align-items:center;gap:10px;
+    padding:20px 24px;
+    border-bottom:1px solid var(--border);
+  }
+  .card-header svg{width:20px;height:20px;color:var(--danger);flex-shrink:0;}
+  .card-header h1{font-size:16px;font-weight:700;color:var(--danger);flex:1;}
+  .card-body{padding:20px 24px 24px;display:grid;grid-template-columns:1fr 1fr;gap:14px 20px;}
+  .report-desc{
+    grid-column:1 / -1;font-size:12.5px;color:var(--text-sub);line-height:1.6;margin:0 0 4px;
+    background:rgba(242,73,92,0.06);border:1px solid rgba(242,73,92,0.16);border-radius:10px;padding:11px 13px;
+  }
+  .report-field{display:flex;flex-direction:column;gap:6px;}
+  .report-field.full{grid-column:1 / -1;}
+  .report-field label{font-size:12px;font-weight:600;color:var(--text-sub);}
+  .report-field input[type="text"]{
+    padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+    border-radius:9px;font-size:13px;outline:none;transition:border-color .2s;font-family:inherit;
+  }
+  .report-field input[type="text"]:focus{border-color:rgba(242,73,92,.4);}
+  .report-field input[type="text"]::placeholder{color:var(--text-muted);}
+  .report-field textarea{
+    padding:10px 12px;min-height:140px;resize:vertical;background:var(--surface-2);border:1px solid var(--border);
+    color:var(--text);border-radius:9px;font-size:13px;outline:none;transition:border-color .2s;
+    font-family:inherit;line-height:1.55;
+  }
+  .report-field textarea:focus{border-color:rgba(242,73,92,.4);}
+  .report-field textarea::placeholder{color:var(--text-muted);}
+  .report-upload-area{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:20px;
+    border:1.5px dashed var(--border-hover);border-radius:9px;cursor:pointer;transition:all .2s;
+    background:var(--surface-2);position:relative;min-height:80px;
+  }
+  .report-upload-area:hover{border-color:rgba(242,73,92,.4);background:rgba(242,73,92,0.04);}
+  .report-upload-area svg{width:20px;height:20px;opacity:.45;}
+  .report-upload-area span{font-size:12px;color:var(--text-muted);}
+  .report-upload-area input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+  .report-preview-grid{display:flex;flex-wrap:wrap;gap:8px;}
+  .report-preview-item{position:relative;width:72px;height:72px;}
+  .report-preview-item img{width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--border);display:block;}
+  .report-preview-remove{
+    position:absolute;top:-6px;right:-6px;width:18px;height:18px;background:var(--danger);border:none;
+    border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;
+    font-size:12px;font-weight:700;line-height:1;padding:0;box-shadow:0 1px 4px rgba(0,0,0,.5);
+  }
+  .report-preview-remove:hover{background:#d43a4c;}
+  #report-submit-btn{
+    grid-column:1 / -1;padding:13px 16px;
+    background:linear-gradient(135deg, rgba(242,73,92,0.18), rgba(242,73,92,0.08));
+    border:1px solid rgba(242,73,92,.4);border-radius:11px;color:#fca5ac;font-size:14px;font-weight:700;
+    cursor:pointer;transition:all .2s;width:100%;font-family:inherit;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  #report-submit-btn svg{width:15px;height:15px;flex-shrink:0;}
+  #report-submit-btn:hover:not(:disabled){background:rgba(242,73,92,.28);box-shadow:0 4px 16px rgba(242,73,92,.22);transform:translateY(-1px);}
+  #report-submit-btn:disabled{opacity:.55;cursor:not-allowed;}
+  #report-status{grid-column:1 / -1;font-size:12.5px;text-align:center;min-height:18px;line-height:1.5;}
+  #report-status.success{color:#4ade80;}
+  #report-status.error{color:#f87171;}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="card-header">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <h1>Report an Issue</h1>
+    </div>
+    <div class="card-body">
+      <p class="report-desc">
+        Found a bug? Describe it below and attach screenshots if you have them — your report goes straight to our inbox. 🙏
+      </p>
+
+      <div class="report-field full">
+        <label for="report-name">Your Name (optional)</label>
+        <input type="text" id="report-name" placeholder="Anonymous">
+      </div>
+
+      <div class="report-field full">
+        <label>Screenshots (optional, up to 3 — max 10 MB total)</label>
+        <div class="report-upload-area" id="report-upload-area">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          <span>Click to attach images</span>
+          <input type="file" id="report-file-input" accept="image/*" multiple>
+        </div>
+        <div class="report-preview-grid" id="report-preview-grid"></div>
+      </div>
+
+      <div class="report-field full">
+        <label for="report-message">Describe the issue *</label>
+        <textarea id="report-message" placeholder="What went wrong? What were you doing when it happened? Any details help a lot..."></textarea>
+      </div>
+
+      <button id="report-submit-btn">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="14" y1="2" x2="6" y2="10"/><polygon points="14 2 9.5 14 6 10 2 6.5 14 2"/></svg>
+        Send Report
+      </button>
+      <div id="report-status"></div>
+    </div>
+  </div>
+  <script src="report.js"></script>
+</body>
+</html>

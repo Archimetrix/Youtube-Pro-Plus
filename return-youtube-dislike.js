@@ -8,7 +8,24 @@
 // Exposes a small controller on window._ytProReturnDislike with init()/teardown()
 // so content.js can turn the feature on or off without a full page reload.
 
-(function () {
+(async function () {
+  // ── Star-gate liveness guard ────────────────────────────────────────────
+  // This feature only runs while the background confirms (a) it is actually
+  // running stargate.js (not deleted/broken) and (b) this browser is
+  // currently verified as having starred the repo. No response / not
+  // verified => this script does nothing else, at all.
+  const __ytppGateOK = await new Promise((resolve) => {
+    try {
+      chrome.runtime.sendMessage({ type: 'YTPP_STAR_GATE_LIVE_CHECK' }, (res) => {
+        resolve(!chrome.runtime.lastError && !!res?.ok && !!res?.verified);
+      });
+      setTimeout(() => resolve(false), 4000);
+    } catch (e) {
+      resolve(false);
+    }
+  });
+  if (!__ytppGateOK) return;
+
     if (window._ytProReturnDislike) return; // already installed
 
     // Never run on YouTube Music — same exclusion as the original userscript.

@@ -241,8 +241,8 @@ input:checked + .slider::before{transform:translateY(-50%) translateX(15px);back
 .premium-warning .warn-text strong{color:var(--warning);font-weight:700;}
 
 /* ── footer ──────────────────────────────────────────────────────── */
-.footer{margin-top:6px;text-align:center;font-size:9.5px;color:var(--text-sub);}
-.footer-btns{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:4px;}
+.footer{margin-top:6px;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px;font-size:9.5px;color:var(--text-sub);}
+.footer-btns{display:flex;align-items:center;justify-content:center;gap:6px;}
 .github-btn{display:flex;align-items:center;justify-content:center;gap:5px;padding:4px 10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:rgba(255,255,255,0.68);text-decoration:none;border-radius:20px;font-size:10.5px;font-weight:600;transition:all .25s cubic-bezier(.4,0,.2,1);}
 .github-btn svg{width:13px;height:13px;fill:currentColor;}
 .github-btn:hover{background:rgba(255,255,255,0.1);transform:scale(1.04);color:#fff;border-color:var(--border-hover);}
@@ -254,7 +254,8 @@ input:checked + .slider::before{transform:translateY(-50%) translateX(15px);back
 .promo-banner{display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px 10px;background:linear-gradient(90deg,rgba(244,63,94,0.12),rgba(139,92,246,0.12));border:1px solid rgba(244,63,94,0.28);border-radius:10px;text-decoration:none;transition:all .25s cubic-bezier(.4,0,.2,1);}
 .promo-banner:hover{background:linear-gradient(90deg,rgba(244,63,94,0.2),rgba(139,92,246,0.2));border-color:rgba(244,63,94,0.5);transform:translateY(-1px);}
 .promo-banner .promo-icon{flex-shrink:0;width:16px;height:16px;color:#f43f5e;display:flex;align-items:center;justify-content:center;}
-.promo-banner .promo-icon svg{width:16px;height:16px;}
+.promo-banner .promo-icon{width:22px;height:22px;}
+.promo-banner .promo-icon img{width:22px;height:22px;border-radius:50%;display:block;}
 .promo-banner .promo-text{flex:1;font-size:10.5px;font-weight:600;color:rgba(255,255,255,0.85);}
 .promo-banner .promo-text strong{color:#fda4af;}
 .promo-banner .promo-arrow{font-size:12px;color:rgba(255,255,255,0.5);transition:transform .25s;}
@@ -473,41 +474,10 @@ input:checked + .slider::before{transform:translateY(-50%) translateX(15px);back
 #pip-cancel-btn{width:100%;padding:9px 16px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:rgba(255,255,255,.46);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .2s ease;font-family:inherit;}
 #pip-cancel-btn:hover{background:rgba(255,255,255,0.09);color:rgba(255,255,255,.72);border-color:rgba(255,255,255,0.25);}
 
-#report-panel{position:absolute;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:9999;display:none;flex-direction:column;border-radius:16px;overflow:hidden;}
-#report-panel.visible{display:flex;}
-.report-body{flex:1;overflow-y:auto;padding:14px 18px 18px;display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;align-content:start;scrollbar-width:thin;scrollbar-color:#222 transparent;}
-.report-body::-webkit-scrollbar{width:5px;}
-.report-body::-webkit-scrollbar-thumb{background:#222;border-radius:4px;}
-.report-desc{grid-column:1 / -1;font-size:11.5px;color:var(--text-sub);line-height:1.6;margin:0;background:rgba(242,73,92,0.06);border:1px solid rgba(242,73,92,0.16);border-radius:8px;padding:9px 11px;}
-.report-field{display:flex;flex-direction:column;gap:5px;}
-.report-field.full{grid-column:1 / -1;}
-.report-field label{font-size:11.5px;font-weight:600;color:var(--text-sub);}
-.report-field input[type="text"]{padding:8px 10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text);border-radius:8px;font-size:12px;outline:none;transition:border-color .2s;font-family:inherit;}
-.report-field input[type="text"]:focus{border-color:rgba(242,73,92,.4);}
-.report-field input[type="text"]::placeholder{color:var(--text-muted);}
-.report-field textarea{padding:8px 10px;min-height:96px;resize:vertical;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text);border-radius:8px;font-size:12px;outline:none;transition:border-color .2s;font-family:inherit;line-height:1.5;}
-.report-field textarea:focus{border-color:rgba(242,73,92,.4);}
-.report-field textarea::placeholder{color:var(--text-muted);}
-.report-upload-area{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:14px;border:1.5px dashed rgba(255,255,255,0.12);border-radius:8px;cursor:pointer;transition:all .2s;background:rgba(255,255,255,0.02);position:relative;min-height:58px;}
-.report-upload-area:hover{border-color:rgba(242,73,92,.4);background:rgba(242,73,92,0.04);}
-.report-upload-area svg{width:18px;height:18px;opacity:.45;}
-.report-upload-area span{font-size:11px;color:var(--text-muted);}
-.report-upload-area input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
-.report-preview-grid{display:flex;flex-wrap:wrap;gap:6px;}
-.report-preview-item{position:relative;width:60px;height:60px;}
-.report-preview-item img{width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid var(--border);display:block;}
-.report-preview-remove{position:absolute;top:-5px;right:-5px;width:16px;height:16px;background:var(--danger);border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;line-height:1;padding:0;box-shadow:0 1px 4px rgba(0,0,0,.5);}
-.report-preview-remove:hover{background:#d43a4c;}
-#report-submit-btn{grid-column:1 / -1;padding:11px 16px;background:linear-gradient(135deg, rgba(242,73,92,0.18), rgba(242,73,92,0.08));border:1px solid rgba(242,73,92,.4);border-radius:10px;color:#fca5ac;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;width:100%;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:7px;}
-#report-submit-btn svg{width:14px;height:14px;flex-shrink:0;}
-#report-submit-btn:hover:not(:disabled){background:rgba(242,73,92,.28);box-shadow:0 4px 16px rgba(242,73,92,.22);transform:translateY(-1px);}
-#report-submit-btn:disabled{opacity:.55;cursor:not-allowed;}
-#report-status{grid-column:1 / -1;font-size:11.5px;text-align:center;min-height:16px;line-height:1.5;}
-#report-status.success{color:#4ade80;}
-#report-status.error{color:#f87171;}
+
 
 /* ══ liquid glass refraction layer ══ */
-.section, #resume-panel, #recap-panel, #resume-settings-panel, #report-panel{
+.section, #resume-panel, #recap-panel, #resume-settings-panel{
   position:relative;isolation:isolate;
 }
 .section::before{
@@ -516,14 +486,14 @@ input:checked + .slider::before{transform:translateY(-50%) translateX(15px);back
   -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;z-index:2;
 }
-#resume-panel,#recap-panel,#resume-settings-panel,#report-panel{
+#resume-panel,#recap-panel,#resume-settings-panel{
   background:linear-gradient(155deg, rgba(20,20,32,0.92), rgba(10,10,18,0.96)) !important;
   backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);
   box-shadow:var(--glass-shadow);
 }
 
 .pill-btn,.power-btn,.icon-box,.info-btn,.github-btn,.coffee-btn,.cine-btn,.rp-icon-btn,
-.rsp-save,.rsp-backup-btn,.rsp-restore-btn,#report-submit-btn,#welcome-star-btn,#welcome-use-btn,
+.rsp-save,.rsp-backup-btn,.rsp-restore-btn,#welcome-star-btn,#welcome-use-btn,
 #welcome-coffee-btn,#cinematic-confirm-btn,#cinematic-cancel-btn,#pip-confirm-btn,#pip-cancel-btn,.update-banner-btn,.rsp-back{
   position:relative;overflow:hidden;
 }
@@ -812,9 +782,7 @@ input:checked + .slider::before{transform:translateY(-50%) translateX(15px);back
 
   <!-- ── Cross-promo ────────────────────────────────────────────────── -->
   <a href="https://github.com/Archimetrix/VIVIMUSIC_WEB" target="_blank" class="promo-banner">
-    <span class="promo-icon">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-    </span>
+    <span class="promo-icon"><img src="imgs/ytmusic.png" alt="YT Music"></span>
     <span class="promo-text">Try our YTmusic extension — <strong>VIVIMUSIC-WEB</strong></span>
     <span class="promo-arrow">→</span>
   </a>
@@ -823,9 +791,9 @@ input:checked + .slider::before{transform:translateY(-50%) translateX(15px);back
   <div class="footer">
     Made with <svg viewBox="0 0 14 14" fill="#f43f5e" stroke="none" width="11" height="11" style="vertical-align:-1px;display:inline-block"><path d="M7 12 C7 12 1 8 1 4.5 C1 2.5 2.5 1 4.5 1 C5.5 1 6.5 1.6 7 2.3 C7.5 1.6 8.5 1 9.5 1 C11.5 1 13 2.5 13 4.5 C13 8 7 12 7 12Z"/></svg> by Archimetrix
     <div class="footer-btns">
-      <a href="https://github.com/Archimetrix/Youtube-Pro-Plus" target="_blank" class="github-btn">
+      <a href="https://github.com/Archimetrix/" target="_blank" class="github-btn">
         <svg viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-        Star on GitHub
+        Follow Dev
       </a>
       <a href="https://buymeacoffee.com/archimetrix" target="_blank" class="coffee-btn">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5 H12 L11 13 H3.5 Z"/><path d="M12 6.5 C13.5 6.5 14 7 14 8 C14 9 13.5 9.5 12 9.5"/><path d="M4.5 2.5 C4.5 1.5 5.5 1 5.5 2.5"/><path d="M7 2.5 C7 1.5 8 1 8 2.5"/></svg>
@@ -990,47 +958,6 @@ input:checked + .slider::before{transform:translateY(-50%) translateX(15px);back
     <span id="info-tooltip-body"></span>
   </div>
 
-  <!-- ── Report an Issue overlay ────────────────────────────────────── -->
-  <div id="report-panel">
-    <div class="rp-header">
-      <h3>
-        <svg viewBox="0 0 16 16" fill="none" stroke="#f87171" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 L14.5 13.5 H1.5 Z"/><line x1="8" y1="6.5" x2="8" y2="9.5"/><circle cx="8" cy="11.5" r="0.5" fill="#f87171" stroke="none"/></svg>
-        Report an Issue
-      </h3>
-      <div class="rp-header-right">
-        <button class="rp-icon-btn" id="report-close-btn" title="Close">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
-        </button>
-      </div>
-    </div>
-    <div class="report-body">
-      <p class="report-desc">
-        Found a bug? Describe it below and attach screenshots if you have them — your report goes straight to our inbox. 🙏
-      </p>
-      <div class="report-field">
-        <label>Your Name <span style="font-size:10px;color:var(--text-muted);font-weight:400">(optional)</span></label>
-        <input type="text" id="report-name" placeholder="Anonymous">
-      </div>
-      <div class="report-field">
-        <label>Screenshots <span style="font-size:10px;color:var(--text-muted);font-weight:400">(optional, up to 3 — max 10 MB total)</span></label>
-        <div class="report-upload-area" id="report-upload-area">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="14" height="10" rx="1.5"/><circle cx="5.5" cy="7" r="1.2"/><path d="M1 11 L4.5 7.5 L7 10 L10 7 L15 11"/></svg>
-          <span>Click to attach images</span>
-          <input type="file" id="report-file-input" accept="image/*" multiple>
-        </div>
-        <div class="report-preview-grid" id="report-preview-grid"></div>
-      </div>
-      <div class="report-field full">
-        <label>Describe the issue <span style="color:#ef4444">*</span></label>
-        <textarea id="report-message" placeholder="What went wrong? What were you doing when it happened? Any details help a lot..."></textarea>
-      </div>
-      <button id="report-submit-btn">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="14" y1="2" x2="6" y2="10"/><path d="M14 2 L9 14 L6 10 L2 7 Z"/></svg>
-        Send Report
-      </button>
-      <div id="report-status"></div>
-    </div>
-  </div>
 
 </div>
 

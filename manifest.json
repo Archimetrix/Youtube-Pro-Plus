@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Youtube Pro Plus",
-  "version": "7.1.4",
+  "version": "7.1.7",
   "description": "A Free powerful extension for youtube with more than 16 features to completely overhaul your youtube experience.",
   "background": {
     "service_worker": "background-sw.js"
@@ -12,6 +12,7 @@
     "clipboardWrite",
     "declarativeNetRequestWithHostAccess",
     "notifications",
+    "scripting",
     "storage",
     "tabs",
     "unlimitedStorage"
@@ -59,92 +60,6 @@
         "gate.js"
       ],
       "run_at": "document_start"
-    },
-    {
-      "matches": [
-        "*://www.youtube.com/*",
-        "*://youtube.com/*"
-      ],
-      "js": [
-        "browser-compat.js",
-        "content.js"
-      ],
-      "run_at": "document_end"
-    },
-    {
-      "matches": [
-        "*://www.youtube.com/*",
-        "*://youtube.com/*"
-      ],
-      "js": [
-        "browser-compat.js",
-        "sound-booster.js"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "*://ssvid.net/*",
-        "*://www.ssvid.net/*",
-        "*://vidssave.com/*",
-        "*://www.vidssave.com/*"
-      ],
-      "js": [
-        "browser-compat.js",
-        "inject-download.js"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "*://www.youtube.com/*",
-        "*://youtube.com/*"
-      ],
-      "js": [
-        "browser-compat.js",
-        "room-sync.js"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "*://www.youtube.com/*",
-        "*://youtube.com/*"
-      ],
-      "js": [
-        "return-youtube-dislike.js"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "*://www.youtube.com/*",
-        "*://youtube.com/*"
-      ],
-      "js": [
-        "sponsorblock.js"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "*://www.youtube.com/*",
-        "*://youtube.com/*"
-      ],
-      "js": [
-        "content-scripts/pip-mode.js"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "*://www.youtube.com/*",
-        "*://youtube.com/*"
-      ],
-      "js": [
-        "content-scripts/title-sync.js"
-      ],
-      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
@@ -156,7 +71,8 @@
         "inject-speed.js",
         "imgs/playericon.svg",
         "imgs/playericon_inactive.svg",
-        "imgs/redcircle.svg"
+        "imgs/redcircle.svg",
+        "imgs/github-permission.png"
       ],
       "matches": [
         "*://www.youtube.com/*",

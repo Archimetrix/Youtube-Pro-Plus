@@ -1127,7 +1127,24 @@ function getCineDim(s) {
 //
 // Net result: video decoder, JS main thread, and GPU compositor operate
 // completely independently with no synchronization stalls anywhere.
-(function () {
+(async function () {
+  // ── Star-gate liveness guard ────────────────────────────────────────────
+  // This feature only runs while the background confirms (a) it is actually
+  // running stargate.js (not deleted/broken) and (b) this browser is
+  // currently verified as having starred the repo. No response / not
+  // verified => this script does nothing else, at all.
+  const __ytppGateOK = await new Promise((resolve) => {
+    try {
+      chrome.runtime.sendMessage({ type: 'YTPP_STAR_GATE_LIVE_CHECK' }, (res) => {
+        resolve(!chrome.runtime.lastError && !!res?.ok && !!res?.verified);
+      });
+      setTimeout(() => resolve(false), 4000);
+    } catch (e) {
+      resolve(false);
+    }
+  });
+  if (!__ytppGateOK) return;
+
     let canvas      = null;
     let ctx         = null;   // ImageBitmapRenderingContext — zero-copy path
     let raf         = null;

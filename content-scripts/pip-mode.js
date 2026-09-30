@@ -15,7 +15,24 @@
 // right natively, fixing the "video looks cut off" issue from a custom
 // window's CSS.
 
-(function () {
+(async function () {
+  // ── Star-gate liveness guard ────────────────────────────────────────────
+  // This feature only runs while the background confirms (a) it is actually
+  // running stargate.js (not deleted/broken) and (b) this browser is
+  // currently verified as having starred the repo. No response / not
+  // verified => this script does nothing else, at all.
+  const __ytppGateOK = await new Promise((resolve) => {
+    try {
+      chrome.runtime.sendMessage({ type: 'YTPP_STAR_GATE_LIVE_CHECK' }, (res) => {
+        resolve(!chrome.runtime.lastError && !!res?.ok && !!res?.verified);
+      });
+      setTimeout(() => resolve(false), 4000);
+    } catch (e) {
+      resolve(false);
+    }
+  });
+  if (!__ytppGateOK) return;
+
     'use strict';
 
     if (!('pictureInPictureEnabled' in document) || !document.pictureInPictureEnabled) {

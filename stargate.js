@@ -17,16 +17,170 @@
 const STARGATE_GITHUB_CLIENT_ID = 'Iv23liWFPoRLUJ5Ic7PG';
 const STARGATE_REPO_OWNER = 'Archimetrix';
 const STARGATE_REPO_NAME = 'Youtube-Pro-Plus';
-const STARGATE_RECHECK_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
+// No fixed "recheck every N minutes" timer any more. Instead: every time
+// YouTube starts (a tab opens/navigates to youtube.com, which re-runs
+// gate.js), we answer instantly from the local cache so the page is never
+// blocked on a network call, and separately kick off a live check with
+// GitHub in the background. If that live check finds the star is gone, the
+// stored state flips and gate.js re-locks itself immediately via the
+// storage.onChanged listener — no waiting for a timer.
 
 async function starGateGetState() {
   const { ytpp_star_gate } = await chrome.storage.local.get('ytpp_star_gate');
   return ytpp_star_gate || null;
 }
 
-async function starGateSetState(state) {
-  await chrome.storage.local.set({ ytpp_star_gate: state });
+// ── Feature scripts are only injected while the user is verified ──────────
+// The overlay in gate.js is just the UI. The real lock is here: none of the
+// extension's feature scripts exist in the manifest any more. They are
+// registered dynamically only while the stored state says "verified", so
+// hiding / deleting / blocking the overlay gains the user nothing.
+const STARGATE_FEATURE_SCRIPTS = [
+  {
+    "id": "ytpp-feat-0",
+    "matches": [
+      "*://www.youtube.com/*",
+      "*://youtube.com/*"
+    ],
+    "js": [
+      "browser-compat.js",
+      "content.js"
+    ],
+    "runAt": "document_end"
+  },
+  {
+    "id": "ytpp-feat-1",
+    "matches": [
+      "*://www.youtube.com/*",
+      "*://youtube.com/*"
+    ],
+    "js": [
+      "browser-compat.js",
+      "sound-booster.js"
+    ],
+    "runAt": "document_idle"
+  },
+  {
+    "id": "ytpp-feat-2",
+    "matches": [
+      "*://ssvid.net/*",
+      "*://www.ssvid.net/*",
+      "*://vidssave.com/*",
+      "*://www.vidssave.com/*"
+    ],
+    "js": [
+      "browser-compat.js",
+      "inject-download.js"
+    ],
+    "runAt": "document_idle"
+  },
+  {
+    "id": "ytpp-feat-3",
+    "matches": [
+      "*://www.youtube.com/*",
+      "*://youtube.com/*"
+    ],
+    "js": [
+      "browser-compat.js",
+      "room-sync.js"
+    ],
+    "runAt": "document_idle"
+  },
+  {
+    "id": "ytpp-feat-4",
+    "matches": [
+      "*://www.youtube.com/*",
+      "*://youtube.com/*"
+    ],
+    "js": [
+      "return-youtube-dislike.js"
+    ],
+    "runAt": "document_idle"
+  },
+  {
+    "id": "ytpp-feat-5",
+    "matches": [
+      "*://www.youtube.com/*",
+      "*://youtube.com/*"
+    ],
+    "js": [
+      "sponsorblock.js"
+    ],
+    "runAt": "document_idle"
+  },
+  {
+    "id": "ytpp-feat-6",
+    "matches": [
+      "*://www.youtube.com/*",
+      "*://youtube.com/*"
+    ],
+    "js": [
+      "content-scripts/pip-mode.js"
+    ],
+    "runAt": "document_idle"
+  },
+  {
+    "id": "ytpp-feat-7",
+    "matches": [
+      "*://www.youtube.com/*",
+      "*://youtube.com/*"
+    ],
+    "js": [
+      "content-scripts/title-sync.js"
+    ],
+    "runAt": "document_idle"
+  }
+];
+
+async function starGateSyncFeatureScripts(verified) {
+  try {
+    const existing = await chrome.scripting.getRegisteredContentScripts({
+      ids: STARGATE_FEATURE_SCRIPTS.map((s) => s.id),
+    });
+    const have = new Set(existing.map((s) => s.id));
+    if (verified) {
+      const missing = STARGATE_FEATURE_SCRIPTS.filter((s) => !have.has(s.id));
+      if (missing.length) await chrome.scripting.registerContentScripts(missing);
+    } else if (have.size) {
+      await chrome.scripting.unregisterContentScripts({ ids: [...have] });
+    }
+  } catch (e) {
+    console.warn('[YTPP] feature script sync failed:', e);
+  }
 }
+
+async function starGateSetState(state) {
+  const prev = await starGateGetState();
+  const wasVerified = !!(prev && prev.verified && prev.token);
+  const isVerified = !!(state && state.verified && state.token);
+
+  await chrome.storage.local.set({ ytpp_star_gate: state });
+  await starGateSyncFeatureScripts(isVerified);
+
+  // Went from verified → not verified (e.g. the repo star was removed):
+  // reload any already-open YouTube tabs so their already-injected feature
+  // scripts are dropped immediately, rather than lingering until the user
+  // happens to reload the tab themselves.
+  if (wasVerified && !isVerified) {
+    try {
+      const tabs = await chrome.tabs.query({ url: ['*://www.youtube.com/*', '*://youtube.com/*'] });
+      for (const tab of tabs) {
+        if (tab.id != null) chrome.tabs.reload(tab.id).catch(() => {});
+      }
+    } catch (e) {}
+  }
+}
+
+// Keep registration in line with stored state on every service-worker start,
+// install and browser launch (covers updates from older versions too).
+(async () => {
+  const st = await starGateGetState();
+  await starGateSyncFeatureScripts(!!(st && st.verified && st.token));
+})();
+chrome.runtime.onInstalled.addListener(async () => {
+  const st = await starGateGetState();
+  await starGateSyncFeatureScripts(!!(st && st.verified && st.token));
+});
 
 async function starGateStartDeviceFlow() {
   // Use form-urlencoded (a CORS "simple" content type) instead of
@@ -76,8 +230,42 @@ async function starGateCheckStarred(token) {
   throw new Error(`GitHub star check failed (${res.status})`);
 }
 
+// Proactively recheck with GitHub and sync feature scripts, instead of
+// waiting for a YouTube tab to ask. This is what makes an unstar take
+// effect even if the user never closes/reopens the tab that's already open.
+async function starGateProactiveRecheck() {
+  const state = await starGateGetState();
+  if (!state?.token) return;
+  try {
+    const starred = await starGateCheckStarred(state.token);
+    await starGateSetState({ ...state, verified: starred, lastCheckedAt: Date.now() });
+  } catch (e) {
+    if (String(e.message).includes('expired')) {
+      await starGateSetState({ ...state, verified: false, lastCheckedAt: Date.now() });
+    }
+    // Transient network error: leave lastCheckedAt so the next alarm retries soon.
+  }
+}
+
+// Browser startup counts as "starting YouTube" too, in case a YouTube tab
+// gets restored from a previous session without a fresh navigation.
+chrome.runtime.onStartup.addListener(() => { starGateProactiveRecheck(); });
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   switch (msg?.type) {
+    // A tiny liveness probe: this handler only exists if stargate.js loaded
+    // successfully. Feature scripts ping this before doing anything, so if
+    // stargate.js is deleted (or importScripts fails for any reason), the
+    // service worker never registers this listener, every feature script's
+    // ping goes unanswered, and every feature script refuses to run —
+    // instead of continuing to work with the enforcement code gone.
+    case 'YTPP_STAR_GATE_LIVE_CHECK':
+      (async () => {
+        const state = await starGateGetState();
+        sendResponse({ ok: true, verified: !!(state && state.verified && state.token) });
+      })();
+      return true;
+
     case 'YTPP_STAR_GATE_STATUS':
       (async () => {
         const state = await starGateGetState();
@@ -87,14 +275,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         }
 
         // Answer instantly from cache — never block page load on a network call.
+        // The user sees YouTube load normally; nothing is held up waiting
+        // for GitHub here.
         sendResponse({ verified: !!state.verified });
 
-        // Only recheck with GitHub in the background if a full week has
-        // passed since the last real check. The clock is anchored to
-        // lastCheckedAt, not to "when the extension happened to load".
-        const last = state.lastCheckedAt || 0;
-        if (Date.now() - last < STARGATE_RECHECK_INTERVAL_MS) return;
-
+        // Every single time YouTube starts (this handler runs on every
+        // youtube.com navigation/new tab), silently re-check with GitHub in
+        // the background — no staleness window, no waiting for a timer.
+        // If the star is gone, starGateSetState() below flips the stored
+        // state, which (a) unregisters the feature scripts and (b) makes
+        // every open YouTube tab's gate.js re-lock itself immediately via
+        // the storage.onChanged listener.
         try {
           const starred = await starGateCheckStarred(state.token);
           await starGateSetState({ ...state, verified: starred, lastCheckedAt: Date.now() });
@@ -102,7 +293,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           if (String(e.message).includes('expired')) {
             await starGateSetState({ ...state, verified: false, lastCheckedAt: Date.now() });
           }
-          // Transient error: leave lastCheckedAt so next launch retries.
+          // Transient network error: leave the cached state as-is; the
+          // next YouTube start will simply try again.
         }
       })();
       return true;
