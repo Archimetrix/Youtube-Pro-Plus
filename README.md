@@ -10,7 +10,7 @@
 **YouTube Pro +** is an all-in-one, highly optimized extension designed to completely overhaul your YouTube experience. It makes your life so smooth with useful features and a stylish theme all into one centralized, lightweight extension with a beautiful **Liquid Glass** UI.
 
 <div align="center">
-  <img src="imgs/homepanelimage.png" alt="YouTube Pro Plus Interface" width="800"/>
+  <img src="imgs/homepanelx.png" alt="YouTube Pro Plus Interface" width="800"/>
 </div>
 
 ---
@@ -24,12 +24,12 @@
   <a href="https://microsoftedge.microsoft.com/addons/detail/youtube-pro-/miocgpalllinpiheblbpnpflpapgohmi" target="_blank">
     <img src="https://github.com/user-attachments/assets/9fcd04a5-3d1c-43d2-9253-d3e2b9510030" alt="Get it from Microsoft Edge" height="56">
   </a>
-  <a href="https://github.com/Archimetrix/Youtube-Pro-Plus/archive/refs/heads/main.zip" target="_blank">
+  <a href="https://github.com/Archimetrix/Youtube-Pro-Plus/releases" target="_blank">
     <img src="https://img.shields.io/badge/Download_ZIP-101010?style=for-the-badge&logo=github&logoColor=white" alt="Download ZIP" height="56">
   </a>
 </p>
 
-> **Note:** Currently available officially on the Firefox and Microsoft Edge Add-ons stores. For Chrome, Opera, and other Chromium users, please use the **Download ZIP** button above and follow the quick **Local Installation** guide below.
+> **Note:** Currently available officially on the Firefox and Microsoft Edge Add-ons stores. For Chrome, Opera, and other Chromium users, please use the **Download ZIP** button above download the latest release available and follow the quick **Local Installation** guide below.
 
 ---
 
@@ -47,7 +47,8 @@ Click the image below to watch the full showcase :
 * **🌌 Super Ambient Mode:** Enhances YouTube's native ambient mode with a wider, more vibrant glow around the video player.
 * **🌠 Cinematic Mode:** A custom cinematic mode it works with both light mode and dark mode  .
 * **⚡ 10x Speed Booster:** Bypasses YouTube's native 2x speed limit, allowing you to seamlessly increase playback speed up to 10x directly from the native player settings.
-* **🎛️ Sound Booster :**Boost yt vidios sound as much you need   .
+* **🎛️ Sound Booster:** Boost yt vidios sound as much you need.
+* **🆧 Default video quality:** Set a default video quality for all of your videos (higher quality stream will need good connection otherwise youtube will automatically decrease the quality for smooth streaming - and if you have good quality internet then the quality will rise as much it can based on internet speed .) 
 * **🔁 Shorts Auto-Scroller:** A robust background script that intelligently detects when a YouTube Short finishes and automatically scrolls to the next one—completely hands-free.
 * **⬇️ Smart Download:** A smart third-party download support added replacing the default download button (if you want to use the normal download then just turn off the setting in the extension).
 * **⏯️ History and auto resume :** A smart system  storing all your watched vidios with date and duration of vidios watched. When you click on the video next time it will play feom where you left it last time and you can change which ever settings you like -- and also there is a recap intregation in it it will tell you your all time top 5 vidios and top 5 chanels .
@@ -63,7 +64,7 @@ Click the image below to watch the full showcase :
 
 For users on other Chromium browsers where the extension is not yet in the store, you can install the latest stable build locally in Developer Mode in just a few seconds:
 
-1.  **Download the Extension:** Click the **Download ZIP** button in the downloads section above or directly download stable version zip from releases then extract the folder to your computer.
+1.  **Download the Extension:** Click the **Download ZIP** button in the downloads section above or directly download the latest version zip from releases then extract the folder to your computer.
 2.  **Open Extensions:** Open your browser and type `chrome://extensions/` (or `opera://extensions/` / `brave://extensions/`) in the URL bar.
 3.  **Enable Developer Mode:** Toggle the **"Developer mode"** switch in the top right corner of the page.
 4.  **Load the Extension:** Click the **"Load unpacked"** button in the top left and select the extracted `Youtube-Pro-Plus-main` folder.
