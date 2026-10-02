@@ -6,6 +6,18 @@
  * then checks GET /user/starred/{owner}/{repo} with their own token — the
  * authoritative "did *this* account star it" check.
  *
+ * Design: a ONE-TIME, lifetime gate, not an ongoing subscription check.
+ *  - For the first STARGATE_GRACE_MS after install, the extension works
+ *    normally with no gate at all — let people actually try it first.
+ *  - Once the grace period ends, if the user still hasn't verified, the
+ *    gate appears and stays until they do. There is no bypass.
+ *  - The moment verification succeeds, `verified: true` is written to
+ *    local storage permanently. From that point on we NEVER contact GitHub
+ *    again for this user — no periodic recheck, no "did they unstar",
+ *    no token-expiry concerns. It is a one-time proof, not a subscription.
+ *    This also means it survives every future update/reload of the
+ *    extension, since chrome.storage.local isn't touched by updates.
+ *
  * NOTE on service worker lifetime: MV3 service workers can be terminated by
  * Chrome after ~30s idle, so polling for the device-flow token is done as
  * repeated SHORT single-shot calls (driven by the content script's timer),
@@ -17,24 +29,82 @@
 const STARGATE_GITHUB_CLIENT_ID = 'Iv23liWFPoRLUJ5Ic7PG';
 const STARGATE_REPO_OWNER = 'Archimetrix';
 const STARGATE_REPO_NAME = 'Youtube-Pro-Plus';
-// No fixed "recheck every N minutes" timer any more. Instead: every time
-// YouTube starts (a tab opens/navigates to youtube.com, which re-runs
-// gate.js), we answer instantly from the local cache so the page is never
-// blocked on a network call, and separately kick off a live check with
-// GitHub in the background. If that live check finds the star is gone, the
-// stored state flips and gate.js re-locks itself immediately via the
-// storage.onChanged listener — no waiting for a timer.
+
+// How long a brand-new install gets to freely try the extension before the
+// one-time star gate appears.
+const STARGATE_GRACE_MS = 5 * 60 * 1000; // 5 minutes
+const STARGATE_GRACE_ALARM = 'ytpp-star-gate-grace-expired';
 
 async function starGateGetState() {
   const { ytpp_star_gate } = await chrome.storage.local.get('ytpp_star_gate');
   return ytpp_star_gate || null;
 }
 
-// ── Feature scripts are only injected while the user is verified ──────────
-// The overlay in gate.js is just the UI. The real lock is here: none of the
-// extension's feature scripts exist in the manifest any more. They are
-// registered dynamically only while the stored state says "verified", so
-// hiding / deleting / blocking the overlay gains the user nothing.
+async function starGateSetState(patch) {
+  const prev = (await starGateGetState()) || {};
+  const next = { ...prev, ...patch };
+  await chrome.storage.local.set({ ytpp_star_gate: next });
+  return next;
+}
+
+// True if the extension's features should currently run: either the user
+// has permanently verified (forever, from here on), or they're still inside
+// the one-time grace window after installing.
+function starGateIsActive(state) {
+  if (!state) return false;
+  if (state.verified) return true;
+  const installedAt = state.installedAt || Date.now();
+  return Date.now() - installedAt < STARGATE_GRACE_MS;
+}
+
+// Make sure installedAt is always set — covers a brand-new install, and
+// also covers upgrading from an older version of the extension that never
+// had this field, so those users get a fresh grace window too instead of
+// an error.
+async function starGateEnsureInstalledAt() {
+  let state = await starGateGetState();
+  if (!state) state = {};
+  if (!state.installedAt) {
+    state = await starGateSetState({ installedAt: Date.now() });
+  }
+  return state;
+}
+
+// Schedule the ONE single-shot alarm that flips the gate on at the end of
+// the grace period, for a tab that's open continuously through that
+// boundary (chrome.alarms wakes the service worker even if it's gone
+// dormant, so this is reliable regardless of SW lifetime).
+async function starGateScheduleGraceAlarm(state) {
+  if (!state || state.verified) {
+    chrome.alarms.clear(STARGATE_GRACE_ALARM);
+    return;
+  }
+  const installedAt = state.installedAt || Date.now();
+  const remainingMs = installedAt + STARGATE_GRACE_MS - Date.now();
+  const delayInMinutes = Math.max(0.1, remainingMs / 60000);
+  chrome.alarms.create(STARGATE_GRACE_ALARM, { delayInMinutes });
+}
+
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name !== STARGATE_GRACE_ALARM) return;
+  const state = await starGateGetState();
+  if (!state || state.verified) return; // verified in the meantime — nothing to do, ever again
+  await starGateSyncFeatureScripts(false);
+  // Push to any tab that's been open continuously through the grace
+  // boundary, so it locks immediately instead of waiting for a reload.
+  try {
+    const tabs = await chrome.tabs.query({ url: ['*://www.youtube.com/*', '*://youtube.com/*'] });
+    for (const tab of tabs) {
+      if (tab.id != null) chrome.tabs.sendMessage(tab.id, { type: 'YTPP_STAR_GATE_GRACE_EXPIRED' }).catch(() => {});
+    }
+  } catch (e) {}
+});
+
+// ── Feature scripts only run while the gate is "active" (verified, or ──────
+// still within the one-time grace period). The overlay in gate.js is just
+// the UI; the real lock is here — none of the extension's feature scripts
+// exist in the static manifest. They're registered dynamically, so hiding
+// or deleting the overlay gains the user nothing.
 const STARGATE_FEATURE_SCRIPTS = [
   {
     "id": "ytpp-feat-0",
@@ -132,13 +202,13 @@ const STARGATE_FEATURE_SCRIPTS = [
   }
 ];
 
-async function starGateSyncFeatureScripts(verified) {
+async function starGateSyncFeatureScripts(active) {
   try {
     const existing = await chrome.scripting.getRegisteredContentScripts({
       ids: STARGATE_FEATURE_SCRIPTS.map((s) => s.id),
     });
     const have = new Set(existing.map((s) => s.id));
-    if (verified) {
+    if (active) {
       const missing = STARGATE_FEATURE_SCRIPTS.filter((s) => !have.has(s.id));
       if (missing.length) await chrome.scripting.registerContentScripts(missing);
     } else if (have.size) {
@@ -149,38 +219,18 @@ async function starGateSyncFeatureScripts(verified) {
   }
 }
 
-async function starGateSetState(state) {
-  const prev = await starGateGetState();
-  const wasVerified = !!(prev && prev.verified && prev.token);
-  const isVerified = !!(state && state.verified && state.token);
-
-  await chrome.storage.local.set({ ytpp_star_gate: state });
-  await starGateSyncFeatureScripts(isVerified);
-
-  // Went from verified → not verified (e.g. the repo star was removed):
-  // reload any already-open YouTube tabs so their already-injected feature
-  // scripts are dropped immediately, rather than lingering until the user
-  // happens to reload the tab themselves.
-  if (wasVerified && !isVerified) {
-    try {
-      const tabs = await chrome.tabs.query({ url: ['*://www.youtube.com/*', '*://youtube.com/*'] });
-      for (const tab of tabs) {
-        if (tab.id != null) chrome.tabs.reload(tab.id).catch(() => {});
-      }
-    } catch (e) {}
-  }
+// Run on every service worker start (install, update, browser launch, or
+// SW waking back up): make sure installedAt exists, sync feature scripts to
+// the current true/false state, and (re)schedule the one-shot grace alarm
+// if still relevant. This is idempotent and safe to run redundantly.
+async function starGateInit() {
+  const state = await starGateEnsureInstalledAt();
+  await starGateSyncFeatureScripts(starGateIsActive(state));
+  await starGateScheduleGraceAlarm(state);
 }
-
-// Keep registration in line with stored state on every service-worker start,
-// install and browser launch (covers updates from older versions too).
-(async () => {
-  const st = await starGateGetState();
-  await starGateSyncFeatureScripts(!!(st && st.verified && st.token));
-})();
-chrome.runtime.onInstalled.addListener(async () => {
-  const st = await starGateGetState();
-  await starGateSyncFeatureScripts(!!(st && st.verified && st.token));
-});
+starGateInit();
+chrome.runtime.onInstalled.addListener(() => { starGateInit(); });
+chrome.runtime.onStartup.addListener(() => { starGateInit(); });
 
 async function starGateStartDeviceFlow() {
   // Use form-urlencoded (a CORS "simple" content type) instead of
@@ -219,6 +269,10 @@ async function starGatePollOnce(deviceCode) {
   return { status: 'error', error: data.error_description || data.error || 'GitHub authorization failed' };
 }
 
+// A single, one-time check — not part of any ongoing recheck system. Used
+// right after the user authenticates, and again if they click "I starred
+// it, check again" after starring. Once this ever returns true and gets
+// recorded as verified, it is never called again for this user.
 async function starGateCheckStarred(token) {
   const res = await fetch(
     `https://api.github.com/user/starred/${STARGATE_REPO_OWNER}/${STARGATE_REPO_NAME}`,
@@ -230,26 +284,14 @@ async function starGateCheckStarred(token) {
   throw new Error(`GitHub star check failed (${res.status})`);
 }
 
-// Proactively recheck with GitHub and sync feature scripts, instead of
-// waiting for a YouTube tab to ask. This is what makes an unstar take
-// effect even if the user never closes/reopens the tab that's already open.
-async function starGateProactiveRecheck() {
-  const state = await starGateGetState();
-  if (!state?.token) return;
-  try {
-    const starred = await starGateCheckStarred(state.token);
-    await starGateSetState({ ...state, verified: starred, lastCheckedAt: Date.now() });
-  } catch (e) {
-    if (String(e.message).includes('expired')) {
-      await starGateSetState({ ...state, verified: false, lastCheckedAt: Date.now() });
-    }
-    // Transient network error: leave lastCheckedAt so the next alarm retries soon.
-  }
+// Permanently mark this browser as verified: clears the grace alarm (no
+// longer relevant), turns features on, and — critically — nothing here
+// ever triggers another GitHub call again for this install.
+async function starGateMarkVerifiedForever(token) {
+  await starGateSetState({ verified: true, verifiedAt: Date.now(), token });
+  chrome.alarms.clear(STARGATE_GRACE_ALARM);
+  await starGateSyncFeatureScripts(true);
 }
-
-// Browser startup counts as "starting YouTube" too, in case a YouTube tab
-// gets restored from a previous session without a fresh navigation.
-chrome.runtime.onStartup.addListener(() => { starGateProactiveRecheck(); });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   switch (msg?.type) {
@@ -262,39 +304,21 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     case 'YTPP_STAR_GATE_LIVE_CHECK':
       (async () => {
         const state = await starGateGetState();
-        sendResponse({ ok: true, verified: !!(state && state.verified && state.token) });
+        sendResponse({ ok: true, verified: starGateIsActive(state) });
       })();
       return true;
 
+    // gate.js asks this on every YouTube start. Purely a local, offline
+    // decision from stored state — no network call, nothing to wait on.
     case 'YTPP_STAR_GATE_STATUS':
       (async () => {
-        const state = await starGateGetState();
-        if (!state?.token) {
-          sendResponse({ verified: false });
-          return;
-        }
-
-        // Answer instantly from cache — never block page load on a network call.
-        // The user sees YouTube load normally; nothing is held up waiting
-        // for GitHub here.
-        sendResponse({ verified: !!state.verified });
-
-        // Every single time YouTube starts (this handler runs on every
-        // youtube.com navigation/new tab), silently re-check with GitHub in
-        // the background — no staleness window, no waiting for a timer.
-        // If the star is gone, starGateSetState() below flips the stored
-        // state, which (a) unregisters the feature scripts and (b) makes
-        // every open YouTube tab's gate.js re-lock itself immediately via
-        // the storage.onChanged listener.
-        try {
-          const starred = await starGateCheckStarred(state.token);
-          await starGateSetState({ ...state, verified: starred, lastCheckedAt: Date.now() });
-        } catch (e) {
-          if (String(e.message).includes('expired')) {
-            await starGateSetState({ ...state, verified: false, lastCheckedAt: Date.now() });
-          }
-          // Transient network error: leave the cached state as-is; the
-          // next YouTube start will simply try again.
+        const state = await starGateEnsureInstalledAt();
+        if (state.verified) {
+          sendResponse({ mode: 'unlocked' });
+        } else if (starGateIsActive(state)) {
+          sendResponse({ mode: 'grace' });
+        } else {
+          sendResponse({ mode: 'locked' });
         }
       })();
       return true;
@@ -311,7 +335,14 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           if (result.status === 'success') {
             try {
               const starred = await starGateCheckStarred(result.token);
-              await starGateSetState({ verified: starred, lastCheckedAt: Date.now(), token: result.token });
+              if (starred) {
+                await starGateMarkVerifiedForever(result.token);
+              } else {
+                // Authenticated, but hasn't starred yet — keep the token
+                // around (still fresh) so the "check again" button below
+                // can reuse it without another full device-flow round trip.
+                await starGateSetState({ verified: false, token: result.token });
+              }
               sendResponse({ status: 'success', starred });
             } catch (e) {
               sendResponse({ status: 'error', error: e.message });
@@ -329,7 +360,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         if (!state?.token) { sendResponse({ ok: false, error: 'not_authenticated' }); return; }
         try {
           const starred = await starGateCheckStarred(state.token);
-          await starGateSetState({ ...state, verified: starred, lastCheckedAt: Date.now() });
+          if (starred) {
+            await starGateMarkVerifiedForever(state.token);
+          }
           sendResponse({ ok: true, starred });
         } catch (e) {
           sendResponse({ ok: false, error: e.message });

@@ -187,6 +187,8 @@ body.disabled-mode .settings-grid,body.disabled-mode .footer{opacity:.35;pointer
 .info-btn--gold{background:rgba(245,165,36,.1);border-color:rgba(245,165,36,.28);color:rgba(245,165,36,.7);}
 .info-btn--gold:hover{background:rgba(245,165,36,.2);border-color:rgba(245,165,36,.6);color:var(--warning);}
 
+#default-video-quality{color-scheme:dark;}
+#default-video-quality option{background:#171824;color:#f3f4f6;}
 #info-tooltip-box{visibility:hidden;opacity:0;position:fixed;left:14px;right:14px;bottom:14px;background:rgba(10,10,18,.98);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid rgba(245,165,36,.3);border-radius:12px;padding:11px 14px;color:rgba(255,255,255,.85);font-size:11px;line-height:1.6;box-shadow:0 -4px 28px rgba(0,0,0,.75);z-index:99999;pointer-events:none;transition:opacity .18s ease,visibility .18s ease;}
 #info-tooltip-box strong{color:var(--warning);display:flex;align-items:center;gap:5px;margin-bottom:4px;font-size:11.5px;}
 #info-tooltip-box strong svg{width:11px;height:11px;flex-shrink:0;}
@@ -621,6 +623,18 @@ input:checked + .slider::before{transform:translateY(-50%) translateX(15px);back
     <div class="section playback">
       <div class="section-title"><span class="dot"></span>Playback</div>
 
+      <div class="setting" id="setting-video-quality">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#38bdf8" stroke-width="1.4"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><path d="M6 6v4l4-2z" fill="#38bdf8" stroke="none"/></svg></div>
+            <span class="label" title="Use the best available quality up to this resolution">Default Video Quality</span>
+          </div>
+          <select id="default-video-quality" aria-label="Default video quality" style="max-width:88px;background:rgba(255,255,255,.08);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px;font-family:inherit;font-size:10px;font-weight:600;color-scheme:dark;">
+            <option value="360">360p</option><option value="480">480p</option><option value="720">720p</option><option value="1080">1080p</option><option value="1440">1440p</option><option value="2160">4K</option>
+          </select>
+        </div>
+      </div>
+
       <div class="setting">
         <div class="setting-row">
           <div class="label-group">
@@ -638,20 +652,6 @@ input:checked + .slider::before{transform:translateY(-50%) translateX(15px);back
             <span class="label">Sound Booster</span>
           </div>
           <label class="switch"><input type="checkbox" id="toggle-audio"><span class="slider"></span></label>
-        </div>
-      </div>
-
-      <div class="setting" id="setting-fullscreen">
-        <div class="setting-row">
-          <div class="label-group">
-            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#14b8a6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M2 5 V2 H5"/><path d="M11 2 H14 V5"/><path d="M14 11 V14 H11"/><path d="M5 14 H2 V11"/></svg></div>
-            <span class="label">Auto Fullscreen</span>
-          </div>
-          <label class="switch"><input type="checkbox" id="toggle-fullscreen"><span class="slider"></span></label>
-        </div>
-        <div class="fullscreen-hint" id="fullscreen-hint">
-          <span class="warn-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
-          <span class="warn-text">YouTube fullscreen — Press <strong>F11</strong> to exit.</span>
         </div>
       </div>
 
@@ -760,6 +760,20 @@ input:checked + .slider::before{transform:translateY(-50%) translateX(15px);back
           <label class="switch"><input type="checkbox" id="toggle-download"><span class="slider"></span></label>
         </div>
 
+      </div>
+
+      <div class="setting" id="setting-fullscreen">
+        <div class="setting-row">
+          <div class="label-group">
+            <div class="icon-box"><svg viewBox="0 0 16 16" fill="none" stroke="#14b8a6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M2 5 V2 H5"/><path d="M11 2 H14 V5"/><path d="M14 11 V14 H11"/><path d="M5 14 H2 V11"/></svg></div>
+            <span class="label">Auto Fullscreen</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="toggle-fullscreen"><span class="slider"></span></label>
+        </div>
+        <div class="fullscreen-hint" id="fullscreen-hint">
+          <span class="warn-icon"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><line x1="8" y1="7.5" x2="8" y2="11"/><circle cx="8" cy="5.5" r="0.5" fill="currentColor" stroke="none"/></svg></span>
+          <span class="warn-text">YouTube fullscreen — Press <strong>F11</strong> to exit.</span>
+        </div>
       </div>
 
       <div class="setting" id="setting-watchparty">

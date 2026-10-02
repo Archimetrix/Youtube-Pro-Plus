@@ -5,6 +5,23 @@ function isCtxValid() {
     try { return !!chrome.runtime?.id; } catch(e) { return false; }
 }
 
+// Keep YouTube's page-world player API in sync with the saved quality cap.
+(function initDefaultVideoQuality() {
+    const script = document.createElement('script');
+    script.src = chrome.runtime.getURL('default-quality.js');
+    const send = value => window.postMessage({ source: 'yt-pro-plus-quality', quality: Number(value) || 1080 }, location.origin);
+    script.onload = () => {
+        script.remove();
+        if (isCtxValid()) chrome.storage.local.get('defaultVideoQuality', r => send(r.defaultVideoQuality));
+    };
+    (document.head || document.documentElement).appendChild(script);
+    if (isCtxValid()) {
+        chrome.storage.onChanged.addListener((changes, area) => {
+            if (area === 'local' && changes.defaultVideoQuality) send(changes.defaultVideoQuality.newValue);
+        });
+    }
+})();
+
 // ─── YT Pro Plus: Asset Injectors ────────────────────────────────────────────
 function injectCSS(file) {
     const link = document.createElement("link");

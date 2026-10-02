@@ -1,9 +1,13 @@
 /**
  * Youtube Pro Plus — gate.js
  *
- * Runs at document_start. Shows a full-page overlay until the user has
- * verified (GitHub device flow, handled in stargate.js) that they starred
- * the repo.
+ * Runs at document_start. For the first few minutes after install, the
+ * extension works with no gate at all (see STARGATE_GRACE_MS in
+ * stargate.js). After that, if the user still hasn't verified (GitHub
+ * device flow, handled in stargate.js) that they starred the repo, this
+ * shows a full-page overlay that stays until they do. Verification is a
+ * ONE-TIME, lifetime thing — once it succeeds, this overlay never appears
+ * again for this install, ever, with no ongoing rechecks.
  *
  * Hardening:
  *  - The real lock is server-of-truth in stargate.js: feature scripts are
@@ -314,14 +318,12 @@
     });
   }
 
-  // Live re-lock: if the stored state flips to "not verified" — because a
-  // weekly/periodic recheck found the star was removed, or the token was
-  // revoked — show the overlay immediately, without waiting for a reload.
+  // If this tab stays open continuously through the moment the one-time
+  // grace period ends, the background pushes this so the gate appears
+  // immediately instead of waiting for a reload.
   try {
-    chrome.storage.onChanged.addListener((changes, area) => {
-      if (area !== 'local' || !changes.ytpp_star_gate) return;
-      const now = changes.ytpp_star_gate.newValue;
-      if (!(now && now.verified && now.token)) {
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg?.type === 'YTPP_STAR_GATE_GRACE_EXPIRED') {
         window.__ytppStarVerified = false;
         renderLocked();
       }
@@ -332,7 +334,15 @@
     // No response at all (lastError) means the background couldn't answer —
     // most likely stargate.js itself is missing/broken (e.g. deleted from
     // the unpacked extension). Fail closed rather than trusting the page.
-    if (!chrome.runtime.lastError && res?.verified) {
+    if (chrome.runtime.lastError) {
+      renderLocked();
+      return;
+    }
+    // 'unlocked'  → permanently verified, forever. Never show this again.
+    // 'grace'     → brand-new install, still inside the free trial window.
+    // 'locked'    → grace period over and never verified — show the gate,
+    //               no dismiss except actually verifying.
+    if (res?.mode === 'unlocked' || res?.mode === 'grace') {
       window.__ytppStarVerified = true;
       return;
     }

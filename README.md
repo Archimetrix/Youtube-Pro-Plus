@@ -2,7 +2,7 @@
   <img src="imgs/logo.png" alt="YouTube Pro Plus Logo" width="150"/>
   <h1> YouTube Pro Plus</h1>
 
-  ![Version](https://img.shields.io/badge/version-7.1.7-blue.svg)
+  ![Version](https://img.shields.io/badge/version-7.1.9-blue.svg)
   ![Platform](https://img.shields.io/badge/platform-Firefox%20%7C%20Edge%20%7C%20Chromium-green.svg)
 [![Copyright](https://img.shields.io/badge/Copyright-%C2%A9%202026%20Archimetrix.%20All%20rights%20reserved-f39c12?style=flat-square)](LICENSE)
 </div>
@@ -10,7 +10,7 @@
 **YouTube Pro +** is an all-in-one, highly optimized extension designed to completely overhaul your YouTube experience. It makes your life so smooth with useful features and a stylish theme all into one centralized, lightweight extension with a beautiful **Liquid Glass** UI.
 
 <div align="center">
-  <img src="imgs/homepanel2.png" alt="YouTube Pro Plus Interface" width="800"/>
+  <img src="imgs/homepanelimage.png" alt="YouTube Pro Plus Interface" width="800"/>
 </div>
 
 ---
@@ -30,11 +30,6 @@
 </p>
 
 > **Note:** Currently available officially on the Firefox and Microsoft Edge Add-ons stores. For Chrome, Opera, and other Chromium users, please use the **Download ZIP** button above and follow the quick **Local Installation** guide below.
-<a href="https://opentip.kaspersky.com/8380DEC0227208FE1F5358046FE11E1CF16C039599A996FFD997AB9A44645E46/results?tab=upload">
-   <img src="https://files.catbox.moe/u19sqq.png" alt="Check Report" height="40">
-</a>
-  
-
 
 ---
 
@@ -72,9 +67,8 @@ For users on other Chromium browsers where the extension is not yet in the store
 2.  **Open Extensions:** Open your browser and type `chrome://extensions/` (or `opera://extensions/` / `brave://extensions/`) in the URL bar.
 3.  **Enable Developer Mode:** Toggle the **"Developer mode"** switch in the top right corner of the page.
 4.  **Load the Extension:** Click the **"Load unpacked"** button in the top left and select the extracted `Youtube-Pro-Plus-main` folder.
-5.  **Dont delete the folder:** Dont delete the folder after extension loaded cause the browser is operating the extension directly from that folder .
-6.  *Important:* Make sure to disable any conflicting Tampermonkey scripts or Stylus themes! 
-7.  **Refresh YouTube** and enjoy!
+5.  *Important:* Make sure to disable any conflicting Tampermonkey scripts or Stylus themes! 
+6.  **Refresh YouTube** and enjoy!
 
 **Click the image below to watch the full showcase and installation guide: ⏬**
 

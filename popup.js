@@ -100,6 +100,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const toggles = ['theme', 'premium', 'ambient', 'cinematic', 'speed', 'audio', 'autoscroll', 'download', 'fullscreen', 'autoResume', 'screenshot', 'watchparty', 'miniplayer', 'pipmode', 'returnDislike', 'sponsorblock'];
     const masterToggleBtn = document.getElementById('master-toggle');
+    const qualitySelect = document.getElementById('default-video-quality');
+    chrome.storage.local.get('defaultVideoQuality', r => { qualitySelect.value = String(r.defaultVideoQuality || 1080); });
+    qualitySelect.addEventListener('change', () => {
+        chrome.storage.local.set({ defaultVideoQuality: Number(qualitySelect.value) });
+    });
 
     // ── Load all settings ───────────────────────────────────────────────────
     chrome.storage.local.get(['masterEnabled', 'cinematicSettings', 'sponsorblockCategories', ...toggles], (result) => {
