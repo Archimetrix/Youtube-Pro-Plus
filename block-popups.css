@@ -23,9 +23,13 @@ yt-upsell-dialog-renderer,
     display: none !important;
 }
 
+/* v7.0.4: do NOT display:none the backdrop. Polymer's overlay manager waits on the
+   backdrop's transition to finish opening dialogs (Save to playlist, Share, etc.);
+   hiding it can leave those dialogs stuck. Keep it rendered but invisible. */
 tp-yt-iron-overlay-backdrop,
 .ytd-popup-container tp-yt-iron-overlay-backdrop {
-    display: none !important;
+    background: transparent !important;
+    --iron-overlay-backdrop-opacity: 0;
 }
 
 /* ── Prevent the scroll-lock YouTube applies behind the enforcement wall ── */

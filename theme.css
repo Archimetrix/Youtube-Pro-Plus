@@ -342,3 +342,356 @@ ytd-comment-view-model button:hover,
 ytd-comment-renderer button:hover { background: rgba(255,255,255,0.12) !important; box-shadow: 0 2px 10px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08) !important; transform: none !important; }
 ytd-comment-view-model yt-interaction .fill,
 ytd-comment-renderer yt-interaction .fill { background: transparent !important; opacity: 0 !important; }
+
+/* =====================================================================
+   v7.0.1 — MENU FIXES
+   1) No sideways scrolling in any popup menu (pill radius + padding/margin
+      was overflowing the box horizontally → scrollbar with ◂ ▸ arrows)
+   2) Liquid-glass hover on every menu row
+   3) Search-filter dialog (and other dialogs) get a real frosted blur
+   ===================================================================== */
+html[dark]            { --menu-hover: rgba(255,255,255,0.12); --dialog-bg: rgba(18,18,24,0.72); }
+html:not([dark])      { --menu-hover: rgba(255,255,255,0.60); --dialog-bg: rgba(255,255,255,0.78); }
+
+/* ---- 1) kill horizontal scroll + hide scrollbars (vertical wheel scroll still works) ---- */
+ytd-menu-popup-renderer,
+ytd-multi-page-menu-renderer,
+ytd-multi-page-menu-renderer #container,
+ytd-multi-page-menu-renderer #sections,
+ytd-multi-page-menu-renderer .menu-container,
+ytd-menu-popup-renderer #items,
+tp-yt-iron-dropdown,
+tp-yt-iron-dropdown #contentWrapper,
+#contentWrapper.tp-yt-iron-dropdown > *,
+tp-yt-paper-listbox,
+yt-contextual-sheet-layout,
+yt-sheet-view-model,
+.ytContextualSheetLayoutHost,
+.ytContextualSheetLayoutContentContainer,
+tp-yt-paper-dialog,
+tp-yt-paper-dialog .scrollable {
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+  scrollbar-width: none !important;          /* Firefox + Chrome 121+ */
+  -ms-overflow-style: none !important;
+}
+ytd-menu-popup-renderer::-webkit-scrollbar,
+ytd-multi-page-menu-renderer::-webkit-scrollbar,
+ytd-multi-page-menu-renderer *::-webkit-scrollbar,
+ytd-menu-popup-renderer *::-webkit-scrollbar,
+tp-yt-iron-dropdown *::-webkit-scrollbar,
+#contentWrapper.tp-yt-iron-dropdown > *::-webkit-scrollbar,
+tp-yt-paper-listbox::-webkit-scrollbar,
+yt-contextual-sheet-layout *::-webkit-scrollbar,
+tp-yt-paper-dialog::-webkit-scrollbar,
+tp-yt-paper-dialog *::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+
+/* the real cause of the overflow: width:100% + padding/margin without border-box */
+tp-yt-paper-listbox, ytd-menu-popup-renderer #items,
+ytd-multi-page-menu-renderer #items, ytd-multi-page-menu-renderer #sections { box-sizing: border-box !important; max-width: 100% !important; }
+#items.yt-multi-page-menu-section-renderer > *.yt-multi-page-menu-section-renderer:not([compact-link-style=compact-link-style-type-disclaimer]):not(ytd-message-renderer) { margin: 3px 8px !important; box-sizing: border-box !important; }
+
+/* ---- 2) liquid-glass hover on every row inside menus (no scale → nothing gets clipped) ---- */
+ytd-menu-service-item-renderer,
+ytd-menu-navigation-item-renderer,
+ytd-menu-popup-renderer tp-yt-paper-item,
+ytd-multi-page-menu-renderer ytd-compact-link-renderer,
+ytd-multi-page-menu-renderer ytd-guide-entry-renderer,
+ytd-multi-page-menu-renderer ytd-account-item-renderer,
+ytd-multi-page-menu-renderer ytd-notification-renderer,
+yt-contextual-sheet-layout yt-list-item-view-model,
+.ytContextualSheetLayoutHost yt-list-item-view-model,
+tp-yt-iron-dropdown yt-list-item-view-model,
+[class*="ListItemViewModelContainer"],
+[class*="list-item-view-model__container"],
+tp-yt-paper-listbox tp-yt-paper-item {
+  border-radius: 2000px !important;
+  box-sizing: border-box !important;
+  transform: none !important;
+  transition: background var(--bounce), box-shadow var(--bounce), backdrop-filter var(--bounce) !important;
+}
+ytd-menu-service-item-renderer:hover,
+ytd-menu-navigation-item-renderer:hover,
+ytd-menu-popup-renderer tp-yt-paper-item:hover,
+ytd-multi-page-menu-renderer ytd-compact-link-renderer:hover,
+ytd-multi-page-menu-renderer ytd-guide-entry-renderer:hover,
+ytd-multi-page-menu-renderer ytd-account-item-renderer:hover,
+ytd-multi-page-menu-renderer ytd-notification-renderer:hover,
+yt-contextual-sheet-layout yt-list-item-view-model:hover,
+.ytContextualSheetLayoutHost yt-list-item-view-model:hover,
+tp-yt-iron-dropdown yt-list-item-view-model:hover,
+[class*="ListItemViewModelContainer"]:hover,
+[class*="list-item-view-model__container"]:hover,
+tp-yt-paper-listbox tp-yt-paper-item:hover {
+  background: var(--menu-hover) !important;
+  backdrop-filter: blur(var(--blur)) saturate(170%) !important;
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(170%) !important;
+  box-shadow: var(--shadow-hover) !important;
+}
+/* keyboard-focused / selected rows get the same look */
+ytd-menu-service-item-renderer[focused], ytd-menu-service-item-renderer.iron-selected,
+tp-yt-paper-item[focused], tp-yt-paper-item.iron-selected,
+[class*="ListItemViewModelContainer"][class*="Focus"] {
+  background: var(--menu-hover) !important;
+  box-shadow: var(--shadow-hover) !important;
+}
+/* inner native highlight layers must not paint a square gray box on top of the glass */
+ytd-menu-popup-renderer tp-yt-paper-item:hover,
+ytd-multi-page-menu-renderer tp-yt-paper-item:hover,
+ytd-multi-page-menu-renderer a.yt-simple-endpoint:hover,
+ytd-menu-service-item-renderer:hover tp-yt-paper-item { background-color: transparent !important; }
+ytd-menu-popup-renderer yt-interaction .fill,
+ytd-multi-page-menu-renderer yt-interaction .fill,
+tp-yt-iron-dropdown yt-interaction .fill,
+yt-contextual-sheet-layout yt-interaction .fill,
+tp-yt-iron-dropdown [class*="TouchFeedbackShapeFill"],
+yt-contextual-sheet-layout [class*="TouchFeedbackShapeFill"],
+tp-yt-iron-dropdown yt-touch-feedback-shape,
+yt-contextual-sheet-layout yt-touch-feedback-shape { background: transparent !important; opacity: 0 !important; }
+
+/* ---- 3) search filters + other dialogs: real frosted glass so text is readable ---- */
+tp-yt-paper-dialog,
+ytd-popup-container tp-yt-paper-dialog,
+ytd-search-sub-menu-renderer,
+ytd-search-filter-group-renderer,
+#filter-menu,
+ytd-search-filter-options-dialog,
+yt-dialog-view-model,
+.ytDialogViewModelHost {
+  background: var(--dialog-bg) !important;
+  backdrop-filter: blur(32px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(180%) !important;
+}
+/* inner panels of the filter dialog stay clear so the blur isn't doubled / muddy */
+tp-yt-paper-dialog ytd-search-filter-group-renderer,
+tp-yt-paper-dialog ytd-search-sub-menu-renderer,
+tp-yt-paper-dialog #filter-menu { background: transparent !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+/* filter options: same glass hover as menus */
+ytd-search-filter-renderer a, ytd-search-filter-renderer { border-radius: 2000px !important; transition: background var(--bounce), box-shadow var(--bounce) !important; }
+ytd-search-filter-renderer:hover { background: var(--menu-hover) !important; box-shadow: var(--shadow-hover) !important; }
+
+/* =====================================================================
+   v7.0.2 — row clipping + filter-dialog hover
+   ===================================================================== */
+html[dark] { --menu-hover: rgba(255,255,255,0.16); }
+
+/* ---- A) rows must never be wider than the menu: gutter lives on the container, rows are 100% wide ---- */
+ytd-menu-popup-renderer, ytd-menu-popup-renderer #items, ytd-menu-popup-renderer tp-yt-paper-listbox,
+ytd-multi-page-menu-renderer, ytd-multi-page-menu-renderer #container,
+ytd-multi-page-menu-renderer #sections, ytd-multi-page-menu-renderer yt-multi-page-menu-section-renderer,
+ytd-multi-page-menu-renderer #items.yt-multi-page-menu-section-renderer {
+  box-sizing: border-box !important; max-width: 100% !important; min-width: 0 !important;
+}
+ytd-menu-popup-renderer tp-yt-paper-listbox { padding: 8px !important; width: 100% !important; }
+ytd-multi-page-menu-renderer #items.yt-multi-page-menu-section-renderer { padding: 0 8px !important; }
+
+#items.yt-multi-page-menu-section-renderer > *.yt-multi-page-menu-section-renderer:not([compact-link-style=compact-link-style-type-disclaimer]):not(ytd-message-renderer) { margin: 3px 0 !important; }
+
+ytd-menu-service-item-renderer,
+ytd-menu-navigation-item-renderer,
+ytd-menu-popup-renderer tp-yt-paper-item,
+ytd-multi-page-menu-renderer ytd-compact-link-renderer,
+ytd-multi-page-menu-renderer ytd-guide-entry-renderer,
+ytd-multi-page-menu-renderer ytd-account-item-renderer,
+yt-contextual-sheet-layout yt-list-item-view-model,
+.ytContextualSheetLayoutHost yt-list-item-view-model,
+tp-yt-iron-dropdown yt-list-item-view-model,
+[class*="ListItemViewModelContainer"],
+[class*="list-item-view-model__container"] {
+  display: block;
+  width: 100% !important; max-width: 100% !important; min-width: 0 !important;
+  margin-left: 0 !important; margin-right: 0 !important;
+  box-sizing: border-box !important;
+}
+ytd-menu-service-item-renderer tp-yt-paper-item, ytd-menu-navigation-item-renderer tp-yt-paper-item {
+  width: 100% !important; box-sizing: border-box !important; padding: 10px 14px !important; border-radius: 2000px !important;
+}
+ytd-menu-service-item-renderer[use-list-item-styles] tp-yt-paper-item.ytd-menu-service-item-renderer { padding: 10px 14px !important; }
+/* only the outermost row paints the glass; inner paper-item stays clear (no double layer) */
+ytd-menu-service-item-renderer:hover tp-yt-paper-item,
+ytd-menu-navigation-item-renderer:hover tp-yt-paper-item { background: transparent !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+
+/* ---- B) search-filter dialog: hover the actual clickable label, not the oversized renderer box ---- */
+ytd-search-filter-renderer, ytd-search-filter-renderer:hover { background: transparent !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; border-radius: 0 !important; transform: none !important; }
+ytd-search-filter-renderer a#endpoint,
+ytd-search-filter-renderer a.yt-simple-endpoint,
+ytd-search-filter-renderer #label,
+ytd-search-filter-renderer .ytd-search-filter-renderer[role="link"],
+ytd-search-filter-renderer a {
+  display: flex !important; align-items: center !important; box-sizing: border-box !important;
+  min-height: 32px !important; padding: 4px 14px !important; margin: 1px -14px !important;
+  border-radius: 2000px !important; background: transparent !important;
+  transition: background var(--bounce), box-shadow var(--bounce) !important;
+}
+ytd-search-filter-renderer a:hover,
+ytd-search-filter-renderer a#endpoint:hover,
+ytd-search-filter-renderer a.yt-simple-endpoint:hover {
+  background: var(--menu-hover) !important;
+  box-shadow: var(--shadow-hover) !important;
+}
+/* label inside the link must not get its own pill */
+ytd-search-filter-renderer a #label, ytd-search-filter-renderer a:hover #label { background: transparent !important; box-shadow: none !important; margin: 0 !important; padding: 0 !important; min-height: 0 !important; }
+/* the group column must not clip the pill's glow */
+ytd-search-filter-group-renderer, ytd-search-filter-group-renderer #options { overflow: visible !important; }
+
+/* =====================================================================
+   v7.0.3 — rectangular menus w/ slightly curved corners, no side clipping
+   Root cause of the cut-off: `.ytContextualSheetLayoutHost { padding:13px }`
+   (line ~141) pushed the already full-width content 13px to the right.
+   ===================================================================== */
+.ytContextualSheetLayoutHost { padding: 0 !important; box-sizing: border-box !important; width: 100% !important; max-width: 100% !important; }
+.ytContextualSheetLayoutContentContainer { box-sizing: border-box !important; width: 100% !important; max-width: 100% !important; padding: 6px !important; overflow-x: clip !important; }
+yt-contextual-sheet-layout, yt-sheet-view-model { box-sizing: border-box !important; max-width: 100% !important; }
+
+/* menu containers: modest rounding instead of 30px pill */
+ytd-menu-popup-renderer,
+ytd-multi-page-menu-renderer,
+#contentWrapper.tp-yt-iron-dropdown > *,
+yt-contextual-sheet-layout,
+.ytContextualSheetLayoutHost,
+.ytSearchboxComponentSuggestionsContainer { border-radius: 14px !important; }
+
+/* rows: rectangle, 8px corners, tight padding */
+ytd-menu-service-item-renderer,
+ytd-menu-navigation-item-renderer,
+ytd-menu-popup-renderer tp-yt-paper-item,
+ytd-multi-page-menu-renderer ytd-compact-link-renderer,
+ytd-multi-page-menu-renderer ytd-guide-entry-renderer,
+ytd-multi-page-menu-renderer ytd-account-item-renderer,
+ytd-multi-page-menu-renderer ytd-notification-renderer,
+yt-contextual-sheet-layout yt-list-item-view-model,
+.ytContextualSheetLayoutHost yt-list-item-view-model,
+tp-yt-iron-dropdown yt-list-item-view-model,
+[class*="ListItemViewModelContainer"],
+[class*="list-item-view-model__container"],
+tp-yt-paper-listbox tp-yt-paper-item,
+#items.yt-multi-page-menu-section-renderer > *.yt-multi-page-menu-section-renderer:not([compact-link-style=compact-link-style-type-disclaimer]):not(ytd-message-renderer),
+ytd-menu-service-item-renderer tp-yt-paper-item,
+ytd-menu-navigation-item-renderer tp-yt-paper-item { border-radius: 8px !important; }
+
+ytd-menu-service-item-renderer tp-yt-paper-item,
+ytd-menu-navigation-item-renderer tp-yt-paper-item,
+ytd-menu-service-item-renderer[use-list-item-styles] tp-yt-paper-item.ytd-menu-service-item-renderer { padding: 8px 12px !important; min-height: 0 !important; }
+ytd-menu-popup-renderer tp-yt-paper-listbox { padding: 4px !important; }
+ytd-multi-page-menu-renderer #items.yt-multi-page-menu-section-renderer { padding: 0 4px !important; }
+#items.yt-multi-page-menu-section-renderer > *.yt-multi-page-menu-section-renderer:not([compact-link-style=compact-link-style-type-disclaimer]):not(ytd-message-renderer) { margin: 1px 0 !important; }
+
+/* filter dialog: rectangular hover too */
+ytd-search-filter-renderer a, ytd-search-filter-renderer a#endpoint, ytd-search-filter-renderer a.yt-simple-endpoint { border-radius: 8px !important; }
+tp-yt-paper-dialog { border-radius: 18px !important; }
+
+/* =====================================================================
+   v7.0.5 — "Save to…" playlist dialog must scroll
+   The list (not the dialog shell) is the scroller; footer stays pinned.
+   ===================================================================== */
+html tp-yt-paper-dialog ytd-add-to-playlist-renderer,
+html yt-contextual-sheet-layout,
+html .ytContextualSheetLayoutHost {
+  display: flex !important; flex-direction: column !important;
+  min-height: 0 !important; max-height: inherit !important;
+}
+html .ytContextualSheetLayoutContentContainer,
+html ytd-add-to-playlist-renderer #playlists,
+html ytd-add-to-playlist-renderer #content,
+html ytd-add-to-playlist-renderer .ytd-add-to-playlist-renderer[id="playlists"],
+html yt-sheet-view-model [class*="ContentContainer"],
+html yt-sheet-view-model [class*="ListContainer"] {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: min(60vh, 420px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(255,255,255,0.35) transparent !important;
+  pointer-events: auto !important;
+}
+html .ytContextualSheetLayoutContentContainer::-webkit-scrollbar,
+html ytd-add-to-playlist-renderer #playlists::-webkit-scrollbar { display: block !important; width: 6px !important; height: 0 !important; }
+html .ytContextualSheetLayoutContentContainer::-webkit-scrollbar-thumb,
+html ytd-add-to-playlist-renderer #playlists::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.35); border-radius: 8px; }
+/* footer ("New playlist") sits below the list, not over it */
+html ytd-add-to-playlist-renderer #actions, html ytd-add-to-playlist-renderer .footer { position: static !important; flex: 0 0 auto !important; }
+
+/* =====================================================================
+   v7.0.6 — mouse-wheel scrolling in dialogs/menus
+   YouTube's modal scroll-lock (iron-scroll-manager) only lets the wheel
+   scroll nodes whose computed `overflow` is exactly "auto"/"scroll".
+   `overflow-x:hidden; overflow-y:auto` computes to "hidden auto" → blocked.
+   Use plain `overflow:auto` on every scroller (we already removed the
+   cause of horizontal overflow, so no sideways bar appears).
+   ===================================================================== */
+html .ytContextualSheetLayoutContentContainer,
+html ytd-add-to-playlist-renderer #playlists,
+html ytd-add-to-playlist-renderer #content,
+html yt-sheet-view-model [class*="ContentContainer"],
+html yt-sheet-view-model [class*="ListContainer"],
+html tp-yt-paper-dialog,
+html tp-yt-paper-dialog .scrollable,
+html ytd-menu-popup-renderer,
+html ytd-menu-popup-renderer #items,
+html ytd-multi-page-menu-renderer,
+html ytd-multi-page-menu-renderer #container,
+html ytd-multi-page-menu-renderer #sections,
+html #contentWrapper.tp-yt-iron-dropdown > *,
+html tp-yt-paper-listbox {
+  overflow: auto !important;
+}
+
+/* =====================================================================
+   v7.0.7 — SEARCH RESULTS liquid-glass hover
+   Search uses ytd-video-renderer / playlist / channel / radio rows (and
+   lockups inside ytd-search), which the home + sidebar rules don't match.
+   Same trick as the home cards: halo on a ::before that grows OUTWARD, so
+   the row's own box never changes size (keeps hover-preview aligned).
+   ===================================================================== */
+ytd-search ytd-video-renderer,
+ytd-search ytd-playlist-renderer,
+ytd-search ytd-channel-renderer,
+ytd-search ytd-radio-renderer,
+ytd-search ytd-movie-renderer,
+ytd-search ytd-compact-video-renderer,
+ytd-search yt-lockup-view-model { position: relative !important; z-index: 1; border-radius: 16px !important; transition: box-shadow var(--bounce) !important; }
+
+ytd-search ytd-video-renderer::before,
+ytd-search ytd-playlist-renderer::before,
+ytd-search ytd-channel-renderer::before,
+ytd-search ytd-radio-renderer::before,
+ytd-search ytd-movie-renderer::before,
+ytd-search ytd-compact-video-renderer::before,
+ytd-search yt-lockup-view-model::before {
+  content: ""; position: absolute; inset: -10px -14px; z-index: -1; border-radius: 22px;
+  background: transparent; pointer-events: none;
+  transition: background var(--bounce), box-shadow var(--bounce), backdrop-filter var(--bounce);
+}
+ytd-search ytd-video-renderer:hover,
+ytd-search ytd-playlist-renderer:hover,
+ytd-search ytd-channel-renderer:hover,
+ytd-search ytd-radio-renderer:hover,
+ytd-search ytd-movie-renderer:hover,
+ytd-search ytd-compact-video-renderer:hover,
+ytd-search yt-lockup-view-model:hover { z-index: 5; }
+
+ytd-search ytd-video-renderer:hover::before,
+ytd-search ytd-playlist-renderer:hover::before,
+ytd-search ytd-channel-renderer:hover::before,
+ytd-search ytd-radio-renderer:hover::before,
+ytd-search ytd-movie-renderer:hover::before,
+ytd-search ytd-compact-video-renderer:hover::before,
+ytd-search yt-lockup-view-model:hover::before {
+  background: var(--sf) !important;
+  backdrop-filter: blur(var(--blur)) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(160%) !important;
+  box-shadow: var(--shadow-hover) !important;
+}
+
+/* rounded thumbnails + no native hover scrim fighting the glass */
+ytd-search ytd-video-renderer ytd-thumbnail, ytd-search ytd-playlist-renderer ytd-playlist-thumbnail,
+ytd-search ytd-video-renderer ytd-thumbnail a#thumbnail { border-radius: 14px !important; overflow: hidden; }
+ytd-search ytd-video-renderer #dismissible, ytd-search ytd-playlist-renderer #dismissible { background: transparent !important; }
+ytd-search ytd-video-renderer yt-interaction .fill, ytd-search ytd-playlist-renderer yt-interaction .fill { opacity: 0 !important; background: transparent !important; }
+
+/* give the halo room so the list/page doesn't clip it, and rows don't overlap each other's glow */
+ytd-search ytd-item-section-renderer, ytd-search ytd-item-section-renderer #contents,
+ytd-search ytd-section-list-renderer, ytd-search #primary, ytd-search #contents.ytd-section-list-renderer { overflow: visible !important; }
+ytd-search ytd-video-renderer, ytd-search ytd-playlist-renderer, ytd-search ytd-channel-renderer { margin-top: 18px !important; margin-bottom: 18px !important; }

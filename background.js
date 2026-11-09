@@ -216,7 +216,13 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 const UPDATE_ALARM_NAME   = 'ytpro-update-check';
 const UPDATE_CHECK_URL    = 'https://raw.githubusercontent.com/Archimetrix/Youtube-Pro-Plus/main/manifest.json';
 const UPDATE_INTERVAL_MIN = 1440; // 24 hours in minutes
-const GITHUB_DOWNLOAD_URL = 'https://github.com/Archimetrix/Youtube-Pro-Plus/archive/refs/heads/main.zip';
+const GITHUB_DOWNLOAD_URL = 'https://github.com/Archimetrix/Youtube-Pro-Plus/releases/latest';
+
+/** Where users go to get the update: AMO on Firefox, GitHub releases elsewhere. */
+function updateTargetUrl() {
+    const m = chrome.runtime.getManifest();
+    return m.browser_specific_settings ? 'https://addons.mozilla.org/en-US/firefox/addon/youtube-pro-plus/' : GITHUB_DOWNLOAD_URL;
+}
 
 /** Semantic-version compare. Returns true if remote > local. */
 function isNewerVersion(local, remote) {
@@ -246,13 +252,14 @@ async function checkForUpdate() {
 
         if (!remoteVersion || !isNewerVersion(localVersion, remoteVersion)) {
             // Up to date — clear any stale update flag
-            chrome.storage.local.set({ updateAvailable: null });
+            chrome.storage.local.set({ updateAvailable: null, lastUpdateCheck: Date.now() });
             return;
         }
 
         // Store for popup banner
         chrome.storage.local.set({
-            updateAvailable: { version: remoteVersion, url: GITHUB_DOWNLOAD_URL }
+            updateAvailable: { version: remoteVersion, url: GITHUB_DOWNLOAD_URL },
+            lastUpdateCheck: Date.now()
         });
 
         // Show a Chrome system notification
@@ -274,14 +281,14 @@ async function checkForUpdate() {
 // Open GitHub when the notification button is clicked
 chrome.notifications.onButtonClicked.addListener((notifId, btnIndex) => {
     if (notifId === 'ytpro-update' && btnIndex === 0) {
-        chrome.tabs.create({ url: GITHUB_DOWNLOAD_URL });
+        chrome.tabs.create({ url: updateTargetUrl() });
     }
 });
 
 // Also open GitHub when the notification body is clicked
 chrome.notifications.onClicked.addListener((notifId) => {
     if (notifId === 'ytpro-update') {
-        chrome.tabs.create({ url: GITHUB_DOWNLOAD_URL });
+        chrome.tabs.create({ url: updateTargetUrl() });
         chrome.notifications.clear('ytpro-update');
     }
 });

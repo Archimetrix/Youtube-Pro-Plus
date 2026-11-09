@@ -66,8 +66,79 @@ function forceDisableLoop(video) {
     video.loop = false;
 }
 
+let lastShortsAdvance = 0;
+
+// Advance to the next short. The "down" arrow button is created lazily by
+// YouTube (often NOT present on the very first short until the user scrolls
+// once), and window.scrollBy does nothing on Shorts because the scroller is
+// an inner container — so try several methods in order.
+function goToNextShort() {
+    // 1) Arrow button, if YouTube has rendered it
+    const nextBtn =
+        document.querySelector('ytd-reel-video-renderer[is-active] #navigation-button-down button') ||
+        document.querySelector('#navigation-button-down ytd-button-renderer button') ||
+        document.querySelector('#navigation-button-down button') ||
+        document.querySelector('ytd-shorts button[aria-label="Next video"]') ||
+        document.querySelector('ytd-shorts button[aria-label*="Next" i]');
+    if (nextBtn) { nextBtn.click(); return; }
+
+    // 2) Scroll Shorts' own scroll container by exactly one screen
+    const scroller =
+        document.querySelector('ytd-shorts #shorts-container') ||
+        document.querySelector('#shorts-container') ||
+        document.querySelector('ytd-shorts #shorts-inner-container')?.parentElement;
+    if (scroller && scroller.scrollHeight > scroller.clientHeight) {
+        scroller.scrollBy({ top: scroller.clientHeight, behavior: 'smooth' });
+        return;
+    }
+
+    // 3) Last resort: the keyboard shortcut Shorts itself listens for
+    const target = document.querySelector('ytd-shorts') || document.body;
+    ['keydown', 'keyup'].forEach(type =>
+        target.dispatchEvent(new KeyboardEvent(type, { key: 'ArrowDown', code: 'ArrowDown', keyCode: 40, which: 40, bubbles: true, cancelable: true })));
+    window.scrollBy({ top: window.innerHeight, behavior: 'smooth' });
+}
+
 function initAutoScroll() {
     if (autoScrollInterval) clearInterval(autoScrollInterval);
+
+    // ── Event-based end detection (catches the FIRST short after opening the
+    // Shorts tab, where the 200ms poll can miss the end / can't yet find the
+    // "active" video, so YouTube replays the short once). Media events don't
+    // bubble, so listen in the capture phase on document.
+    if (!window.__ytProShortsEndHook) {
+        window.__ytProShortsEndHook = true;
+        const lastT = new WeakMap();
+        const isOnScreenShort = (v) => {
+            if (!window.location.pathname.includes('/shorts/')) return false;
+            if (!v || !(v instanceof HTMLVideoElement)) return false;
+            if (!v.closest('ytd-shorts, ytd-reel-video-renderer')) return false;
+            const r = v.getBoundingClientRect();
+            const mid = window.innerHeight / 2;
+            return r.height > 0 && r.top < mid && r.bottom > mid;
+        };
+        const advance = (v) => {
+            const now = Date.now();
+            if (now - lastShortsAdvance < 900) return;
+            lastShortsAdvance = now;
+            forceDisableLoop(v);
+            goToNextShort();
+        };
+        document.addEventListener('ended', (e) => {
+            if (isOnScreenShort(e.target)) advance(e.target);
+        }, true);
+        document.addEventListener('timeupdate', (e) => {
+            const v = e.target;
+            if (!(v instanceof HTMLVideoElement)) return;
+            const prev = lastT.get(v);
+            lastT.set(v, v.currentTime);
+            // wrap-around: was within the last ~1s, now back near the start => it looped
+            if (prev !== undefined && v.duration > 0 &&
+                prev > v.duration - 1.2 && v.currentTime < 1 && isOnScreenShort(v)) {
+                advance(v);
+            }
+        }, true);
+    }
 
     // ── When YouTube SPA-navigates TO a shorts page, immediately seize the
     // video and kill loop — before YouTube's own init can re-enable it.
@@ -95,17 +166,12 @@ function initAutoScroll() {
         forceDisableLoop(activeVideo);
 
         if (activeVideo.duration > 0 && (activeVideo.duration - activeVideo.currentTime) < 0.4) {
-            const nextBtn =
-                document.querySelector('ytd-reel-video-renderer[is-active] #navigation-button-down button') ||
-                document.querySelector('#navigation-button-down ytd-button-renderer button') ||
-                document.querySelector('#navigation-button-down button');
-
-            if (nextBtn) {
-                activeVideo.currentTime = 0;
-                nextBtn.click();
-            } else {
-                window.scrollBy({ top: window.innerHeight, behavior: 'smooth' });
-            }
+            // Throttle so repeated ticks inside the 0.4s window don't skip 2 shorts
+            const now = Date.now();
+            if (now - lastShortsAdvance < 900) return;
+            lastShortsAdvance = now;
+            activeVideo.currentTime = 0;
+            goToNextShort();
         }
     }, 200);
 }

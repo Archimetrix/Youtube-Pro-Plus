@@ -1252,6 +1252,10 @@ document.addEventListener('DOMContentLoaded', () => {
             title: 'Watch Party',
             body:  'Adds a Watch Party button next to Create in the YouTube header. Create a room to host and share the code, or join a room to follow along — only the host controls playback. Turn this off to remove the button entirely.'
         },
+        autoscroll: {
+            title: 'Shorts auto-scroll',
+            body:  'User have to scroll first short manually then it will autoscroll from the next shorts automatically.'
+        },
         miniplayer: {
             title: 'Auto Mini Player',
             body:  'Automatically shrinks the video into a small floating window you can drag anywhere once you scroll past the player, then restores it to normal size when you scroll back up. Turn this off to disable the auto-shrink behavior.'
@@ -1294,68 +1298,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ── Report an Issue: opens as a real extension tab, not the popup ───────
-    // (a full page so the native file picker for screenshots never closes it)
+    // ── Report an issue: opens a new GitHub issue ───────────────────────────
     document.getElementById('open-report-panel').addEventListener('click', () => {
-        chrome.tabs.create({ url: chrome.runtime.getURL('report.html') });
+        chrome.tabs.create({ url: 'https://github.com/Archimetrix/Youtube-Pro-Plus/issues/new' });
     });
 });
 
-// ─── Update Banner + Instructions Panel ──────────────────────────────────────
-// Reads the updateAvailable flag set by the background service worker.
-// Shows a dismissable top banner; "How to Update" opens a step-by-step panel
-// that guides the user to overwrite their existing folder (preserving storage).
+// ─── Updates button: red badge when a newer version exists ────────────────────
+// The full update experience lives in an in-popup screen (updates.js). Here we only
+// surface the "1" badge (set by the background check or a quick refresh below)
+// and open that page.
 
 (function () {
-    const banner        = document.getElementById('update-banner');
-    const versionSpan   = document.getElementById('update-banner-version');
-    const downloadBtn   = document.getElementById('update-banner-btn');
-    const dismissBtn    = document.getElementById('update-banner-dismiss');
+    const btn   = document.getElementById('check-update-btn');
+    const badge = document.getElementById('update-badge');
+    if (!btn) return;
 
-    if (!banner) return;
-
-    const DOWNLOAD_URL = 'https://github.com/Archimetrix/Youtube-Pro-Plus/archive/refs/heads/main.zip';
-
-    chrome.storage.local.get(['updateAvailable', 'updateBannerDismissed'], (result) => {
-        const info = result.updateAvailable;
-        if (!info || !info.version) return;
-
-        // Don't re-show if user already dismissed this exact version
-        if (result.updateBannerDismissed === info.version) return;
-
-        // Populate banner with the version number
-        versionSpan.textContent = 'v' + info.version;
-        banner.classList.add('visible');
-
-        // ── Download button → trigger the ZIP download directly ──
-        downloadBtn.addEventListener('click', () => {
-            chrome.tabs.create({ url: info.url || DOWNLOAD_URL });
-        });
-
-        // ── Dismiss banner — remember per version ──
-        dismissBtn.addEventListener('click', () => {
-            chrome.storage.local.set({ updateBannerDismissed: info.version });
-            banner.classList.remove('visible');
-        });
-    });
-})();
-
-
-// ─── Manual Update Checker ────────────────────────────────────────────────────
-// Lets users trigger an on-demand update check from the "Check for Update"
-// button, in addition to the 24-hour automatic background alarm check.
-
-(function () {
-    const btn    = document.getElementById('check-update-btn');
-    const label  = document.getElementById('check-update-label');
-    if (!btn || !label) return;
-
-    const MANIFEST_URL  = 'https://raw.githubusercontent.com/Archimetrix/Youtube-Pro-Plus/main/manifest.json';
-    const DOWNLOAD_URL  = 'https://github.com/Archimetrix/Youtube-Pro-Plus/archive/refs/heads/main.zip';
-    let busy = false;
+    const MANIFEST_URL = 'https://raw.githubusercontent.com/Archimetrix/Youtube-Pro-Plus/main/manifest.json';
+    const RELEASES_URL = 'https://github.com/Archimetrix/Youtube-Pro-Plus/releases/latest';
+    const STALE_MS     = 6 * 60 * 60 * 1000;
 
     function isNewerVersion(local, remote) {
-        const parse = v => v.split('.').map(n => parseInt(n, 10) || 0);
+        const parse = v => String(v).split('.').map(n => parseInt(n, 10) || 0);
         const l = parse(local), r = parse(remote);
         for (let i = 0; i < Math.max(l.length, r.length); i++) {
             const a = l[i] || 0, b = r[i] || 0;
@@ -1365,64 +1329,36 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
     }
 
-    function setState(state, text) {
-        btn.classList.remove('is-checking', 'is-uptodate', 'is-found', 'is-error');
-        if (state) btn.classList.add(state);
-        label.textContent = text;
-        btn.disabled = (state === 'is-checking');
-    }
+    const localVersion = chrome.runtime.getManifest().version;
+    const render = (info) => {
+        const has = !!(info && info.version && isNewerVersion(localVersion, info.version));
+        if (badge) badge.classList.toggle('show', has);
+        btn.classList.toggle('is-found', has);
+    };
 
-    function resetAfter(ms) {
-        setTimeout(() => {
-            setState(null, 'Check for Update');
-            busy = false;
-        }, ms);
-    }
-
-    function showUpdateBanner(version) {
-        // Populate and reveal the top banner
-        const banner      = document.getElementById('update-banner');
-        const versionSpan = document.getElementById('update-banner-version');
-        if (banner && versionSpan) {
-            versionSpan.textContent = 'v' + version;
-            banner.classList.add('visible');
-        }
-    }
-
-    btn.addEventListener('click', async () => {
-        if (busy) return;
-        busy = true;
-
-        setState('is-checking', 'Checking…');
-
+    async function quickCheck() {
         try {
-            const res = await fetch(MANIFEST_URL, {
-                            cache: 'no-store'
+            const res = await fetch(MANIFEST_URL, { cache: 'no-store' });
+            if (!res.ok) return;
+            const remote = await res.json();
+            const found  = isNewerVersion(localVersion, remote.version);
+            chrome.storage.local.set({
+                lastUpdateCheck: Date.now(),
+                updateAvailable: found ? { version: remote.version, url: RELEASES_URL } : null
             });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        } catch (e) { /* offline – keep whatever we knew */ }
+    }
 
-            const remote       = await res.json();
-            const localVersion = chrome.runtime.getManifest().version;
+    chrome.storage.local.get(['updateAvailable', 'lastUpdateCheck'], (r) => {
+        render(r.updateAvailable);
+        if (!r.lastUpdateCheck || Date.now() - r.lastUpdateCheck > STALE_MS) quickCheck();
+    });
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local' && changes.updateAvailable) render(changes.updateAvailable.newValue);
+    });
 
-            if (isNewerVersion(localVersion, remote.version)) {
-                // Save flag so the automatic banner still works too
-                chrome.storage.local.set({
-                    updateAvailable:       { version: remote.version, url: DOWNLOAD_URL },
-                    updateBannerDismissed: null
-                });
-                setState('is-found', 'Update Available!');
-                // Directly open the ZIP download — no extra steps needed
-                chrome.tabs.create({ url: DOWNLOAD_URL });
-                resetAfter(3000);
-            } else {
-                setState('is-uptodate', 'Up to date ✓');
-                resetAfter(3000);
-            }
-
-        } catch (err) {
-            setState('is-error', 'Check failed — retry');
-            resetAfter(3000);
-        }
+    btn.addEventListener('click', () => {
+        if (window.YTProUpdates) window.YTProUpdates.open();
     });
 })();
 
