@@ -10,7 +10,11 @@
  *  - For the first STARGATE_GRACE_MS after install, the extension works
  *    normally with no gate at all — let people actually try it first.
  *  - Once the grace period ends, if the user still hasn't verified, the
- *    gate appears and stays until they do. There is no bypass.
+ *    gate appears (in every new tab) until they verify or skip for that tab.
+ *  - "Show it later": the gate has a skip button. Skipping unlocks ONLY the
+ *    current tab (tracked in chrome.storage.session, so it is forgotten when
+ *    the browser closes). A new tab, or a new browser session, shows the gate
+ *    again — as many times as the user likes — until they verify.
  *  - The moment verification succeeds, `verified: true` is written to
  *    local storage permanently. From that point on we NEVER contact GitHub
  *    again for this user — no periodic recheck, no "did they unstar",
@@ -85,26 +89,80 @@ async function starGateScheduleGraceAlarm(state) {
   chrome.alarms.create(STARGATE_GRACE_ALARM, { delayInMinutes });
 }
 
+// ── "Show it later": per-tab, per-browser-session skip ─────────────────────
+// Tab ids live in chrome.storage.session, which Chrome clears when the browser
+// closes (and which survives the service worker being killed in between).
+// A non-YouTube helper tab opened by a skipped tab is treated as skipped too
+// (via openerTabId); YouTube tabs never inherit a skip.
+const STARGATE_SKIP_KEY = 'ytpp_gate_skipped_tabs';
+let starGateSkipChain = Promise.resolve();
+
+function starGateMutateSkipped(fn) {
+  starGateSkipChain = starGateSkipChain.then(async () => {
+    const got = await chrome.storage.session.get(STARGATE_SKIP_KEY);
+    const ids = new Set(got[STARGATE_SKIP_KEY] || []);
+    fn(ids);
+    await chrome.storage.session.set({ [STARGATE_SKIP_KEY]: [...ids] });
+  }).catch((e) => console.warn('[YTPP] skip state update failed:', e));
+  return starGateSkipChain;
+}
+
+async function starGateTabIsSkipped(tab) {
+  if (!tab || tab.id == null) return false;
+  try {
+    await starGateSkipChain;
+    const got = await chrome.storage.session.get(STARGATE_SKIP_KEY);
+    const ids = got[STARGATE_SKIP_KEY] || [];
+    if (ids.includes(tab.id)) return true;
+    // A tab opened FROM a skipped tab inherits the skip only when it is not a
+    // YouTube tab (e.g. a helper tab). A YouTube tab opened from a skipped one
+    // (middle-click on a video, "open in new tab") is a NEW tab: the gate must
+    // show there again until the user verifies or skips it too.
+    let onYouTube = false;
+    try {
+      const h = new URL(tab.url || '').hostname;
+      onYouTube = h === 'youtube.com' || h.endsWith('.youtube.com');
+    } catch (e) {}
+    return !onYouTube && tab.openerTabId != null && ids.includes(tab.openerTabId);
+  } catch (e) {
+    return false;
+  }
+}
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  starGateMutateSkipped((ids) => ids.delete(tabId));
+});
+// Chrome sometimes swaps a tab's id (prerender / instant navigation).
+chrome.tabs.onReplaced.addListener((addedTabId, removedTabId) => {
+  starGateMutateSkipped((ids) => {
+    if (ids.delete(removedTabId)) ids.add(addedTabId);
+  });
+});
+
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name !== STARGATE_GRACE_ALARM) return;
   const state = await starGateGetState();
   if (!state || state.verified) return; // verified in the meantime — nothing to do, ever again
-  await starGateSyncFeatureScripts(false);
   // Push to any tab that's been open continuously through the grace
   // boundary, so it locks immediately instead of waiting for a reload.
   try {
     const tabs = await chrome.tabs.query({ url: ['*://www.youtube.com/*', '*://youtube.com/*'] });
     for (const tab of tabs) {
-      if (tab.id != null) chrome.tabs.sendMessage(tab.id, { type: 'YTPP_STAR_GATE_GRACE_EXPIRED' }).catch(() => {});
+      if (tab.id == null) continue;
+      if (await starGateTabIsSkipped(tab)) continue; // user chose "Show it later" in this tab
+      chrome.tabs.sendMessage(tab.id, { type: 'YTPP_STAR_GATE_GRACE_EXPIRED' }).catch(() => {});
     }
   } catch (e) {}
 });
 
-// ── Feature scripts only run while the gate is "active" (verified, or ──────
-// still within the one-time grace period). The overlay in gate.js is just
-// the UI; the real lock is here — none of the extension's feature scripts
-// exist in the static manifest. They're registered dynamically, so hiding
-// or deleting the overlay gains the user nothing.
+// ── Feature scripts ─────────────────────────────────────────────────────────
+// None of the extension's feature scripts exist in the static manifest; they
+// are registered dynamically. They are now ALWAYS registered, and the lock is
+// the per-tab check in YTPP_STAR_GATE_LIVE_CHECK below: every feature script
+// asks the background first and does nothing unless this tab is allowed
+// (verified, inside the grace period, or skipped via "Show it later").
+// Registration can't be per-tab, which is why the check moved from "is the
+// script registered" to "does the background say yes for THIS tab".
 const STARGATE_FEATURE_SCRIPTS = [
   {
     "id": "ytpp-feat-0",
@@ -225,7 +283,7 @@ async function starGateSyncFeatureScripts(active) {
 // if still relevant. This is idempotent and safe to run redundantly.
 async function starGateInit() {
   const state = await starGateEnsureInstalledAt();
-  await starGateSyncFeatureScripts(starGateIsActive(state));
+  await starGateSyncFeatureScripts(true); // gating is per-tab, at LIVE_CHECK time
   await starGateScheduleGraceAlarm(state);
 }
 starGateInit();
@@ -287,8 +345,9 @@ async function starGateCheckStarred(token) {
 // Permanently mark this browser as verified: clears the grace alarm (no
 // longer relevant), turns features on, and — critically — nothing here
 // ever triggers another GitHub call again for this install.
-async function starGateMarkVerifiedForever(token) {
-  await starGateSetState({ verified: true, verifiedAt: Date.now(), token });
+async function starGateMarkVerifiedForever() {
+  // The token is deliberately NOT kept: it is never needed again.
+  await starGateSetState({ verified: true, verifiedAt: Date.now(), token: null });
   chrome.alarms.clear(STARGATE_GRACE_ALARM);
   await starGateSyncFeatureScripts(true);
 }
@@ -303,8 +362,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     // instead of continuing to work with the enforcement code gone.
     case 'YTPP_STAR_GATE_LIVE_CHECK':
       (async () => {
-        const state = await starGateGetState();
-        sendResponse({ ok: true, verified: starGateIsActive(state) });
+        // ensureInstalledAt (not the raw state): in the first moments after a
+        // fresh install nothing is stored yet, and "no state" must mean "just
+        // installed -> grace period", not "locked".
+        const state = await starGateEnsureInstalledAt();
+        const allowed = starGateIsActive(state) || (await starGateTabIsSkipped(_sender.tab));
+        sendResponse({ ok: true, verified: allowed });
       })();
       return true;
 
@@ -317,9 +380,22 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           sendResponse({ mode: 'unlocked' });
         } else if (starGateIsActive(state)) {
           sendResponse({ mode: 'grace' });
+        } else if (await starGateTabIsSkipped(_sender.tab)) {
+          sendResponse({ mode: 'skipped' });   // "Show it later" in this tab
         } else {
           sendResponse({ mode: 'locked' });
         }
+      })();
+      return true;
+
+    // "Show it later": unlock THIS tab only, until it closes / the browser
+    // restarts. Never touches the permanent verified state.
+    case 'YTPP_STAR_GATE_SKIP':
+      (async () => {
+        const tabId = _sender.tab?.id;
+        if (tabId == null) { sendResponse({ ok: false, error: 'no_tab' }); return; }
+        await starGateMutateSkipped((ids) => ids.add(tabId));
+        sendResponse({ ok: true });
       })();
       return true;
 
@@ -336,7 +412,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
             try {
               const starred = await starGateCheckStarred(result.token);
               if (starred) {
-                await starGateMarkVerifiedForever(result.token);
+                await starGateMarkVerifiedForever();
               } else {
                 // Authenticated, but hasn't starred yet — keep the token
                 // around (still fresh) so the "check again" button below
@@ -361,7 +437,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         try {
           const starred = await starGateCheckStarred(state.token);
           if (starred) {
-            await starGateMarkVerifiedForever(state.token);
+            await starGateMarkVerifiedForever();
           }
           sendResponse({ ok: true, starred });
         } catch (e) {

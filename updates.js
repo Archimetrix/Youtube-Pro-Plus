@@ -1,7 +1,6 @@
 (function () {
     'use strict';
 
-    const MANIFEST_URL = 'https://raw.githubusercontent.com/Archimetrix/Youtube-Pro-Plus/main/manifest.json';
     const RELEASES_URL = 'https://github.com/Archimetrix/Youtube-Pro-Plus/releases/latest';
     const AMO_URL      = 'https://addons.mozilla.org/en-US/firefox/addon/youtube-pro-plus/';
 
@@ -10,6 +9,15 @@
     const localVersion = manifest.version;
     const isFirefox = !!manifest.browser_specific_settings || /Firefox\//.test(navigator.userAgent);
     const demo = () => window.__YTPRO_DEMO__ || null;   // test hook only
+
+    // One-click (in-place) update needs the File System Access API and an unpacked
+    // install: not Firefox (AMO updates it) and not a store copy (store updates it).
+    const smoothSupported = !isFirefox && !manifest.update_url && typeof window.showDirectoryPicker === 'function';
+    const openUpdaterTab = (auto) => chrome.tabs.create({ url: chrome.runtime.getURL('updater.html') + (auto ? '?auto=1' : '') });
+    const sendMsg = (msg) => new Promise((resolve) => {
+        try { chrome.runtime.sendMessage(msg, (r) => { void chrome.runtime.lastError; resolve(r || null); }); }
+        catch (e) { resolve(null); }
+    });
 
     const states = ['st-checking', 'st-ok', 'st-err', 'st-new'];
     const show = (id) => states.forEach(s => { $(s).hidden = s !== id; });
@@ -36,21 +44,104 @@
     }
 
     let shownVersion = null;
-    function renderUpdate(version) {
-        if (shownVersion === version && !$('st-new').hidden) return;
-        shownVersion = version;
+    let installing = false;
+    function renderUpdate(info) {
+        const version = info.latestVersion || info.version;
+        const oneClick = smoothSupported && !!info.zipUrl;
+        const key = version + '|' + oneClick;
+        if (installing || (shownVersion === key && !$('st-new').hidden)) return;
+        shownVersion = key;
         const v = 'v' + version;
         $('new-ver').textContent = v;
         $('new-ver-2').textContent = v;
         $('old-ver').textContent = 'v' + localVersion;
         $('ff-ver').textContent = 'v' + version;
-        $('dl-btn').href = isFirefox ? AMO_URL : RELEASES_URL;
+        $('dl-btn').href = isFirefox ? AMO_URL : (info.releaseUrl || RELEASES_URL);
         $('dl-label').textContent = isFirefox ? 'Update on Firefox Add-ons' : 'Download update';
-        $('note-chromium').hidden = isFirefox;
+        $('dl-btn').style.display = oneClick ? 'none' : '';     // .dl-btn sets display:flex, so [hidden] alone won't hide it
+        $('note-chromium').hidden = isFirefox || oneClick;
         $('note-firefox').hidden = !isFirefox;
+        $('smooth-box').hidden = !oneClick;
+        if (oneClick) setupSmooth(info);
         show('st-new');
         stopFx && stopFx();
         stopFx = startRandomFx();
+    }
+
+    /* ── one-click install ────────────────────────────────────────────── */
+    function resetSmoothUi() {
+        $('smooth-btn').disabled = false;
+        $('smooth-label').textContent = 'Update now';
+        $('sm-bar').classList.remove('on', 'fail');
+        $('sm-bar').firstElementChild.style.width = '0';
+        $('sm-step').classList.remove('on');
+        $('sm-step').textContent = '';
+        $('sm-err').textContent = '';
+    }
+
+    async function refreshFolderState() {
+        const st = await sendMsg({ type: 'YTPRO_SMOOTH_STATUS' });
+        const state = $('sm-folder-state'), btn = $('sm-folder-btn');
+        if (!st) { state.textContent = ''; btn.hidden = true; return; }
+        btn.hidden = false;
+        if (!st.hasFolder) { state.textContent = 'Folder not set up yet'; btn.textContent = 'Set up'; }
+        else if (st.permission !== 'granted') { state.textContent = 'Folder \u201C' + st.folderName + '\u201D needs re-allow'; btn.textContent = 'Re-allow'; }
+        else { state.textContent = 'Folder \u201C' + st.folderName + '\u201D connected'; btn.textContent = 'Manage'; }
+    }
+
+    function setupSmooth(info) {
+        $('sm-alt').href = info.releaseUrl || RELEASES_URL;
+        resetSmoothUi();
+        refreshFolderState();
+    }
+
+    function startSmooth() {
+        if (installing) return;
+        installing = true;
+        const btn = $('smooth-btn'), label = $('smooth-label'), bar = $('sm-bar'), step = $('sm-step'), err = $('sm-err');
+        btn.disabled = true;
+        label.textContent = 'Updating\u2026 0%';
+        err.textContent = '';
+        bar.classList.remove('fail'); bar.classList.add('on');
+        step.classList.add('on'); step.textContent = 'Starting\u2026';
+
+        const onProg = (changes, area) => {
+            if (area !== 'session' || !changes.ytpro_smooth_progress) return;
+            const p = changes.ytpro_smooth_progress.newValue;
+            if (!p) return;
+            label.textContent = 'Updating\u2026 ' + p.pct + '%';
+            bar.firstElementChild.style.width = p.pct + '%';
+            step.textContent = p.text;
+        };
+        chrome.storage.onChanged.addListener(onProg);
+        const stop = () => { chrome.storage.onChanged.removeListener(onProg); installing = false; };
+        const fail = (msg) => {
+            stop();
+            bar.classList.add('fail');
+            btn.disabled = false;
+            label.textContent = 'Try again';
+            err.textContent = msg;
+        };
+
+        chrome.runtime.sendMessage({ type: 'YTPRO_SMOOTH_APPLY' }, (r) => {
+            if (chrome.runtime.lastError) { fail('Lost contact with the background service \u2014 try again.'); return; }
+            if (r && r.ok) {
+                // keep `installing` true: the extension is about to reload and close this popup
+                label.textContent = 'Updated \u2014 reloading\u2026';
+                bar.firstElementChild.style.width = '100%';
+                step.textContent = 'Now on v' + r.version;
+                chrome.storage.onChanged.removeListener(onProg);
+                return;
+            }
+            if (r && r.needsUser) {
+                stop();
+                resetSmoothUi();
+                openUpdaterTab(true);
+                refreshFolderState();
+                return;
+            }
+            fail((r && r.error) || 'Update failed.');
+        });
     }
 
     /* ── checking ─────────────────────────────────────────────────────── */
@@ -65,23 +156,18 @@
         const minWait = new Promise(r => setTimeout(r, manual ? 650 : 0));
 
         try {
-            let remoteVersion;
+            let info;
             if (demo()) {
-                remoteVersion = demo().version || bump(localVersion);
+                const rv = demo().version || bump(localVersion);
+                info = { ok: true, updateAvailable: isNewerVersion(localVersion, rv), latestVersion: rv, releaseUrl: RELEASES_URL, zipUrl: demo().zipUrl || '' };
             } else {
-                const res = await fetch(MANIFEST_URL, { cache: 'no-store' });
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                remoteVersion = (await res.json()).version;
+                // The service worker owns the check (Releases API → zip url + sha256) and
+                // caches it, so popup badge, notification and installer all agree.
+                info = await sendMsg({ type: 'YTPRO_CHECK_UPDATE' });
+                if (!info || !info.ok) throw new Error('check failed');
             }
             await minWait;
-            const found = isNewerVersion(localVersion, remoteVersion);
-            if (!demo()) {
-                chrome.storage.local.set({
-                    lastUpdateCheck: Date.now(),
-                    updateAvailable: found ? { version: remoteVersion, url: RELEASES_URL } : null
-                });
-            }
-            found ? renderUpdate(remoteVersion) : renderUpToDate();
+            info.updateAvailable ? renderUpdate(info) : renderUpToDate();
         } catch (e) {
             await minWait;
             show('st-err');
@@ -222,6 +308,8 @@
     const view = $('update-view');
     $('cur-ver').textContent = 'v' + localVersion;
     $('check-btn').addEventListener('click', () => check(true));
+    $('smooth-btn').addEventListener('click', startSmooth);
+    $('sm-folder-btn').addEventListener('click', () => openUpdaterTab(false));
     $('copy-addons').addEventListener('click', (e) => {
         const b = e.currentTarget;
         const done = () => { b.textContent = 'Copied'; setTimeout(() => (b.textContent = 'Copy about:addons'), 1600); };
@@ -231,9 +319,9 @@
     function open() {
         view.classList.add('visible');
         // show a known update instantly, then verify it live
-        chrome.storage.local.get('updateAvailable', (r) => {
-            const info = r && r.updateAvailable;
-            if (info && info.version && isNewerVersion(localVersion, info.version) && !demo()) renderUpdate(info.version);
+        chrome.storage.local.get('ytpro_update_check', (r) => {
+            const info = r && r.ytpro_update_check;
+            if (info && info.ok && info.updateAvailable && !demo()) renderUpdate(info);
             else show('st-checking');
             check(false);
         });

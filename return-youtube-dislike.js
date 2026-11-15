@@ -352,6 +352,22 @@
         );
     }
 
+    // fetch() via the background (not subject to page-level blocking / CORS);
+    // falls back to a direct fetch. Returns a Response-like object.
+    async function bridgeFetch(url, init) {
+        try {
+            const res = await new Promise((resolve) => {
+                try { chrome.runtime.sendMessage({ type: 'YTPP_BRIDGE_FETCH', url }, (r) => resolve(chrome.runtime.lastError ? null : r)); }
+                catch (e) { resolve(null); }
+                setTimeout(() => resolve(null), 8000);
+            });
+            if (res && res.ok) {
+                return { ok: res.statusOk, status: res.status, json: async () => JSON.parse(res.text), text: async () => res.text };
+            }
+        } catch (e) {}
+        return fetch(url, init);
+    }
+
     function setState() {
         if (!active) return;
         cLog('Fetching votes...');
@@ -359,7 +375,7 @@
         const videoId = getVideoId();
         if (!videoId) return;
 
-        fetch(`https://returnyoutubedislikeapi.com/votes?videoId=${videoId}`)
+        bridgeFetch(`https://returnyoutubedislikeapi.com/votes?videoId=${videoId}`)
             .then((response) => response.json())
             .then((json) => {
                 if (!active) return;

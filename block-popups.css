@@ -36,3 +36,10 @@ tp-yt-iron-overlay-backdrop,
 body[style*="overflow: hidden"] {
     overflow: auto !important;
 }
+
+/* ── Engagement-bar snackbar ("Added to Watch later", "Link copied", …) ──
+   Hidden everywhere, found via uBlock element picker:
+   www.youtube.com##.snackbarViewModelEngagementBarWrapper */
+.snackbarViewModelEngagementBarWrapper {
+    display: none !important;
+}

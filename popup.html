@@ -500,6 +500,20 @@
 
         <p class="note" id="note-chromium">No need to remove the version you already have. Download the latest release, then <b>Load unpacked</b> again and it updates on top of your existing install.</p>
 
+        <!-- one-click (in-place) update: unpacked Chromium installs only; shown by updates.js -->
+        <div class="smooth-box" id="smooth-box" hidden>
+          <button type="button" class="dl-btn smooth-btn" id="smooth-btn">
+            <span id="smooth-label">Update now</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>
+          </button>
+          <div class="sm-bar" id="sm-bar"><i></i></div>
+          <p class="sm-step" id="sm-step" aria-live="polite"></p>
+          <p class="sm-err" id="sm-err" aria-live="polite"></p>
+          <a class="sm-alt" id="sm-alt" href="#" target="_blank" rel="noopener">Download manually instead</a>
+          <p class="note" id="note-smooth">Replaces the files in your extension folder and reloads Pro+. Your settings and history are kept. First time only, you'll pick that folder once. Refresh your YouTube tabs afterwards.</p>
+          <div class="sm-folder"><span id="sm-folder-state">Folder: checking…</span><button type="button" class="copy" id="sm-folder-btn">Set up</button></div>
+        </div>
+
         <div class="ff-guide" id="note-firefox" hidden>
           <div class="ff-title">Not updated automatically? Force it from Firefox settings</div>
           <ol>

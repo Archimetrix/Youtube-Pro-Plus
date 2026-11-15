@@ -102,6 +102,22 @@
         return urlObject.searchParams.get('v');
     }
 
+    // fetch() via the background (not subject to page-level blocking / CORS);
+    // falls back to a direct fetch. Returns a Response-like object.
+    async function bridgeFetch(url, init) {
+        try {
+            const res = await new Promise((resolve) => {
+                try { chrome.runtime.sendMessage({ type: 'YTPP_BRIDGE_FETCH', url }, (r) => resolve(chrome.runtime.lastError ? null : r)); }
+                catch (e) { resolve(null); }
+                setTimeout(() => resolve(null), 8000);
+            });
+            if (res && res.ok) {
+                return { ok: res.statusOk, status: res.status, json: async () => JSON.parse(res.text), text: async () => res.text };
+            }
+        } catch (e) {}
+        return fetch(url, init);
+    }
+
     async function fetchSegments(videoId) {
         try {
             const activeCats = activeCategoryList();
@@ -115,7 +131,7 @@
             // but then vanishes if you navigate away and come back to the video:
             // you were being served a stale cached "no segments" response instead
             // of hitting the network again.
-            const resp = await fetch(url, { cache: 'no-store' });
+            const resp = await bridgeFetch(url, { cache: 'no-store' });
             let serverSegments = [];
             if (resp.status === 404) {
                 serverSegments = []; // no segments for this video — normal, not an error

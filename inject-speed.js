@@ -1,11 +1,8 @@
 (function() {
     'use strict';
-    var that = this;
-    var thatArguments = arguments;
-    
     history.pushState=(function(f){
         return function pushState(){
-            var ret = f.apply(that, thatArguments);
+            var ret = f.apply(this, arguments); // was (that, thatArguments): the OUTER call's this/arguments, i.e. nothing -> 'Illegal invocation' on every pushState
             window.dispatchEvent(new Event('pushstate'));
             window.dispatchEvent(new Event('locationchange'));
             return ret;
@@ -14,7 +11,7 @@
 
     history.replaceState = (function (f){
         return function replaceState(){
-            var ret = f.apply(that, thatArguments);
+            var ret = f.apply(this, arguments); // was (that, thatArguments): the OUTER call's this/arguments, i.e. nothing -> 'Illegal invocation' on every pushState
             window.dispatchEvent(new Event('replacestate'));
             window.dispatchEvent(new Event('locationchange'));
             return ret;
@@ -76,12 +73,19 @@
 
     function runUpdateAvailablePlaybackRates() {
         if(typeof _yt_player === "undefined"){
-            var interval = setInterval(function(){
+            // One poller only (this used to start a new 5ms timer on every
+            // navigation, and they piled up if _yt_player never appeared),
+            // polled gently, and given up on after ~30s.
+            if (window.__ytppRateWait) return;
+            var tries = 0;
+            window.__ytppRateWait = setInterval(function(){
                 if(typeof _yt_player !== "undefined"){
-                    clearInterval(interval);
+                    clearInterval(window.__ytppRateWait); window.__ytppRateWait = null;
                     updateAvailablePlaybackRates();
+                } else if (++tries > 600) {
+                    clearInterval(window.__ytppRateWait); window.__ytppRateWait = null;
                 }
-            },5);
+            },50);
         }else{
             updateAvailablePlaybackRates();
         }

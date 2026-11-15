@@ -963,3 +963,19 @@ body.disabled-mode .footer {
 #update-view .skeleton i:nth-child(1) { height: 150px; }
 #update-view .state-ok, #update-view .state-err { padding: 28px 16px 24px; }
 @media (prefers-reduced-motion: reduce) { #update-view .fx-canvas { display: none; } }
+
+/* ─── one-click (in-place) update ───────────────────────────────────────── */
+#update-view button.dl-btn { border: 0; font-family: inherit; cursor: pointer; }
+#update-view button.dl-btn:disabled { opacity: .72; cursor: default; scale: 1; filter: none; }
+#update-view .sm-bar { display: none; height: 5px; margin: 14px 4px 0; border-radius: 99px; background: rgba(255,255,255,.14); overflow: hidden; }
+#update-view .sm-bar.on { display: block; }
+#update-view .sm-bar i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, var(--c1), var(--c2)); transition: width .2s ease; }
+#update-view .sm-bar.fail i { background: #f87171; }
+#update-view .sm-step { display: none; margin: 8px 4px 0; text-align: center; font-size: 11.5px; color: var(--ink-2); }
+#update-view .sm-step.on { display: block; }
+#update-view .sm-err { margin: 8px 4px 0; text-align: center; font-size: 11.5px; line-height: 1.45; color: #ffb4b4; }
+#update-view .sm-err:empty { display: none; }
+#update-view .sm-alt { display: block; margin-top: 10px; text-align: center; font-size: 11.5px; color: var(--ink-3); text-decoration: underline; }
+#update-view .sm-alt:hover { color: var(--ink-2); }
+#update-view .sm-folder { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; font-size: 11.5px; color: var(--ink-3); }
+#update-view .sm-folder .copy { margin: 0; }

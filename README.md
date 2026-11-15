@@ -2,7 +2,7 @@
   <img src="imgs/logo.png" alt="YouTube Pro Plus Logo" width="150"/>
   <h1> YouTube Pro Plus</h1>
 
-  ![Version](https://img.shields.io/badge/version-8.0-blue.svg)
+  ![Version](https://img.shields.io/badge/version-8.1-blue.svg)
   ![Platform](https://img.shields.io/badge/platform-Firefox%20%7C%20Edge%20%7C%20Chromium-green.svg)
 [![Copyright](https://img.shields.io/badge/Copyright-%C2%A9%202026%20Archimetrix.%20All%20rights%20reserved-f39c12?style=flat-square)](LICENSE)
 </div>
@@ -76,6 +76,42 @@ For users on other Chromium browsers where the extension is not yet in the store
 [![Extension Installation Guide](https://i.postimg.cc/tC00y0XF/Screenshot-2026-09-13-195414.png)](https://youtu.be/HIBwMWksrTg)
 
 ---
+### Smoother Updates Process (Beta)
+
+> **Beta.** From version (8.1+) This one-click updater is new. If anything goes wrong your previous files are restored automatically, and the manual method below always still works.
+
+Because the extension is loaded "unpacked", Chrome can't update it by itself. **Smoother Updates Process** (Popup → Updates panel, **on by default**) fills that gap: it replaces the extension's own files inside the folder you loaded it from, then reloads the extension.
+
+**First update only (about 30 seconds):**
+
+1. Click **Update now**. A setup tab opens.
+2. Open `chrome://extensions` → ytproplus → **Details** and note the folder path.
+3. Click **Choose folder & update**, pick that exact folder (the one containing `manifest.json`), and click **Allow / Edit files** when your browser asks.
+
+Ytproplus checks that it really is the folder your browser loaded; if you pick the wrong one it tells you and nothing is changed.
+
+**Every update after that:** click **Update now** in the popup. You'll see a progress bar with the current step (Check folder → Download → Verify → Unpack → Install), then the extension reloads on the new version. Refresh your YouTube Music tab afterwards.
+
+**What to expect:**
+
+- **Your settings are kept.** They live in your browser profile's extension storage, not in the extension folder, so replacing the files never touches them.
+- **Re-allow after a restart.** Browsers sometimes pause folder access after a restart. If so, the next update shows an **Allow access & update** button, one extra click. If your browser offers **Allow on every visit**, choose it.
+- **Safe by design.** The update is downloaded from this project's GitHub release, checked against its SHA-256 checksum when the release publishes one, confirmed to be this same extension and a newer version, fully unpacked in memory, and only then written to disk with `manifest.json` last. If any step fails, the files are rolled back to the previous version.
+- **Only your extension folder is touched.** Ytmusic can only write inside the one folder you chose. You can disconnect it any time from the setup tab (Popup → Updates → **Manage**).
+- **Wrong or moved folder?** If you move or rename the extension folder, reload it once via **Load unpacked** and run the setup again.
+
+**Browser support:** Chrome, Edge, Opera, Vivaldi and other Chromium browsers work out of the box. **Brave** ships with the needed feature switched off: open `brave://flags/#file-system-access-api`, set it to **Enabled**, relaunch Brave, then try again. Firefox isn't affected (it uses the Add-ons store), and Safari isn't supported. On a browser where the feature isn't available, the popup automatically falls back to the manual method.
+
+### Manual update
+
+If you'd rather not use the one-click updater, switch **Smoother Updates Process** off in the Updates panel (or use this if your browser doesn't support it):
+
+1. Click **Download update** in the popup (or grab the latest ZIP from the [Releases page](../../releases)).
+2. Extract it over your existing folder, or to a new one.
+3. Open `chrome://extensions` and click **Load unpacked** (or the reload icon if you replaced the files in place).
+
+No need to remove and re-add the extension; your settings are kept.
+
 
 ## 🖥️ Usage
 

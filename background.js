@@ -208,25 +208,44 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     });
 });
 
-// ─── Auto Update Checker ──────────────────────────────────────────────────────
-// Fetches the manifest.json from GitHub every 24 hours and compares versions.
-// If a newer version is found it shows a Chrome notification and stores a flag
-// in chrome.storage.local so the popup can also display an update banner.
+// ─── Auto Update Checker + one-click ("Smooth") updater ───────────────────────
+// Every 24 h the GitHub *Releases* API is polled. The result (version, release
+// ZIP url, SHA-256 digest, size) is cached in chrome.storage.local under
+// `ytpro_update_check`, and the legacy `updateAvailable` flag is still written so
+// the popup badge keeps working. If the Releases API is unreachable we fall back
+// to reading manifest.json from the repo (version only → manual download).
+//
+// The one-click install itself lives in smooth-update.js (YtProSmoothUpdate); the
+// message handlers further below are what the popup / updater.html talk to.
 
 const UPDATE_ALARM_NAME   = 'ytpro-update-check';
-const UPDATE_CHECK_URL    = 'https://raw.githubusercontent.com/Archimetrix/Youtube-Pro-Plus/main/manifest.json';
+const UPDATE_REPO         = 'Archimetrix/Youtube-Pro-Plus';
+const UPDATE_RELEASES_API = `https://api.github.com/repos/${UPDATE_REPO}/releases/latest`;
+const UPDATE_CHECK_URL    = `https://raw.githubusercontent.com/${UPDATE_REPO}/main/manifest.json`;
 const UPDATE_INTERVAL_MIN = 1440; // 24 hours in minutes
-const GITHUB_DOWNLOAD_URL = 'https://github.com/Archimetrix/Youtube-Pro-Plus/releases/latest';
+const GITHUB_DOWNLOAD_URL = `https://github.com/${UPDATE_REPO}/releases/latest`;
+const UPDATE_CHECK_KEY    = 'ytpro_update_check';
+const SMOOTH_PROGRESS_KEY = 'ytpro_smooth_progress';
+const AMO_URL             = 'https://addons.mozilla.org/en-US/firefox/addon/youtube-pro-plus/';
 
-/** Where users go to get the update: AMO on Firefox, GitHub releases elsewhere. */
+/** Where users go to get the update: AMO on Firefox, the in-extension updater on
+ *  unpacked Chromium installs, GitHub releases for store-managed copies. */
 function updateTargetUrl() {
     const m = chrome.runtime.getManifest();
-    return m.browser_specific_settings ? 'https://addons.mozilla.org/en-US/firefox/addon/youtube-pro-plus/' : GITHUB_DOWNLOAD_URL;
+    if (m.browser_specific_settings) return AMO_URL;
+    if (m.update_url) return GITHUB_DOWNLOAD_URL;
+    return chrome.runtime.getURL('updater.html');
+}
+
+/** Pulls "8.1" out of tags like "v8.1", "8.1.0", "YtProPlus-v8_1". */
+function extractVersion(str) {
+    const m = String(str || '').match(/\d+(?:[._]\d+)*/);
+    return m ? m[0].replace(/_/g, '.') : '';
 }
 
 /** Semantic-version compare. Returns true if remote > local. */
 function isNewerVersion(local, remote) {
-    const toNum = v => v.split('.').map(n => parseInt(n, 10) || 0);
+    const toNum = v => String(v).split('.').map(n => parseInt(n, 10) || 0);
     const l = toNum(local);
     const r = toNum(remote);
     for (let i = 0; i < Math.max(l.length, r.length); i++) {
@@ -237,45 +256,82 @@ function isNewerVersion(local, remote) {
     return false;
 }
 
-async function checkForUpdate() {
+/** Prefer an uploaded Chromium .zip; never pick Firefox/source archives. */
+function pickReleaseZip(assets) {
+    const zips = (Array.isArray(assets) ? assets : []).filter(a => /\.zip$/i.test(a.name || ''));
+    const usable = zips.filter(a => !/firefox|gecko|xpi|source|src/i.test(a.name));
+    return usable.find(a => /chrom/i.test(a.name)) || usable[0] || null;
+}
+
+let updateCheckPromise = null;
+function checkForUpdate() {
+    if (updateCheckPromise) return updateCheckPromise;
+    updateCheckPromise = doCheckForUpdate().finally(() => { updateCheckPromise = null; });
+    return updateCheckPromise;
+}
+
+async function doCheckForUpdate() {
+    const localVersion = chrome.runtime.getManifest().version;
+    let result;
     try {
-        // Accept: application/vnd.github.v3.raw → returns the file content directly,
-        // bypassing GitHub's CDN cache which can hold stale content for minutes.
-        const res = await fetch(UPDATE_CHECK_URL, {
-                    cache: 'no-store'
-        });
-        if (!res.ok) return;
-
-        const remoteManifest = await res.json();
-        const remoteVersion  = remoteManifest.version;
-        const localVersion   = chrome.runtime.getManifest().version;
-
-        if (!remoteVersion || !isNewerVersion(localVersion, remoteVersion)) {
-            // Up to date — clear any stale update flag
-            chrome.storage.local.set({ updateAvailable: null, lastUpdateCheck: Date.now() });
-            return;
+        let latestVersion = '', releaseUrl = GITHUB_DOWNLOAD_URL, zipUrl = '', sha256 = '', zipSize = 0, source = 'release';
+        try {
+            const res = await fetch(UPDATE_RELEASES_API, {
+                cache: 'no-store',
+                headers: { Accept: 'application/vnd.github+json' }
+            });
+            if (!res.ok) throw new Error('GitHub API ' + res.status);
+            const data = await res.json();
+            latestVersion = extractVersion(data.tag_name) || extractVersion(data.name);
+            if (!latestVersion) throw new Error('Release has no version');
+            releaseUrl = data.html_url || GITHUB_DOWNLOAD_URL;
+            const asset = pickReleaseZip(data.assets);
+            zipUrl  = (asset && asset.browser_download_url) || data.zipball_url || '';
+            sha256  = asset && /^sha256:/i.test(asset.digest || '') ? asset.digest.slice(7) : '';
+            zipSize = (asset && asset.size) || 0;
+        } catch (apiErr) {
+            // Fallback: version only (no one-click install without a zip url).
+            const res = await fetch(UPDATE_CHECK_URL, { cache: 'no-store' });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            latestVersion = String((await res.json()).version || '');
+            if (!latestVersion) throw apiErr;
+            source = 'manifest';
         }
 
-        // Store for popup banner
-        chrome.storage.local.set({
-            updateAvailable: { version: remoteVersion, url: GITHUB_DOWNLOAD_URL },
-            lastUpdateCheck: Date.now()
-        });
+        const updateAvailable = isNewerVersion(localVersion, latestVersion);
+        result = {
+            ok: true, currentVersion: localVersion, latestVersion, updateAvailable,
+            releaseUrl, zipUrl, sha256, zipSize, source, checkedAt: Date.now()
+        };
+    } catch (err) {
+        // Network errors are silent — check will retry next cycle
+        console.warn('[YT Pro+] Update check failed:', err.message);
+        result = { ok: false, currentVersion: localVersion, error: err.message, checkedAt: Date.now() };
+        // Keep the previous good result so the popup doesn't lose a known update.
+        const prev = (await chrome.storage.local.get(UPDATE_CHECK_KEY))[UPDATE_CHECK_KEY];
+        if (prev && prev.ok) result = Object.assign({}, prev, { stale: true, checkedAt: Date.now() });
+        await chrome.storage.local.set({ [UPDATE_CHECK_KEY]: result });
+        return result;
+    }
 
+    await chrome.storage.local.set({
+        [UPDATE_CHECK_KEY]: result,
+        lastUpdateCheck: Date.now(),
+        updateAvailable: result.updateAvailable ? { version: result.latestVersion, url: GITHUB_DOWNLOAD_URL } : null
+    });
+
+    if (result.updateAvailable) {
         // Show a Chrome system notification
         chrome.notifications.create('ytpro-update', {
             type:     'basic',
             iconUrl:  'imgs/icon128.png',
             title:    'YouTube Pro+ Update Available 🎉',
-            message:  `v${remoteVersion} is ready! Click the extension icon and tap "Update" for step-by-step instructions.`,
+            message:  `v${result.latestVersion} is ready! Click here or the extension icon and tap "Update".`,
             priority: 1
         });
-
-        console.log(`[YT Pro+] Update available: ${localVersion} → ${remoteVersion}`);
-    } catch (err) {
-        // Network errors are silent — check will retry next cycle
-        console.warn('[YT Pro+] Update check failed:', err.message);
+        console.log(`[YT Pro+] Update available: ${localVersion} → ${result.latestVersion}`);
     }
+    return result;
 }
 
 // Open GitHub when the notification button is clicked
@@ -312,6 +368,65 @@ chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === 'install' || details.reason === 'update') {
         // Small delay so the SW is fully awake before hitting the network
         setTimeout(checkForUpdate, 3000);
+    }
+});
+
+// ─── Update messages (popup + updater.html only) ─────────────────────────────
+//  YTPRO_CHECK_UPDATE  → run a fresh check, reply with the result object
+//  YTPRO_SMOOTH_STATUS → { hasFolder, folderName, permission }
+//  YTPRO_SMOOTH_APPLY  → install the pending update in place, then reload.
+//                        Replies { needsUser:true } when the user must first pick
+//                        the folder / re-allow access (updater.html handles that).
+
+/** Content scripts also carry our extension id, so require an extension-page url. */
+function isOwnExtensionPage(sender) {
+    return !!(sender && sender.id === chrome.runtime.id && sender.url &&
+              sender.url.startsWith(chrome.runtime.getURL('')));
+}
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (!msg || typeof msg.type !== 'string') return;
+
+    if (msg.type === 'YTPRO_CHECK_UPDATE') {
+        if (!isOwnExtensionPage(sender)) return;
+        checkForUpdate().then(sendResponse);
+        return true;
+    }
+
+    if (msg.type === 'YTPRO_SMOOTH_STATUS') {
+        if (!isOwnExtensionPage(sender)) return;
+        YtProSmoothUpdate.status()
+            .then(sendResponse)
+            .catch(() => sendResponse({ hasFolder: false, folderName: '', permission: 'none' }));
+        return true;
+    }
+
+    if (msg.type === 'YTPRO_SMOOTH_APPLY') {
+        if (!isOwnExtensionPage(sender)) return;
+        (async () => {
+            // The service worker may be evicted mid-install; keep it awake meanwhile.
+            const keepAlive = setInterval(() => chrome.runtime.getPlatformInfo(() => {}), 20000);
+            try {
+                let info = (await chrome.storage.local.get(UPDATE_CHECK_KEY))[UPDATE_CHECK_KEY];
+                if (!info || !info.ok || Date.now() - (info.checkedAt || 0) > 30 * 60 * 1000) info = await checkForUpdate();
+                if (!info || !info.ok || !info.updateAvailable) return sendResponse({ ok: false, error: 'No update available.' });
+                if (!info.zipUrl) return sendResponse({ ok: false, error: 'This release has no downloadable package yet — use "Download manually".' });
+                try {
+                    const r = await YtProSmoothUpdate.applyUpdate({
+                        zipUrl: info.zipUrl, sha256: info.sha256, expectedVersion: info.latestVersion, sizeHint: info.zipSize,
+                        onProgress: (p) => { chrome.storage.session.set({ [SMOOTH_PROGRESS_KEY]: p }).catch(() => {}); }
+                    });
+                    sendResponse({ ok: true, version: r.version });
+                    setTimeout(() => chrome.runtime.reload(), 700);
+                } catch (e) {
+                    const needsUser = ['NO_FOLDER', 'NEEDS_PERMISSION', 'WRONG_FOLDER'].includes(e.code);
+                    sendResponse({ ok: false, needsUser, code: e.code, error: e.message });
+                }
+            } finally {
+                clearInterval(keepAlive);
+            }
+        })();
+        return true;
     }
 });
 

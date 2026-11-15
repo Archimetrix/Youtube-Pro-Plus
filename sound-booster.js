@@ -25,9 +25,15 @@
     if (window._ytProSoundBooster) return;
     window._ytProSoundBooster = true;
 
+    const VIDEO_SEL = '.video-stream, #movie_player video, .html5-main-video';
+
     let audioCtx   = null;
     let gainNode   = null;
+    let limiter    = null;   // DynamicsCompressor used as a limiter (stops hard clipping)
+    let shaper     = null;   // soft-knee saturator: last line of defence, never exceeds ±0.96
     let videoEl    = null;
+    const routed   = new WeakSet(); // elements already wired in (createMediaElementSource only works once per element)
+    let storeTimer = null;
     let injected   = false;  // true when button/slider are in the DOM
     let enabled    = false;  // mirrors the popup toggle state
     let retryTimer = null;
@@ -52,34 +58,109 @@
     }
 
     // ── Audio graph ───────────────────────────────────────────────────────────
-    function connectAudio(video) {
-        if (audioCtx) return; // already connected
+    // Why this is more than "source → gain → speakers":
+    //  * Gain above 1× pushes samples past full scale (±1.0). The sound card
+    //    hard-clips them, which is the crackling/distortion you hear on loud
+    //    parts of a video. So the boosted signal goes through a limiter whose
+    //    threshold follows the boost level, then a soft saturator that can
+    //    never exceed full scale.
+    //  * Changing gain instantly makes a click ("zipper noise"), so every change
+    //    glides over ~15 ms instead.
+    //  * latencyHint:'playback' uses bigger audio buffers, which avoids
+    //    underruns (crackle) while the YouTube page is busy.
+    //  * The graph is only built when a boost is actually applied. At 100%
+    //    the browser's own audio path is left completely alone.
+
+    // Linear up to 0.85, then rounds off smoothly and tops out below 1.0.
+    function makeSoftClipCurve() {
+        const n = 4096, curve = new Float32Array(n), KNEE = 0.85, HEAD = 0.14;
+        for (let i = 0; i < n; i++) {
+            const x = (i / (n - 1)) * 2 - 1;
+            const a = Math.abs(x);
+            const y = a <= KNEE ? a : KNEE + HEAD * Math.tanh((a - KNEE) / HEAD);
+            curve[i] = x < 0 ? -y : y;
+        }
+        return curve;
+    }
+
+    // Limiter threshold vs boost, measured on real Web Audio graphs so that
+    // nothing exceeds full scale up to the 14x maximum:
+    //   up to ~3x -> -6 dB, sliding to -14 dB at 14x.
+    function limiterThresholdFor(gain) {
+        const db = 20 * Math.log10(Math.max(gain, 1));
+        return -(6 + 0.6 * Math.max(0, db - 9.5));
+    }
+
+    function resumeCtx() {
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    }
+
+    // Wire one <video> into the existing graph (once per element).
+    function routeElement(video) {
+        if (!audioCtx || !gainNode || !video || routed.has(video)) return;
         try {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            gainNode = audioCtx.createGain();
-            gainNode.gain.value = 1.0;
-            gainNode.connect(audioCtx.destination);
             const src = audioCtx.createMediaElementSource(video);
             src.connect(gainNode);
-            video.addEventListener('play', () => {
-                if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-            });
-            audioCtx.resume().catch(() => {});
+            routed.add(video);
+            video.addEventListener('play', resumeCtx);
+        } catch (e) { /* element already captured elsewhere — leave its audio alone */ }
+    }
+
+    function connectAudio(video) {
+        if (audioCtx) { routeElement(video); return true; }
+        if (!video) return false;
+        try {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            try { audioCtx = new AC({ latencyHint: 'playback' }); }
+            catch (e) { audioCtx = new AC(); }
+
+            gainNode = audioCtx.createGain();
+            gainNode.gain.value = 1.0;
+
+            limiter = audioCtx.createDynamicsCompressor();
+            limiter.threshold.value = -6;
+            limiter.knee.value      = 0;
+            limiter.ratio.value     = 1;      // transparent until a boost is applied
+            limiter.attack.value    = 0.003;
+            limiter.release.value   = 0.15;
+
+            shaper = audioCtx.createWaveShaper();
+            shaper.curve = makeSoftClipCurve();
+            shaper.oversample = '2x';
+
+            gainNode.connect(limiter);
+            limiter.connect(shaper);
+            shaper.connect(audioCtx.destination);
+
+            routeElement(video);
+            resumeCtx();
+            return true;
         } catch (e) {
-            audioCtx = null; gainNode = null;
+            try { audioCtx && audioCtx.close(); } catch (e2) {}
+            audioCtx = null; gainNode = null; limiter = null; shaper = null;
+            return false;
         }
     }
 
     function setGain(sliderValue) {
-        // tampermonkey formula: gain = sliderValue / 100
-        // sliderValue 0-1400 → gain 0-14×
-        if (!gainNode) return;
-        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-        gainNode.gain.value = sliderValue / 100;
+        // sliderValue 0-1400 -> gain 0-14x
+        const g = Math.max(0, sliderValue / 100);
+        if (!gainNode) {
+            if (g === 1) return; // nothing to boost: don't touch the native audio path
+            if (!connectAudio(videoEl || document.querySelector(VIDEO_SEL))) return;
+        }
+        resumeCtx();
+        const t = audioCtx.currentTime;
+        gainNode.gain.cancelScheduledValues(t);
+        gainNode.gain.setTargetAtTime(g, t, 0.015);
+        limiter.ratio.cancelScheduledValues(t);
+        limiter.ratio.setTargetAtTime(g > 1 ? 20 : 1, t, 0.05);
+        limiter.threshold.cancelScheduledValues(t);
+        limiter.threshold.setTargetAtTime(limiterThresholdFor(g), t, 0.05);
     }
 
     function resetGain() {
-        if (gainNode) gainNode.gain.value = 1.0;
+        if (gainNode) setGain(100);
     }
 
     // ── Apply a boost level and update slider + OSD if injected ──────────────
@@ -96,11 +177,12 @@
         if (document.getElementById('ytpb-btn')) return; // guard against DOM duplicates
 
         const controls = document.querySelector('.ytp-chrome-controls');
-        const video    = document.querySelector('.video-stream, #movie_player video, .html5-main-video');
+        const video    = document.querySelector(VIDEO_SEL);
         if (!controls || !video) return; // player not ready yet
 
         videoEl = video;
-        connectAudio(video);
+        // If YouTube swapped in a new <video>, carry an existing boost over to it.
+        if (gainNode) routeElement(video);
 
         // ── Volume Boost button (matches tampermonkey style exactly) ──
         const btn = document.createElement('button');
@@ -138,7 +220,9 @@
             const val = parseFloat(this.value);
             setGain(val);
             showVolumeOSD(val);
-            browser.storage.local.set({ boostLevel: val });
+            // Dragging fires this hundreds of times a second; save once it settles.
+            clearTimeout(storeTimer);
+            storeTimer = setTimeout(() => browser.storage.local.set({ boostLevel: val }), 250);
         });
 
         // Button toggles slider visibility; restores stored level when opening
@@ -162,13 +246,15 @@
         injected = true;
     }
 
-    function removeInjection() {
+    // keepGain: true while just navigating between videos, so the boost doesn't
+    // drop to 1x and jump back up ~1.2 s later (a loud pop between videos).
+    function removeInjection(keepGain) {
         const btn    = document.getElementById('ytpb-btn');
         const slider = document.getElementById('ytpb-slider');
         if (btn)    btn.remove();
         if (slider) slider.remove();
         injected = false;
-        resetGain();
+        if (!keepGain) resetGain();
     }
 
     // ── Wait for YouTube player then inject ───────────────────────────────────
@@ -176,7 +262,7 @@
         if (!enabled) return;
         if (injected) return;
         if (document.querySelector('.ytp-chrome-controls') &&
-            document.querySelector('.video-stream, #movie_player video, .html5-main-video')) {
+            document.querySelector(VIDEO_SEL)) {
             inject(level);
         } else {
             // Player not ready — observe DOM for it
@@ -184,7 +270,7 @@
             retryTimer = setInterval(() => {
                 if (!enabled) { clearInterval(retryTimer); retryTimer = null; return; }
                 if (document.querySelector('.ytp-chrome-controls') &&
-                    document.querySelector('.video-stream, #movie_player video, .html5-main-video')) {
+                    document.querySelector(VIDEO_SEL)) {
                     inject(level);
                     clearInterval(retryTimer);
                     retryTimer = null;
@@ -193,22 +279,39 @@
         }
     }
 
-    // YouTube SPA: re-inject after navigation
+    // YouTube SPA: re-inject after navigation. Uses YouTube's own navigation
+    // event rather than a MutationObserver on the whole document (which ran on
+    // every single DOM change YouTube makes).
     let _lastUrl = location.href;
-    new MutationObserver(() => {
-        if (location.href !== _lastUrl) {
-            _lastUrl = location.href;
-            removeInjection(); // clean up button + reset flag on navigation
-            if (enabled) {
-                // Restore stored boost level after navigation
-                setTimeout(() => {
-                    browser.storage.local.get('boostLevel', r => {
-                        tryInject(r.boostLevel || 100);
-                    });
-                }, 1200);
-            }
+    document.addEventListener('yt-navigate-finish', () => {
+        if (location.href === _lastUrl) return;
+        _lastUrl = location.href;
+        removeInjection(true); // clean up button + reset flag, keep the boost
+        if (enabled) {
+            // Restore stored boost level after navigation
+            setTimeout(() => {
+                browser.storage.local.get('boostLevel', r => {
+                    tryInject(r.boostLevel || 100);
+                });
+            }, 1200);
         }
-    }).observe(document, { subtree: true, childList: true });
+    });
+
+    // ── Stranded-script watchdog ──────────────────────────────────────────────
+    // Reloading, updating, disabling or removing the extension while a YouTube
+    // tab stays open leaves this script running in the page ("orphaned"): its
+    // audio graph keeps processing but the extension can no longer control it,
+    // and a freshly loaded version does NOT replace it until the tab is
+    // refreshed. Notice that and put the audio back to normal.
+    const strandedWatch = setInterval(() => {
+        let alive = true;
+        try { alive = !!chrome.runtime?.id; } catch (e) { alive = false; }
+        if (alive) return;
+        clearInterval(strandedWatch);
+        enabled = false;
+        if (retryTimer) { clearInterval(retryTimer); retryTimer = null; }
+        try { removeInjection(); } catch (e) {}   // UI out, gain glides back to 1x
+    }, 2000);
 
     // ── Boot: check stored toggle state + boost level ─────────────────────────
     browser.storage.local.get(['masterEnabled', 'audio', 'boostLevel'], res => {

@@ -1,3 +1,23 @@
+// ─── Gate ────────────────────────────────────────────────────────────────────
+// This file is registered for every YouTube tab, so it has to check, before it
+// does ANY work (CSS, theme, badges, resume, screenshots, mini-player, ...),
+// that the background says this tab is allowed: verified, inside the grace
+// period, or the user chose "Show it later" in this tab. If not, it does
+// nothing at all. (Only the cinematic block used to check; everything else ran
+// ungated once the scripts became always-registered.)
+(async () => {
+const __ytppTopGate = await new Promise((resolve) => {
+    try {
+        chrome.runtime.sendMessage({ type: 'YTPP_STAR_GATE_LIVE_CHECK' }, (res) => {
+            resolve(!chrome.runtime.lastError && !!res?.ok && !!res?.verified);
+        });
+        setTimeout(() => resolve(false), 4000);
+    } catch (e) {
+        resolve(false);
+    }
+});
+if (!__ytppTopGate) return;
+
 // ─── Extension context guard ─────────────────────────────────────────────────
 // Prevents "Extension context invalidated" crashes when the extension is
 // reloaded/updated while a YouTube tab is still open with the old script.
@@ -5,16 +25,42 @@ function isCtxValid() {
     try { return !!chrome.runtime?.id; } catch(e) { return false; }
 }
 
+// ─── Background bridge (see bridge.js) ───────────────────────────────────────
+// Asks the background to load a CSS file / run a page-world script / etc.
+// Resolves null on any failure so callers can fall back to the old direct path.
+function ytppBridge(msg) {
+    return new Promise((resolve) => {
+        try {
+            chrome.runtime.sendMessage(msg, (res) => resolve(chrome.runtime.lastError ? null : res));
+        } catch (e) { resolve(null); }
+        setTimeout(() => resolve(null), 5000);
+    });
+}
+
+// Run a packaged script in YouTube's own (page) world. Preferred: the background
+// injects it (no page-context request, no CSP, no web_accessible_resources).
+// Fallback: the original <script src="chrome-extension://..."> tag.
+// Resolves true once the script has run.
+function ytppRunInPage(file) {
+    return ytppBridge({ type: 'YTPP_BRIDGE_MAIN', files: [file] }).then((res) => {
+        if (res && res.ok) return true;
+        return new Promise((resolve) => {
+            const script = document.createElement('script');
+            script.src = chrome.runtime.getURL(file);
+            script.classList.add('yt-pro-injected-asset');
+            script.onload  = function() { this.remove(); resolve(true); };
+            script.onerror = function() { this.remove(); resolve(false); };
+            (document.head || document.documentElement).appendChild(script);
+        });
+    });
+}
+
 // Keep YouTube's page-world player API in sync with the saved quality cap.
 (function initDefaultVideoQuality() {
-    const script = document.createElement('script');
-    script.src = chrome.runtime.getURL('default-quality.js');
     const send = value => window.postMessage({ source: 'yt-pro-plus-quality', quality: Number(value) || 1080 }, location.origin);
-    script.onload = () => {
-        script.remove();
-        if (isCtxValid()) chrome.storage.local.get('defaultVideoQuality', r => send(r.defaultVideoQuality));
-    };
-    (document.head || document.documentElement).appendChild(script);
+    ytppRunInPage('default-quality.js').then((ran) => {
+        if (ran && isCtxValid()) chrome.storage.local.get('defaultVideoQuality', r => send(r.defaultVideoQuality));
+    });
     if (isCtxValid()) {
         chrome.storage.onChanged.addListener((changes, area) => {
             if (area === 'local' && changes.defaultVideoQuality) send(changes.defaultVideoQuality.newValue);
@@ -23,21 +69,31 @@ function isCtxValid() {
 })();
 
 // ─── YT Pro Plus: Asset Injectors ────────────────────────────────────────────
+// CSS: the background reads the file and we insert it as an inline <style>
+// (these files are self-contained: no url() to extension files). The <style> is
+// created synchronously so the cascade order of injectCSS() calls is preserved,
+// and filled in when the text arrives. Fallback: the original <link> tag.
 function injectCSS(file) {
-    const link = document.createElement("link");
-    link.href = chrome.runtime.getURL(file);
-    link.type = "text/css";
-    link.rel = "stylesheet";
-    link.classList.add('yt-pro-injected-asset');
-    document.head.appendChild(link);
+    const style = document.createElement('style');
+    style.classList.add('yt-pro-injected-asset');
+    style.dataset.ytppFile = file;
+    document.head.appendChild(style);
+    ytppBridge({ type: 'YTPP_BRIDGE_ASSET', file }).then((res) => {
+        if (res && res.ok && typeof res.text === 'string') {
+            style.textContent = res.text;
+        } else {
+            const link = document.createElement('link');
+            link.href = chrome.runtime.getURL(file);
+            link.type = 'text/css';
+            link.rel = 'stylesheet';
+            link.classList.add('yt-pro-injected-asset');
+            style.replaceWith(link);
+        }
+    });
 }
 
 function injectScript(file) {
-    const script = document.createElement('script');
-    script.src = chrome.runtime.getURL(file);
-    script.classList.add('yt-pro-injected-asset');
-    script.onload = function() { this.remove(); };
-    (document.head || document.documentElement).appendChild(script);
+    ytppRunInPage(file);
 }
 
 // Always block the interruption toast, regardless of master toggle
@@ -1013,84 +1069,105 @@ class YTProAutoResume {
 
 // ─── Initialise everything ────────────────────────────────────────────────────
 // ─── Masthead Glass Guard ─────────────────────────────────────────────────────
-// YouTube sets the masthead background via requestAnimationFrame on every scroll
-// tick, so MutationObserver alone always loses the last-frame race.
-// We fight back with our OWN rAF loop running at the same cadence — every frame
-// we force the exact glass styles, so the browser never paints the black state.
-let _mastheadRAFId   = null;
-let _mastheadActive  = false;
+// The injected stylesheet below (_injectMastheadCSS) already wins over anything
+// YouTube writes inline, because author-sheet !important beats non-important
+// inline styles, custom properties included. This guard is only a safety net
+// for the case where YouTube writes an inline *!important* value.
+//
+// It used to be a requestAnimationFrame loop that re-wrote ~40 style properties
+// on 8 elements and ran 5+ querySelector()s EVERY frame, forever, which made
+// scrolling heavy and janky (issue #16). It is now event-driven: a
+// MutationObserver on the few elements involved fires in a microtask (i.e.
+// before the browser paints the frame YouTube mutated in, so it still wins the
+// race the rAF loop was built for) and only re-applies values that changed.
+let _mastheadActive   = false;
+let _mastheadObserver = null;
+let _mastheadTimers   = [];
+let _mastheadNavBound = false;
 
 const GLASS_SF     = '#00000022';
 const GLASS_BLUR   = '10px';
 const GLASS_SHADOW = '0 4px 24px #00000030, 2px 2px 1px #ffffff20 inset, -2px -2px 1px #ffffff10 inset';
 
-function _enforceGlass() {
-    // ── ALL CSS variables YouTube uses for masthead background ──────────────
-    // YouTube has added new variables on the watch page — cover every known one.
-    const VARS = [
-        '--yt-masthead-background-color',
-        '--ytd-masthead-color',
-        '--yt-masthead-custom-background-color',
-        '--ytd-masthead-background',
-        '--yt-spec-base-background',
-        '--yt-masthead-scrolled-background-color',
-    ];
+const _GLASS_VARS = [
+    '--yt-masthead-background-color',
+    '--ytd-masthead-color',
+    '--yt-masthead-custom-background-color',
+    '--ytd-masthead-background',
+    '--yt-spec-base-background',
+    '--yt-masthead-scrolled-background-color',
+];
 
-    // ── Clear variables on EVERY ancestor YouTube might target ───────────────
-    // On the watch page YouTube now also sets vars on ytd-watch-flexy, body, html
-    [
-        document.documentElement,
-        document.body,
-        document.querySelector('ytd-app'),
-        document.querySelector('ytd-watch-flexy'),
-        document.querySelector('ytd-page-manager'),
-    ].forEach(el => {
-        if (!el) return;
-        VARS.forEach(v => el.style.setProperty(v, 'transparent', 'important'));
+// Only write when the value/priority actually differs, so we never generate
+// needless style invalidations.
+function _setImp(el, prop, val) {
+    const st = el.style;
+    if (st.getPropertyValue(prop) === val && st.getPropertyPriority(prop) === 'important') return;
+    st.setProperty(prop, val, 'important');
+}
+
+function _glassTargets() {
+    return {
+        varOnly: [
+            document.documentElement,
+            document.body,
+            document.querySelector('ytd-app'),
+            document.querySelector('ytd-watch-flexy'),
+            document.querySelector('ytd-page-manager'),
+        ].filter(Boolean),
+        clear: [
+            document.getElementById('masthead-container'),
+            document.querySelector('ytd-masthead'),
+            // Exact inner Polymer element YouTube targets on the watch page
+            // (found via uBlock Origin: #masthead > .ytd-masthead.style-scope)
+            document.querySelector('#masthead > .ytd-masthead.style-scope')
+                || document.querySelector('#masthead > ytd-masthead'),
+        ].filter(Boolean),
+        pill: document.querySelector('ytd-masthead #container'),
+    };
+}
+
+function _applyGlass(t) {
+    t = t || _glassTargets();
+    t.varOnly.forEach(el => _GLASS_VARS.forEach(v => _setImp(el, v, 'transparent')));
+    t.clear.forEach(el => {
+        _setImp(el, 'background-color', 'transparent');
+        _setImp(el, 'box-shadow',       'none');
+        _GLASS_VARS.forEach(v => _setImp(el, v, 'transparent'));
     });
-
-    // ── Enforce on the masthead elements directly ────────────────────────────
-    const outer     = document.getElementById('masthead-container');
-    const mast      = document.querySelector('ytd-masthead');
-    // Exact inner Polymer element YouTube targets on the watch page
-    // (found via uBlock Origin: #masthead > .ytd-masthead.style-scope)
-    const mastInner = document.querySelector('#masthead > .ytd-masthead.style-scope')
-                   || document.querySelector('#masthead > ytd-masthead');
-    const pill      = document.querySelector('ytd-masthead #container');
-
-    if (outer) {
-        outer.style.setProperty('background',       'transparent', 'important');
-        outer.style.setProperty('background-color', 'transparent', 'important');
-        outer.style.setProperty('box-shadow',       'none',        'important');
-        VARS.forEach(v => outer.style.setProperty(v, 'transparent', 'important'));
-    }
-    if (mast) {
-        mast.style.setProperty('background',       'transparent', 'important');
-        mast.style.setProperty('background-color', 'transparent', 'important');
-        mast.style.setProperty('box-shadow',       'none',        'important');
-        VARS.forEach(v => mast.style.setProperty(v, 'transparent', 'important'));
-    }
-    // Force the inner Polymer-scoped element — this is where YouTube writes
-    // the solid background on the watch page, overriding everything else
-    if (mastInner) {
-        mastInner.style.setProperty('background',       'transparent', 'important');
-        mastInner.style.setProperty('background-color', 'transparent', 'important');
-        mastInner.style.setProperty('box-shadow',       'none',        'important');
-        VARS.forEach(v => mastInner.style.setProperty(v, 'transparent', 'important'));
-    }
+    const pill = t.pill;
     if (pill) {
-        pill.style.setProperty('background',              GLASS_SF,              'important');
-        pill.style.setProperty('background-color',        GLASS_SF,              'important');
-        pill.style.setProperty('backdrop-filter',         `blur(${GLASS_BLUR})`, 'important');
-        pill.style.setProperty('-webkit-backdrop-filter', `blur(${GLASS_BLUR})`, 'important');
-        pill.style.setProperty('border-radius',           '3000px',              'important');
-        pill.style.setProperty('box-shadow',              GLASS_SHADOW,          'important');
-        pill.style.setProperty('border',                  'none',                'important');
-        pill.style.setProperty('margin',                  '1px',                 'important');
-        VARS.forEach(v => pill.style.setProperty(v, 'transparent', 'important'));
+        _setImp(pill, 'background-color',        GLASS_SF);
+        _setImp(pill, 'backdrop-filter',         `blur(${GLASS_BLUR})`);
+        _setImp(pill, '-webkit-backdrop-filter', `blur(${GLASS_BLUR})`);
+        _setImp(pill, 'border-radius',           '3000px');
+        _setImp(pill, 'box-shadow',              GLASS_SHADOW);
+        _setImp(pill, 'border',                  'none');
+        _setImp(pill, 'margin',                  '1px');
+        _GLASS_VARS.forEach(v => _setImp(pill, v, 'transparent'));
     }
+    return t;
+}
 
-    if (_mastheadActive) _mastheadRAFId = requestAnimationFrame(_enforceGlass);
+// (Re)apply once and (re)attach the observer to whatever elements exist now.
+// Called at init, after SPA navigations, and a few times during initial load
+// while YouTube is still building the masthead / watch page.
+function _syncMastheadGuard() {
+    if (!_mastheadActive) return;
+    const t = _applyGlass();
+    if (!_mastheadObserver) {
+        _mastheadObserver = new MutationObserver(() => {
+            if (!_mastheadActive) return;
+            _applyGlass();
+            // Discard the records caused by our own writes so we never loop.
+            _mastheadObserver.takeRecords();
+        });
+    }
+    _mastheadObserver.disconnect();
+    const opts = { attributes: true, attributeFilter: ['style'] };
+    [...t.varOnly, ...t.clear, t.pill].filter(Boolean)
+        .forEach(el => _mastheadObserver.observe(el, opts));
+    _mastheadObserver.takeRecords();
 }
 
 // ── Inject a hard CSS fallback so even non-JS-set backgrounds are overridden ─
@@ -1134,19 +1211,33 @@ function initMastheadGuard() {
     if (_mastheadActive) return;
     _mastheadActive = true;
     _injectMastheadCSS();
-    _mastheadRAFId  = requestAnimationFrame(_enforceGlass);
+    _syncMastheadGuard();
+    // YouTube builds the masthead/watch elements after we start: retry a few
+    // times (cheap, one-shot) instead of polling every frame forever.
+    _mastheadTimers = [300, 1000, 2500, 5000].map(ms => setTimeout(_syncMastheadGuard, ms));
+    if (!_mastheadNavBound) {
+        _mastheadNavBound = true;
+        // Polymer swaps ytd-watch-flexy / page-manager content on SPA navigation.
+        window.addEventListener('yt-navigate-finish', _syncMastheadGuard, true);
+        window.addEventListener('yt-page-data-updated', _syncMastheadGuard, true);
+    }
 }
 
 function destroyMastheadGuard() {
     _mastheadActive = false;
-    if (_mastheadRAFId) { cancelAnimationFrame(_mastheadRAFId); _mastheadRAFId = null; }
+    _mastheadTimers.forEach(clearTimeout);
+    _mastheadTimers = [];
+    if (_mastheadObserver) { _mastheadObserver.disconnect(); _mastheadObserver = null; }
+    if (_mastheadNavBound) {
+        _mastheadNavBound = false;
+        window.removeEventListener('yt-navigate-finish', _syncMastheadGuard, true);
+        window.removeEventListener('yt-page-data-updated', _syncMastheadGuard, true);
+    }
     document.getElementById('yt-pro-masthead-override')?.remove();
     const props = [
         'background','background-color','backdrop-filter','-webkit-backdrop-filter',
         'border-radius','box-shadow','border','margin',
-        '--ytd-masthead-color','--yt-masthead-background-color',
-        '--yt-masthead-custom-background-color','--ytd-masthead-background',
-        '--yt-spec-base-background','--yt-masthead-scrolled-background-color',
+        ..._GLASS_VARS,
     ];
     [
         document.documentElement, document.body,
@@ -1155,6 +1246,8 @@ function destroyMastheadGuard() {
         document.querySelector('ytd-page-manager'),
         document.getElementById('masthead-container'),
         document.querySelector('ytd-masthead'),
+        document.querySelector('#masthead > .ytd-masthead.style-scope')
+            || document.querySelector('#masthead > ytd-masthead'),
         document.querySelector('ytd-masthead #container'),
     ].forEach(el => { if (el) props.forEach(p => el.style.removeProperty(p)); });
 }
@@ -2111,7 +2204,7 @@ if (isCtxValid()) chrome.runtime.onMessage.addListener((request, sender, sendRes
             removeScreenshotFeature();
             removeMiniPlayerFeature();
             window._ytProReturnDislike?.teardown();
-            document.querySelectorAll('link.yt-pro-injected-asset').forEach(el => el.remove());
+            document.querySelectorAll('link.yt-pro-injected-asset, style.yt-pro-injected-asset').forEach(el => el.remove());
             destroyMastheadGuard();
             // Remove resume button from player if present
             document.querySelector('#yt-pro-resume-switch')?.remove();
@@ -2162,3 +2255,5 @@ if (isCtxValid()) chrome.runtime.onMessage.addListener((request, sender, sendRes
         }
     }
 });
+
+})();

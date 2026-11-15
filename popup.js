@@ -1314,8 +1314,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const badge = document.getElementById('update-badge');
     if (!btn) return;
 
-    const MANIFEST_URL = 'https://raw.githubusercontent.com/Archimetrix/Youtube-Pro-Plus/main/manifest.json';
-    const RELEASES_URL = 'https://github.com/Archimetrix/Youtube-Pro-Plus/releases/latest';
     const STALE_MS     = 6 * 60 * 60 * 1000;
 
     function isNewerVersion(local, remote) {
@@ -1336,17 +1334,11 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.classList.toggle('is-found', has);
     };
 
-    async function quickCheck() {
-        try {
-            const res = await fetch(MANIFEST_URL, { cache: 'no-store' });
-            if (!res.ok) return;
-            const remote = await res.json();
-            const found  = isNewerVersion(localVersion, remote.version);
-            chrome.storage.local.set({
-                lastUpdateCheck: Date.now(),
-                updateAvailable: found ? { version: remote.version, url: RELEASES_URL } : null
-            });
-        } catch (e) { /* offline – keep whatever we knew */ }
+    // The service worker owns the check (Releases API) and writes `updateAvailable`,
+    // so the badge, notification and Updates screen can never disagree.
+    function quickCheck() {
+        try { chrome.runtime.sendMessage({ type: 'YTPRO_CHECK_UPDATE' }, () => { void chrome.runtime.lastError; }); }
+        catch (e) { /* keep whatever we knew */ }
     }
 
     chrome.storage.local.get(['updateAvailable', 'lastUpdateCheck'], (r) => {

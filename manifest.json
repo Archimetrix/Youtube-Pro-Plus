@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Youtube Pro Plus",
-  "version": "8.0",
+  "version": "8.1",
   "description": "A Free powerful extension for youtube with more than 16 features to completely overhaul your youtube experience.",
   "background": {
     "service_worker": "background-sw.js"
@@ -29,6 +29,9 @@
     "https://*.youtube.com/*",
     "https://api.github.com/*",
     "https://github.com/*",
+    "https://codeload.github.com/*",
+    "https://objects.githubusercontent.com/*",
+    "https://release-assets.githubusercontent.com/*",
     "https://catbox.moe/*",
     "https://files.catbox.moe/*",
     "https://raw.githubusercontent.com/*",
